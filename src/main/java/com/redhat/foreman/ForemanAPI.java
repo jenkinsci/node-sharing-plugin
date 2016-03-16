@@ -10,17 +10,16 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.log4j.Logger;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ForemanAPI {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ForemanAPI.class);
+    private static final Logger LOGGER = Logger.getLogger(ForemanAPI.class);;
 
     private static final String JENKINS_LABEL = "JENKINS_LABEL";
 
@@ -35,21 +34,18 @@ public class ForemanAPI {
     private static final String FOREMAN_QUERY_PARAM = "query";
     private static final String FOREMAN_QUERY_NAME = "params.name ~ ";
 
-    private static WebTarget base = null;
+    private WebTarget base = null;
 
-    static {
-        GlobalForemanSlaveConfiguration config = GlobalForemanSlaveConfiguration.get();
-        if (config != null) {
-            ClientConfig clientConfig = new ClientConfig();
-            HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(config.getUser(), Secret.toString(config.getPassword()));
-            clientConfig.register(feature);
-            clientConfig.register(JacksonFeature.class);
-            Client client = ClientBuilder.newClient(clientConfig);
-            base = client.target(config.getUrl());
-        }
+    public ForemanAPI(String url, String user, Secret password) {
+        ClientConfig clientConfig = new ClientConfig();
+        HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
+        clientConfig.register(feature);
+        clientConfig.register(JacksonFeature.class);
+        Client client = ClientBuilder.newClient(clientConfig);
+        base = client.target(url);
     }
 
-    public static boolean hasResources(String label) {
+    public boolean hasResources(String label) {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
@@ -67,7 +63,7 @@ public class ForemanAPI {
         return false;
     }
 
-    public static boolean hasAvailableResources(String label) {
+    public boolean hasAvailableResources(String label) {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
@@ -85,7 +81,7 @@ public class ForemanAPI {
         return false;
     }
 
-    public static JsonNode reserve(String label) {
+    public JsonNode reserve(String label) {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
@@ -110,7 +106,7 @@ public class ForemanAPI {
         return null;
     }
 
-    private static JsonNode reserve(JsonNode host) {
+    private JsonNode reserve(JsonNode host) {
         String hostname = host.get("name").asText();
         WebTarget target = base.path(FOREMAN_RESERVE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
@@ -127,7 +123,7 @@ public class ForemanAPI {
         return null;
     }
 
-    public static void release(String hostname) {
+    public void release(String hostname) {
         WebTarget target = base.path(FOREMAN_RELEASE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 

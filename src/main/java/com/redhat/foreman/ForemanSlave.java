@@ -21,9 +21,11 @@ public class ForemanSlave extends AbstractCloudSlave {
 
     private static final long serialVersionUID = -3284884519464420953L;
 
+    private ForemanAPI api;
     private JsonNode host;
 
     public ForemanSlave(
+            ForemanAPI api,
             JsonNode host,
             String name,
             String description,
@@ -33,14 +35,7 @@ public class ForemanSlave extends AbstractCloudSlave {
             RetentionStrategy<Computer> retentionStrategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
         super(host.get("name").asText(), description, remoteFS, NUM_EXECUTORS, Node.Mode.EXCLUSIVE, label, launcher, retentionStrategy, nodeProperties);
-        setHost(host);
-    }
-
-    public JsonNode getHost() {
-        return host;
-    }
-
-    public void setHost(JsonNode host) {
+        this.api = api;
         this.host = host;
     }
 
@@ -52,7 +47,7 @@ public class ForemanSlave extends AbstractCloudSlave {
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        ForemanAPI.release(host.get("name").asText());
+        api.release(host.get("name").asText());
     }
 
     @Extension

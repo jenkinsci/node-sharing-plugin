@@ -83,10 +83,5 @@
   		<artifactId>ssh-slaves</artifactId>
   		<version>1.10</version>
   	</dependency>
-  	<dependency>
-  		<groupId>org.slf4j</groupId>
-  		<artifactId>slf4j-log4j13</artifactId>
-  		<version>1.0.1</version>
-  	</dependency>
   </dependencies>
 </project>
