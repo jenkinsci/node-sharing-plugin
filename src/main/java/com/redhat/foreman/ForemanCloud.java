@@ -32,6 +32,8 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import jenkins.model.Jenkins;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.glassfish.jersey.client.ClientConfig;
@@ -49,8 +51,6 @@ public class ForemanCloud extends Cloud {
     private String user = "admin";
     private Secret password = Secret.fromString("changeme");
 
-//  private String path = "v2/hosts";
-
     private transient ForemanAPI api = null;
 
     @DataBoundConstructor
@@ -61,6 +61,10 @@ public class ForemanCloud extends Cloud {
         this.user = user;
         this.password = password;
         api = new ForemanAPI(this.url, this.user, this.password);
+    }
+
+    public ForemanAPI getForemanAPI() {
+        return api;
     }
 
     @Override
@@ -100,11 +104,17 @@ public class ForemanCloud extends Cloud {
             SSHLauncher launcher = null;
             RetentionStrategy<Computer> strategy = RetentionStrategy.NOOP;
             List<? extends NodeProperty<?>> properties = null;
-            return new ForemanSlave(api, host, name, description, label.toString(), remoteFS, launcher, strategy, properties);
+            return new ForemanSlave(this.name, host, name, description, label.toString(), remoteFS, launcher, strategy, properties);
         }
 
         // Something has changed and there are now no resources available...
         throw new NoForemanResourceAvailableException();
+    }
+
+    public static ForemanCloud getByName(String name) throws IllegalArgumentException {
+        Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
+        if (cloud instanceof ForemanCloud) return (ForemanCloud) cloud;
+        throw new IllegalArgumentException(name + " is not an Foreman cloud: " + cloud);
     }
 
     @Extension
