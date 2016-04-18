@@ -2,7 +2,6 @@ package com.redhat.foreman;
 
 import hudson.Extension;
 import hudson.model.TaskListener;
-import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.slaves.AbstractCloudComputer;
@@ -21,8 +20,8 @@ public class ForemanSlave extends AbstractCloudSlave {
 
     private static final long serialVersionUID = -3284884519464420953L;
 
-    private String cloudName;
-    private JsonNode host;
+    private transient String cloudName;
+    private transient JsonNode host;
 
     public ForemanSlave(
             String cloudName,
@@ -32,17 +31,23 @@ public class ForemanSlave extends AbstractCloudSlave {
             String label,
             String remoteFS,
             ComputerLauncher launcher,
-            RetentionStrategy<Computer> retentionStrategy,
+            RetentionStrategy<AbstractCloudComputer> strategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
-        super(host.get("name").asText(), description, remoteFS, NUM_EXECUTORS, Node.Mode.EXCLUSIVE, label, launcher, retentionStrategy, nodeProperties);
+        super(host.get("name").asText(), description, remoteFS, NUM_EXECUTORS, Node.Mode.EXCLUSIVE, label, launcher, strategy, nodeProperties);
         this.cloudName = cloudName;
         this.host = host;
     }
 
     @Override
+    public void terminate() throws InterruptedException, IOException {
+        ForemanCloud cloud = ForemanCloud.getByName(cloudName);
+        cloud.getForemanAPI().release(host.get("name").asText());
+        super.terminate();
+    }
+
+    @Override
     public AbstractCloudComputer<?> createComputer() {
-        // TODO Auto-generated method stub
-        return null;
+        return new ForemanComputer(this);
     }
 
     @Override

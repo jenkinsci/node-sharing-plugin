@@ -2,10 +2,13 @@ package com.redhat.foreman;
 
 import hudson.util.Secret;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -21,18 +24,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class ForemanAPI {
     private static final Logger LOGGER = Logger.getLogger(ForemanAPI.class);;
 
-    private static final String JENKINS_LABEL = "JENKINS_LABEL";
+    public static final String JENKINS_LABEL = "JENKINS_LABEL";
 
-    private static final String FOREMAN_HOSTS_PATH = "v2/hosts";
-    private static final String FOREMAN_RESERVE_PATH = "hosts_reserve";
-    private static final String FOREMAN_RELEASE_PATH = "hosts_release";
+    public static final String FOREMAN_HOSTS_PATH = "v2/hosts";
+    public static final String FOREMAN_RESERVE_PATH = "hosts_reserve";
+    public static final String FOREMAN_RELEASE_PATH = "hosts_release";
 
-    private static final String FOREMAN_SEARCH_PARAM = "search";
-    private static final String FOREMAN_SEARCH_LABEL = "params." + JENKINS_LABEL + "=";
-    private static final String FOREMAN_SEARCH_FREE = "params.RESERVED=false";
+    public static final String FOREMAN_SEARCH_PARAM = "search";
+    public static final String FOREMAN_SEARCH_LABEL = "params." + JENKINS_LABEL + "=";
+    public static final String FOREMAN_SEARCH_FREE = "params.RESERVED=false";
 
-    private static final String FOREMAN_QUERY_PARAM = "query";
-    private static final String FOREMAN_QUERY_NAME = "params.name ~ ";
+    public static final String FOREMAN_QUERY_PARAM = "query";
+    public static final String FOREMAN_QUERY_NAME = "name ~ ";
 
     private WebTarget base = null;
 
@@ -48,6 +51,7 @@ public class ForemanAPI {
     public boolean hasResources(String label) {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
+        LOGGER.info(target.toString());
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             ObjectMapper mapper = new ObjectMapper();
@@ -65,6 +69,7 @@ public class ForemanAPI {
 
     public boolean hasAvailableResources(String label) {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
+        LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
@@ -84,6 +89,7 @@ public class ForemanAPI {
     public JsonNode reserve(String label) {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
+        LOGGER.info(target.toString());
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {
@@ -109,6 +115,7 @@ public class ForemanAPI {
     private JsonNode reserve(JsonNode host) {
         String hostname = host.get("name").asText();
         WebTarget target = base.path(FOREMAN_RESERVE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
+        LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
@@ -125,10 +132,22 @@ public class ForemanAPI {
 
     public void release(String hostname) {
         WebTarget target = base.path(FOREMAN_RELEASE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
+        LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
-        if (response.getStatus() != 200) {
+        if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
             LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
         }
+    }
+
+    public List<String> getHosts() throws Exception {
+        List<String> hosts = new ArrayList<String>();
+        WebTarget target = base.path(FOREMAN_HOSTS_PATH);
+        Response response = target.request(MediaType.APPLICATION_JSON).get();
+        if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
+            throw new Exception("Attempt to list hosts failed - status: " + response.getStatus());
+        }
+
+        return hosts;
     }
 }

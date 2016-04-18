@@ -7,7 +7,7 @@
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
     <!-- Baseline Jenkins version you use to build and test the plugin. Users must have this version or newer to run. -->
-    <version>1.580.1</version>
+    <version>1.625.3</version>
     <relativePath/>
   </parent>
   <groupId>com.redhat.foreman-slave</groupId>
@@ -52,16 +52,6 @@
       <url>http://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
-  <!-- If you want to depend on other plugins:
-  <dependencies>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>credentials</artifactId>
-      <version>1.9.4</version>
-    </dependency>
-  </dependencies>
-  -->
-
   <dependencies>
   	<dependency>
   		<groupId>org.apache.commons</groupId>
