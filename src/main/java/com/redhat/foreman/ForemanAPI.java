@@ -1,6 +1,7 @@
 package com.redhat.foreman;
 
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +9,6 @@ import java.util.Map;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -36,6 +36,8 @@ public class ForemanAPI {
 
     public static final String FOREMAN_QUERY_PARAM = "query";
     public static final String FOREMAN_QUERY_NAME = "name ~ ";
+
+    public static final String FOREMAN_RESERVE_REASON = "reason";
 
     private WebTarget base = null;
 
@@ -114,7 +116,8 @@ public class ForemanAPI {
 
     private JsonNode reserve(JsonNode host) {
         String hostname = host.get("name").asText();
-        WebTarget target = base.path(FOREMAN_RESERVE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
+        WebTarget target = base.path(FOREMAN_RESERVE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname).
+                queryParam(FOREMAN_RESERVE_REASON, "Reserved for " + Jenkins.getInstance().getRootUrl());
         LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
 
