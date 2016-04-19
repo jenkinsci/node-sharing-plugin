@@ -5,7 +5,6 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudRetentionStrategy;
@@ -45,6 +44,7 @@ public class ForemanCloud extends Cloud {
     private Secret password;
 
     private transient ForemanAPI api = null;
+    private transient ForemanComputerLauncherFactory launcherFactory = null;
 
     public ForemanCloud(String name) {
         super(name);
@@ -62,7 +62,11 @@ public class ForemanCloud extends Cloud {
         api = new ForemanAPI(this.url, this.user, this.password);
     }
 
-    public ForemanAPI getForemanAPI() {
+    public void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
+        this.launcherFactory = launcherFactory;
+    }
+
+    ForemanAPI getForemanAPI() {
         if (api == null) {
             api = new ForemanAPI(this.url, this.user, this.password);
         }
@@ -103,24 +107,25 @@ public class ForemanCloud extends Cloud {
             String name = null;
             try {
                 name = host.get("name").asText();
-                String description = host.get("name").asText();
-                String remoteFS = "/tmp";
-                SSHLauncher launcher = new SSHLauncher("localhost",
-                        22,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null);
+
+                String remoteFS = getForemanAPI().getRemoteFSForSlave();
+
+                if (launcherFactory == null) {
+                    launcherFactory = new ForemanSSHComputerLauncherFactory(name, 22);
+                } else {
+                    if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
+                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(name, 22);
+                    }
+                }
+
                 RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
+
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
-                return new ForemanSlave(this.cloudName, host, name, description, label.toString(), remoteFS, launcher, strategy, properties);
+                return new ForemanSlave(this.cloudName, host, name, name, label.toString(), remoteFS,
+                        launcherFactory.getForemanComputerLauncher(), strategy, properties);
             }
             catch (Exception e) {
                 LOGGER.warn("Exception encountered when trying to create slave. Trying to release Foreman slave '" + name + "'");
-                //getForemanAPI().release(name);
                 throw e;
             }
         }

@@ -54,12 +54,14 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         LOGGER.info(target.toString());
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             ObjectMapper mapper = new ObjectMapper();
             try {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> json = mapper.readValue(response.readEntity(String.class), Map.class);
+                Map<String, Object> json = mapper.readValue(responseAsString, Map.class);
                 if (json.containsKey("subtotal") && (Integer)json.get("subtotal") > 0) {
                     return true;
                 }
@@ -73,12 +75,14 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
         LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             ObjectMapper mapper = new ObjectMapper();
             try {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> json = mapper.readValue(response.readEntity(String.class), Map.class);
+                Map<String, Object> json = mapper.readValue(responseAsString, Map.class);
                 if (json.containsKey("subtotal") && (Integer)json.get("subtotal") > 0) {
                     return true;
                 }
@@ -92,11 +96,13 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         LOGGER.info(target.toString());
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                JsonNode json = mapper.readValue(response.readEntity(String.class), JsonNode.class);
+                JsonNode json = mapper.readValue(responseAsString, JsonNode.class);
                 JsonNode hosts = json.get("results");
                 if (hosts != null && hosts.isArray()) {
                     for (JsonNode host : hosts) {
@@ -120,10 +126,12 @@ public class ForemanAPI {
                 queryParam(FOREMAN_RESERVE_REASON, "Reserved for " + Jenkins.getInstance().getRootUrl());
         LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {
-                return new ObjectMapper().readValue(response.readEntity(String.class), JsonNode.class);
+                return new ObjectMapper().readValue(responseAsString, JsonNode.class);
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception reserving " + hostname + ".", e);
             }
@@ -137,6 +145,8 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_RELEASE_PATH).queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
         LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
             LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
@@ -147,10 +157,17 @@ public class ForemanAPI {
         List<String> hosts = new ArrayList<String>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
+
         if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
             throw new Exception("Attempt to list hosts failed - status: " + response.getStatus());
         }
 
         return hosts;
+    }
+
+    public String getRemoteFSForSlave() {
+        return "/tmp";
     }
 }

@@ -1,0 +1,12 @@
+{
+"total": 1,
+"subtotal": 1,
+"page": 1,
+"per_page": 20,
+"search": "params.JENKINS_LABEL=label1",
+"sort": {
+"by": null,
+"order": null
+},
+"results": [{"name":"my-host.foreman-test.localdomain","id":1,"ip":null,"environment_id":1,"environment_name":"test","last_report":null,"mac":"50:7b:9d:4d:f1:37","realm_id":null,"realm_name":null,"sp_mac":null,"sp_ip":null,"sp_name":null,"domain_id":1,"domain_name":"foreman-test.localdomain","architecture_id":1,"architecture_name":"x86_64","operatingsystem_id":1,"operatingsystem_name":"Fedora 23","subnet_id":null,"subnet_name":null,"sp_subnet_id":null,"ptable_id":7,"ptable_name":"Kickstart default","medium_id":3,"medium_name":"Fedora mirror","build":true,"comment":"","disk":"","installed_at":null,"model_id":null,"model_name":null,"hostgroup_id":1,"hostgroup_name":"test-hostgroup","owner_id":3,"owner_type":"User","enabled":true,"puppet_ca_proxy_id":null,"managed":true,"use_image":null,"image_file":"","uuid":null,"compute_resource_id":null,"compute_resource_name":null,"compute_profile_id":null,"compute_profile_name":null,"capabilities":["build"],"provision_method":"build","puppet_proxy_id":null,"certname":"my-host.foreman-test.localdomain","image_id":null,"image_name":null,"created_at":"2016-04-18T14:00:58Z","updated_at":"2016-04-18T14:00:58Z","last_compile":null,"last_freshcheck":null,"serial":null,"source_file_id":null,"puppet_status":0}]
+}

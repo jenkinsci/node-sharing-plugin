@@ -1,77 +1,163 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<project
+ xmlns="http://maven.apache.org/POM/4.0.0"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+ <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>org.jenkins-ci.plugins</groupId>
-    <artifactId>plugin</artifactId>
-    <!-- Baseline Jenkins version you use to build and test the plugin. Users must have this version or newer to run. -->
-    <version>1.625.3</version>
-    <relativePath/>
-  </parent>
-  <groupId>com.redhat.foreman-slave</groupId>
-  <artifactId>foreman-slave</artifactId>
-  <version>1.0-SNAPSHOT</version>
-  <packaging>hpi</packaging>
+ <parent>
+  <groupId>org.jenkins-ci.plugins</groupId>
+  <artifactId>plugin</artifactId>
+  <!-- Baseline Jenkins version you use to build and test the plugin. Users 
+   must have this version or newer to run. -->
+  <version>1.625.3</version>
+  <relativePath />
+ </parent>
+ <groupId>com.redhat.foreman-slave</groupId>
+ <artifactId>foreman-slave</artifactId>
+ <version>1.0-SNAPSHOT</version>
+ <packaging>hpi</packaging>
 
-  <name>Foreman Slave Plugin</name>
-  <description>Attach Foreman resources as Jenkins slaves</description>
-  <url>https://wiki.jenkins-ci.org/display/JENKINS/TODO+Plugin</url>
-  <licenses>
-    <license>
-      <name>MIT License</name>
-      <url>http://opensource.org/licenses/MIT</url>
-    </license>
-  </licenses>
-  <!-- If you want this to appear on the wiki page:
-  <developers>
-    <developer>
-      <id>bhacker</id>
-      <name>Bob Q. Hacker</name>
-      <email>bhacker@nowhere.net</email>
-    </developer>
-  </developers>
-  -->
-  <!-- Assuming you want to host on @jenkinsci:
-  <scm>
-    <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
-    <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url>
-  </scm>
-   -->
-  <repositories>
-    <repository>
-      <id>repo.jenkins-ci.org</id>
-      <url>http://repo.jenkins-ci.org/public/</url>
-    </repository>
-  </repositories>
-  <pluginRepositories>
-    <pluginRepository>
-      <id>repo.jenkins-ci.org</id>
-      <url>http://repo.jenkins-ci.org/public/</url>
-    </pluginRepository>
-  </pluginRepositories>
-  <dependencies>
-  	<dependency>
-  		<groupId>org.apache.commons</groupId>
-  		<artifactId>commons-lang3</artifactId>
-  		<version>3.4</version>
-  	</dependency>
-  	<dependency>
-  		<groupId>org.glassfish.jersey.core</groupId>
-  		<artifactId>jersey-client</artifactId>
-  		<version>2.22.1</version>
-  	</dependency>
-  	<dependency>
-  		<groupId>org.glassfish.jersey.media</groupId>
-  		<artifactId>jersey-media-json-jackson</artifactId>
-  		<version>2.22.1</version>
-  	</dependency>
-  	<dependency>
-  		<groupId>org.jenkins-ci.plugins</groupId>
-  		<artifactId>ssh-slaves</artifactId>
-  		<version>1.10</version>
-  	</dependency>
-  </dependencies>
+ <properties>
+  <mockito.version>1.10.19</mockito.version>
+ </properties>
+
+ <name>Foreman Slave Plugin</name>
+ <description>Attach Foreman resources as Jenkins slaves</description>
+ <url>https://wiki.jenkins-ci.org/display/JENKINS/TODO+Plugin</url>
+ <licenses>
+  <license>
+   <name>MIT License</name>
+   <url>http://opensource.org/licenses/MIT</url>
+  </license>
+ </licenses>
+ <!-- If you want this to appear on the wiki page: <developers> <developer> 
+  <id>bhacker</id> <name>Bob Q. Hacker</name> <email>bhacker@nowhere.net</email> 
+  </developer> </developers> -->
+ <!-- Assuming you want to host on @jenkinsci: <scm> <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection> 
+  <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection> 
+  <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url> </scm> -->
+ <repositories>
+  <repository>
+   <id>repo.jenkins-ci.org</id>
+   <url>http://repo.jenkins-ci.org/public/</url>
+  </repository>
+ </repositories>
+ <pluginRepositories>
+  <pluginRepository>
+   <id>repo.jenkins-ci.org</id>
+   <url>http://repo.jenkins-ci.org/public/</url>
+  </pluginRepository>
+ </pluginRepositories>
+ <dependencies>
+  <dependency>
+   <groupId>org.apache.commons</groupId>
+   <artifactId>commons-lang3</artifactId>
+   <version>3.4</version>
+  </dependency>
+  <dependency>
+   <groupId>org.glassfish.jersey.core</groupId>
+   <artifactId>jersey-client</artifactId>
+   <version>2.22.1</version>
+  </dependency>
+  <dependency>
+   <groupId>org.glassfish.jersey.media</groupId>
+   <artifactId>jersey-media-json-jackson</artifactId>
+   <version>2.22.1</version>
+  </dependency>
+  <dependency>
+   <groupId>org.jenkins-ci.plugins</groupId>
+   <artifactId>ssh-slaves</artifactId>
+   <version>1.10</version>
+  </dependency>
+  <dependency>
+   <groupId>com.github.tomakehurst</groupId>
+   <artifactId>wiremock</artifactId>
+   <version>1.58</version>
+   <scope>test</scope>
+  </dependency>
+  <dependency>
+   <groupId>com.fasterxml.jackson.core</groupId>
+   <artifactId>jackson-annotations</artifactId>
+   <version>2.6.6</version>
+  </dependency>
+  <dependency>
+   <groupId>com.fasterxml.jackson.core</groupId>
+   <artifactId>jackson-core</artifactId>
+   <version>2.6.6</version>
+  </dependency>
+  <dependency>
+   <groupId>com.fasterxml.jackson.core</groupId>
+   <artifactId>jackson-databind</artifactId>
+   <version>2.6.6</version>
+  </dependency>
+  <dependency>
+   <groupId>org.jacoco</groupId>
+   <artifactId>jacoco-maven-plugin</artifactId>
+   <version>0.7.6.201602180812</version>
+   <scope>test</scope>
+   <exclusions>
+    <exclusion>
+     <artifactId>xml-apis</artifactId>
+     <groupId>xml-apis</groupId>
+    </exclusion>
+   </exclusions>
+  </dependency>
+ </dependencies>
+ <build>
+  <plugins>
+   <plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <configuration>
+     <!-- Sets the VM argument line used when unit tests are run. -->
+     <argLine>${surefireArgLine}</argLine>
+     <!-- Skips unit tests if the value of skip.unit.tests property is true -->
+     <skipTests>${skip.unit.tests}</skipTests>
+     <!-- Excludes integration tests when unit tests are run. -->
+     <excludes>
+      <exclude>**/IT*.java</exclude>
+      <exclude>InjectedTest.java</exclude>
+     </excludes>
+    </configuration>
+   </plugin>
+   <plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.7.5.201505241946</version>
+    <executions>
+     <!-- Prepares the property pointing to the JaCoCo runtime agent which 
+      is passed as VM argument when Maven the Surefire plugin is executed. -->
+     <execution>
+      <id>pre-unit-test</id>
+      <goals>
+       <goal>prepare-agent</goal>
+      </goals>
+      <configuration>
+       <!-- Sets the path to the file which contains the execution data. -->
+       <destFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</destFile>
+       <!-- Sets the name of the property containing the settings for JaCoCo 
+        runtime agent. -->
+       <propertyName>surefireArgLine</propertyName>
+      </configuration>
+     </execution>
+     <!-- Ensures that the code coverage report for unit tests is created 
+      after unit tests have been run. -->
+     <execution>
+      <id>post-unit-test</id>
+      <phase>test</phase>
+      <goals>
+       <goal>report</goal>
+      </goals>
+      <configuration>
+       <!-- Sets the path to the file which contains the execution data. -->
+       <dataFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</dataFile>
+       <!-- Sets the output directory for the code coverage report. -->
+       <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
+      </configuration>
+     </execution>
+    </executions>
+   </plugin>
+  </plugins>
+ </build>
 </project>
