@@ -96,6 +96,7 @@ public class ForemanCloudTest {
         String body3 = readFile("body3.txt", StandardCharsets.UTF_8);
         String body4 = readFile("body4.txt", StandardCharsets.UTF_8);
         String body5 = readFile("body5.txt", StandardCharsets.UTF_8);
+        String body6 = readFile("body6.txt", StandardCharsets.UTF_8);
 
         stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1"))
                 .willReturn(aResponse()
@@ -103,7 +104,8 @@ public class ForemanCloudTest {
                         .withHeader("Content-Type", "text/json")
                         .withBody(body1)));
 
-        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1+and+params.RESERVED%3Dfalse"))
+        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1+and+params.RESERVED%3D" +
+                "false+and+has+params.JENKINS_SLAVE_REMOTEFS_ROOT"))
                 .willReturn(aResponse()
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
@@ -115,13 +117,13 @@ public class ForemanCloudTest {
                         .withHeader("Content-Type", "text/json")
                         .withBody(body3)));
 
-        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dmy-host.foreman-test.localdomain"))
+        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlocalhost.localdomain"))
                 .willReturn(aResponse()
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
                         .withBody(body4)));
 
-        stubFor(get(urlEqualTo("/api/hosts_release?query=name+~+my-host.foreman-test.localdomain"))
+        stubFor(get(urlEqualTo("/api/hosts_release?query=name+~+localhost.localdomain"))
                 .willReturn(aResponse()
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
@@ -132,6 +134,18 @@ public class ForemanCloudTest {
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
                         .withBody(body1)));
+
+        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1+and+params.RESERVED%3Dfalse"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body2)));
+
+        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain/parameters/JENKINS_SLAVE_REMOTEFS_ROOT"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body6)));
 
     }
 

@@ -39,6 +39,9 @@ public class ForemanAPI {
 
     public static final String FOREMAN_RESERVE_REASON = "reason";
 
+    public static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
+    public static final String FOREMAN_REMOTEFS_ROOT = "params." + JENKINS_SLAVE_REMOTEFS_ROOT;
+
     private WebTarget base = null;
 
     public ForemanAPI(String url, String user, Secret password) {
@@ -72,7 +75,9 @@ public class ForemanAPI {
     }
 
     public boolean hasAvailableResources(String label) {
-        WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label + " and " + FOREMAN_SEARCH_FREE);
+        WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label 
+                + " and " + FOREMAN_SEARCH_FREE
+                + " and has " + FOREMAN_REMOTEFS_ROOT);
         LOGGER.info(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
@@ -167,7 +172,29 @@ public class ForemanAPI {
         return hosts;
     }
 
-    public String getRemoteFSForSlave() {
-        return "/tmp";
+    public String getRemoteFSForSlave(String hostname) {
+        String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + JENKINS_SLAVE_REMOTEFS_ROOT;
+        WebTarget target = base.path(hostParamPath);
+        LOGGER.info(target.toString());
+        Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
+                LOGGER.info(param.toString());
+                if ((param.get("name") != null && param.get("name").textValue().equals(JENKINS_SLAVE_REMOTEFS_ROOT))) {
+                    LOGGER.info(param.get("value"));
+                    return param.get("value").asText();
+                }
+            } catch (Exception e) {
+                LOGGER.error("Unhandled exception getting remoteFS Root for " + hostname + ".", e);
+            }
+        } else {
+            LOGGER.error("Retrieving remoteFS Root for " + hostname + " returned code " + response.getStatus() + ".");
+        }
+        return null;
     }
 }

@@ -108,7 +108,7 @@ public class ForemanCloud extends Cloud {
             try {
                 name = host.get("name").asText();
 
-                String remoteFS = getForemanAPI().getRemoteFSForSlave();
+                String remoteFS = getForemanAPI().getRemoteFSForSlave(name);
 
                 if (launcherFactory == null) {
                     launcherFactory = new ForemanSSHComputerLauncherFactory(name, 22);
