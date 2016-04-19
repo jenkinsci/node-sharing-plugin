@@ -3,7 +3,7 @@
 "subtotal": 0,
 "page": 1,
 "per_page": 20,
-"search": "params.JENKINS_LABEL=my-host.foreman-test.localdomain",
+"search": "params.JENKINS_LABEL=localhost.localdomain",
 "sort": {
 "by": null,
 "order": null
