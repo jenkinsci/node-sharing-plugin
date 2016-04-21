@@ -41,8 +41,7 @@ hostGroupCreateString="{ \"hostgroup\": {  \"name\": \"$HOSTGROUP\", \"environme
 
 set -x
 ##hostCreateString="{ \"host\": { \"name\": \"$HOSTNAME\", \"domain_id\": $DOMAIN_ID, \"hostgroup_id\": $HOSTGROUP_ID, \"root_pass\": \"xybxa6JUkz63w\", \"mac\": \"$MACADDRESS\" , \"architecture_id\":  $ARCHID, \"operatingsystem_id\": $OPERATINGSYSTEM_ID, \"medium_id\": $MEDIA_ID, \"ptable_id\": $PTABLE_ID, \"environment_id\": $ENVIRONMENT_ID, \"parameters\": [  { \"name\": \"JENKINS_LABEL\", \"value\": \"$EXAMPLE_LABEL\" }, { \"name\": \"RESERVED\", \"value\": \"false\" }, { \"name\": \"JENKINS_SLAVE_REMOTEFS_ROOT\", \"value\": \"$JENKINS_SLAVE_REMOTEFS_ROOT\" } ] } }"
-hostCreateString="{ \"host\": { \"name\": \"$HOSTNAME\", \"domain_id\": $DOMAIN_ID, \"hostgroup_id\": $HOSTGROUP_ID, \"root_pass\": \"xybxa6JUkz63w\", \"mac\": \"$MACADDRESS\" , \"architecture_id\":  $ARCHID, \"operatingsystem_id\": $OPERATINGSYSTEM_ID, \"medium_id\": $MEDIA_ID, \"ptable_id\": $PTABLE_ID, \"environment_id\": $ENVIRONMENT_ID, \"host_parameters_attributes\": [ { \"name\": \"JENKINS\", \"value\": \"label\" }] } }"
-
+hostCreateString="{ \"host\": { \"name\": \"$HOSTNAME\", \"domain_id\": $DOMAIN_ID, \"hostgroup_id\": $HOSTGROUP_ID, \"root_pass\": \"xybxa6JUkz63w\", \"mac\": \"$MACADDRESS\" , \"architecture_id\":  $ARCHID, \"operatingsystem_id\": $OPERATINGSYSTEM_ID, \"medium_id\": $MEDIA_ID, \"ptable_id\": $PTABLE_ID, \"environment_id\": $ENVIRONMENT_ID, \"host_parameters_attributes\": [ { \"name\": \"JENKINS_LABEL\", \"value\": \"$EXAMPLE_LABEL\" } , { \"name\": \"RESERVED\", \"value\": \"false\" } , { \"name\": \"JENKINS_SLAVE_REMOTEFS_ROOT\", \"value\": \"$JENKINS_SLAVE_REMOTEFS_ROOT\" }  ] } }" 
 echo ""
 echo "** Creating domain $DOMAIN"
 curl -g -H "Content-Type: application/json" \
