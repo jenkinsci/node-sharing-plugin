@@ -30,9 +30,11 @@ public class ForemanAPI {
     public static final String FOREMAN_RESERVE_PATH = "hosts_reserve";
     public static final String FOREMAN_RELEASE_PATH = "hosts_release";
 
-    public static final String FOREMAN_SEARCH_PARAM = "search";
-    public static final String FOREMAN_SEARCH_LABEL = "params." + JENKINS_LABEL + "=";
-    public static final String FOREMAN_SEARCH_FREE = "params.RESERVED=false";
+    public static final String FOREMAN_SEARCH_PARAM         = "search";
+    public static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
+    public static final String FOREMAN_SEARCH_LABEL         = FOREMAN_SEARCH_LABELPARAM + "=";
+    public static final String FOREMAN_SEARCH_RESERVEDPARAM = "params.RESERVED";
+    public static final String FOREMAN_SEARCH_FREE          = FOREMAN_SEARCH_RESERVEDPARAM + "=false";
 
     public static final String FOREMAN_QUERY_PARAM = "query";
     public static final String FOREMAN_QUERY_NAME = "name ~ ";
@@ -41,6 +43,8 @@ public class ForemanAPI {
 
     public static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
     public static final String FOREMAN_REMOTEFS_ROOT = "params." + JENKINS_SLAVE_REMOTEFS_ROOT;
+
+    private static final String FOREMAN_STATUS_PATH = "v2/status";
 
     private WebTarget base = null;
 
@@ -172,6 +176,23 @@ public class ForemanAPI {
         return hosts;
     }
 
+    public String getVersion() throws Exception {
+        WebTarget target = base.path(FOREMAN_STATUS_PATH);
+        Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
+            LOGGER.info(param.toString());
+            if ((param.get("version") != null)) {
+                return param.get("version").asText();
+            }
+        }
+        return null;
+    }
+
     public String getRemoteFSForSlave(String hostname) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + JENKINS_SLAVE_REMOTEFS_ROOT;
         WebTarget target = base.path(hostParamPath);
@@ -196,5 +217,33 @@ public class ForemanAPI {
             LOGGER.error("Retrieving remoteFS Root for " + hostname + " returned code " + response.getStatus() + ".");
         }
         return null;
+    }
+
+    public List<String> getCompatibleHosts() {
+        ArrayList<String> hostsList = new ArrayList<String>();
+        WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, "has " + FOREMAN_SEARCH_LABELPARAM
+                + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
+                + " and has " + FOREMAN_REMOTEFS_ROOT);
+
+        LOGGER.info(target.toString());
+        Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode json = mapper.readValue(responseAsString, JsonNode.class);
+                JsonNode hosts = json.get("results");
+                if (hosts != null && hosts.isArray()) {
+                    for (JsonNode host : hosts) {
+                        hostsList.add(host.get("name").asText());
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("Unhandled exception getting compatible hosts", e);
+            }
+        }
+        return hostsList;
     }
 }

@@ -5,6 +5,7 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Project;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudRetentionStrategy;
@@ -13,7 +14,11 @@ import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import hudson.util.Secret;
+
+import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
+import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -30,18 +35,41 @@ import jenkins.model.Jenkins;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class ForemanCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(ForemanCloud.class);
 
+    /**
+     * The cloudName
+     */
     private String cloudName;
+    /**
+     * The Foreman url. Should include /api/v2
+     */
     private String url;
+    /**
+     * User used to connect to Foreman
+     */
     private String user;
+    /**
+     * Password used to connect to Foreman
+     */
     private Secret password;
+    /**
+     * The id of the credentials to use.
+     */
+    public String credentialsId = null;
 
     private transient ForemanAPI api = null;
     private transient ForemanComputerLauncherFactory launcherFactory = null;
@@ -60,6 +88,11 @@ public class ForemanCloud extends Cloud {
         this.user = user;
         this.password = password;
         api = new ForemanAPI(this.url, this.user, this.password);
+    }
+
+    @DataBoundSetter
+    public void setCredentialsId(String credentialsId) {
+        this.credentialsId = credentialsId;
     }
 
     public void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
@@ -111,10 +144,10 @@ public class ForemanCloud extends Cloud {
                 String remoteFS = getForemanAPI().getRemoteFSForSlave(name);
 
                 if (launcherFactory == null) {
-                    launcherFactory = new ForemanSSHComputerLauncherFactory(name, 22);
+                    launcherFactory = new ForemanSSHComputerLauncherFactory(name, 22, credentialsId);
                 } else {
                     if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(name, 22);
+                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(name, 22, credentialsId);
                     }
                 }
 
@@ -180,14 +213,26 @@ public class ForemanCloud extends Cloud {
             return "Foreman";
         }
 
+        public ListBoxModel doFillCredentialsIdItems() {
+            return new StandardListBoxModel()
+                    .withEmptySelection()
+                    .withMatching(anyOf(
+                                instanceOf(SSHUserPrivateKey.class),
+                                instanceOf(UsernamePasswordCredentials.class)),
+                            CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class));
+        }
+
         public FormValidation doTestConnection(@QueryParameter("url") String url,
                 @QueryParameter("user") String user,
                 @QueryParameter("password") Secret password) throws ServletException {
             url = StringUtils.strip(StringUtils.stripToNull(url), "/");
             if (url != null && isValidURL(url)) {
                 try {
-                    if (testConnection(url, user, password)) {
-                        return FormValidation.ok(Messages.Success());
+                    String version = testConnection(url, user, password); 
+                    if (version != null) {
+                        return FormValidation.okWithMarkup("<string>Foreman version is " + version + "<strong>");
+                    } else {
+                        return FormValidation.error("Unhandled error in getting version from Foreman");
                     }
                 } catch (LoginException e) {
                     return FormValidation.error(Messages.AuthFailure());
@@ -199,15 +244,46 @@ public class ForemanCloud extends Cloud {
             return FormValidation.error(Messages.InvalidURI());
         }
 
-        private boolean testConnection(String url, String user, Secret password) throws Exception {
+        public FormValidation doCheckForCompatibleHosts(@QueryParameter("url") String url,
+                @QueryParameter("user") String user,
+                @QueryParameter("password") Secret password) throws ServletException {
+
+            FormValidation testConn = this.doTestConnection(url, user, password);
+            if (testConn.kind != FormValidation.Kind.OK) {
+                return testConn;
+            }
+
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            List<String> hosts = checkForCompatibleHosts(url, user, password);
+            StringBuffer hostsMessage = new StringBuffer();
+            hostsMessage.append("<u>The following hosts have the parameters JENKINS_LABEL, RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT</u><br>");
+            for (String host: hosts) {
+                hostsMessage.append("<b>" + host + "</b><br>");
+            }
+            if (hosts == null || hosts.isEmpty()) {
+                return FormValidation.error("NO hosts found that have defined parameters of JENKINS_LABEL, RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT");
+            } else {
+                return FormValidation.okWithMarkup(hostsMessage.toString());
+            }
+        }
+
+        private List<String> checkForCompatibleHosts(String url, String user, Secret password) {
+            ForemanAPI testApi = new ForemanAPI(url, user, password);
+            return testApi.getCompatibleHosts();
+        }
+
+        private String testConnection(String url, String user, Secret password) throws Exception {
             url = StringUtils.strip(StringUtils.stripToNull(url), "/");
             if (url != null && isValidURL(url)) {
                 ForemanAPI testApi = new ForemanAPI(url, user, password);
-                testApi.getHosts();
-                return true;
+                return testApi.getVersion();
             }
-            return false;
-
+            return null;
         }
 
         private static boolean isValidURL(String url) {

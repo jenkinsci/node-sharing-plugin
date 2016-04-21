@@ -7,25 +7,26 @@ public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFa
 
     private String hostName;
     private int port;
+    private String credentialsId;
 
-    public ForemanSSHComputerLauncherFactory(String hostName, int port) {
+    public ForemanSSHComputerLauncherFactory(String hostName, int port, String credentialsId) {
         super();
         this.hostName = hostName;
         this.port = port;
+        this.credentialsId = credentialsId;
     }
 
-    public void configure(String host, int port) {
+    public void configure(String host, int port, String credentialsId) {
         this.hostName = host;
         this.port = port;
+        this.credentialsId = credentialsId;
     }
 
     @Override
     public ComputerLauncher getForemanComputerLauncher() throws Exception {
         return new SSHLauncher(hostName,
                 port,
-                null,
-                null,
-                null,
+                credentialsId,
                 null,
                 null,
                 null,
