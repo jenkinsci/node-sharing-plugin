@@ -219,6 +219,30 @@ public class ForemanAPI {
         return null;
     }
 
+    public String getIPForSlave(String hostname) {
+        String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname;
+        WebTarget target = base.path(hostParamPath);
+        LOGGER.info(target.toString());
+        Response response = target.request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.info(responseAsString);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
+                LOGGER.info(param.toString());
+                LOGGER.info(param.get("ip"));
+                return param.get("ip").asText();
+            } catch (Exception e) {
+                LOGGER.error("Unhandled exception getting IP for " + hostname + ".", e);
+            }
+        } else {
+            LOGGER.error("Retrieving IP for " + hostname + " returned code " + response.getStatus() + ".");
+        }
+        return null;
+    }
+
     public List<String> getCompatibleHosts() {
         ArrayList<String> hostsList = new ArrayList<String>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, "has " + FOREMAN_SEARCH_LABELPARAM

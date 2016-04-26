@@ -2,21 +2,34 @@ package com.redhat.foreman.integration;
 
 import static org.jenkinsci.test.acceptance.Matchers.hasContent;
 
+import java.io.File;
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
+import java.net.URISyntaxException;
+import java.net.URL;
 
+import org.codehaus.plexus.util.FileUtils;
 import org.jenkinsci.test.acceptance.docker.DockerContainerHolder;
+import org.jenkinsci.test.acceptance.docker.fixtures.JavaContainer;
 import org.jenkinsci.test.acceptance.junit.AbstractJUnitTest;
 import org.jenkinsci.test.acceptance.junit.WithDocker;
 import org.jenkinsci.test.acceptance.junit.WithPlugins;
+import org.jenkinsci.test.acceptance.plugins.credentials.ManagedCredentials;
+import org.jenkinsci.test.acceptance.plugins.ssh_credentials.SshPrivateKeyCredential;
 import org.jenkinsci.test.acceptance.po.Build;
 import org.jenkinsci.test.acceptance.po.DumbSlave;
 import org.jenkinsci.test.acceptance.po.FreeStyleJob;
 import org.jenkinsci.test.acceptance.po.Jenkins;
 import org.jenkinsci.test.acceptance.po.JenkinsConfig;
+import org.jenkinsci.test.acceptance.po.Node;
+import org.jenkinsci.test.acceptance.po.Slave;
+import org.jenkinsci.test.acceptance.po.SlavesMixIn;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.inject.Inject;
+import com.redhat.foreman.ForemanCloud;
+import com.redhat.foreman.ForemanSlave;
 import com.redhat.foreman.integration.docker.fixtures.ForemanContainer;
 import com.redhat.foreman.integration.po.ForemanCloudPageArea;
 
@@ -24,15 +37,33 @@ import com.redhat.foreman.integration.po.ForemanCloudPageArea;
 @WithDocker
 public class ForemanIntegrationTest extends AbstractJUnitTest {
     @Inject private DockerContainerHolder<ForemanContainer> docker;
+    @Inject private DockerContainerHolder<JavaContainer> docker2;
 
     private ForemanContainer foreman = null;
+    private JavaContainer sshslave = null;
     private ForemanCloudPageArea cloud = null;
 
-    @Before public void setUp() throws IOException {
+    @Before public void setUp() throws Exception {
         foreman = docker.get();
+        sshslave = docker2.get();
+
+        final ManagedCredentials c = new ManagedCredentials(jenkins);
+        c.open();
+        final SshPrivateKeyCredential sc = c.add(SshPrivateKeyCredential.class);
+        sc.username.set("test");
+        sc.selectEnterDirectly().privateKey.set(sshslave.getPrivateKeyString());
+        c.save();
+
+        elasticSleep(6000);
+
+        if (populateForeman(foreman.getUrl().toString(), sshslave.getCid()) != 0) {
+            throw new Exception("failed to populate foreman");
+        }
+
         jenkins.configure();
         cloud = addCloud(jenkins.getConfigPage());
         elasticSleep(10000);
+
     }
 
     @Test
@@ -41,12 +72,17 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         cloud.testConnection();
         waitFor(driver, hasContent("Foreman version is"), 180);
     }
-    
+
+    @Test
+    public void testCheckForCompatible() throws IOException {
+        cloud.checkForCompatibleHosts();
+        waitFor(driver, hasContent(sshslave.getCid()), 180);
+    }
+
     @Test 
-    public void testProvision() {
+    public void testProvision() throws Exception {
         jenkins.save();
-        //once we can provision with hammer, we can populate foreman
-        // and run this test.
+
         DumbSlave slave = jenkins.slaves.create(DumbSlave.class);
         slave.setExecutors(1);
         slave.save();
@@ -55,9 +91,34 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         job.setLabelExpression("label1");
         job.save();
 
-        Build b = job.scheduleBuild();
-        b.waitUntilFinished(10);
+        slave.delete();
 
+        Build b = job.scheduleBuild();
+        b.waitUntilFinished(120);
+
+        jenkins.runScript("Jenkins.instance.nodes.each { it.terminate() }");
+
+    }
+
+    private int populateForeman(String server, String hostToCreate) throws URISyntaxException, IOException, InterruptedException {
+
+        URL script =
+                ForemanIntegrationTest.class.getClassLoader().getResource("com/redhat/foreman/integration/hammer-setup.sh");
+        File tempScriptFile = File.createTempFile("hammer-setup", ".sh");
+        tempScriptFile.setExecutable(true);
+        FileUtils.copyURLToFile(script, tempScriptFile);
+
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", tempScriptFile.getAbsolutePath(),
+                server,
+                hostToCreate,
+                sshslave.getIpAddress());
+
+        pb.directory(tempScriptFile.getParentFile());
+        pb.redirectOutput(Redirect.INHERIT);
+        pb.redirectError(Redirect.INHERIT);
+        pb.redirectInput(Redirect.INHERIT);
+        Process p = pb.start();
+        return p.waitFor();
     }
 
     private ForemanCloudPageArea addCloud(JenkinsConfig config) throws IOException {
@@ -65,8 +126,9 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
                 .name(Jenkins.createRandomName())
                 .url(foreman.getUrl().toString() + "/api/")
                 .user("admin")
-                .password("changeme");
-    }    
+                .password("changeme")
+                .setCredentials("test");
+    }
 
 }
 

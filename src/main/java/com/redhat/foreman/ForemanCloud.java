@@ -140,19 +140,24 @@ public class ForemanCloud extends Cloud {
                 name = host.get("name").asText();
 
                 String remoteFS = getForemanAPI().getRemoteFSForSlave(name);
+                String hostIP = getForemanAPI().getIPForSlave(name);
+                String hostForConnection = name;
+                if (hostIP != null) {
+                    hostForConnection = hostIP;
+                }
 
                 if (launcherFactory == null) {
-                    launcherFactory = new ForemanSSHComputerLauncherFactory(name, 22, credentialsId);
+                    launcherFactory = new ForemanSSHComputerLauncherFactory(hostForConnection, 22, credentialsId);
                 } else {
                     if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(name, 22, credentialsId);
+                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(hostForConnection, 22, credentialsId);
                     }
                 }
 
                 RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
-                return new ForemanSlave(this.cloudName, host, name, name, label.toString(), remoteFS,
+                return new ForemanSlave(this.cloudName, host, name, hostForConnection, label.toString(), remoteFS,
                         launcherFactory.getForemanComputerLauncher(), strategy, properties);
             }
             catch (Exception e) {

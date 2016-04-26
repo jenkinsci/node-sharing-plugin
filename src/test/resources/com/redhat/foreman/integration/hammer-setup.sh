@@ -2,6 +2,24 @@
 
 set +x
 
+if [ -z "$1" ] ; then
+  FOREMAN_URL="http://localhost:32768/" 
+else
+  FOREMAN_URL="$1"
+fi
+
+if [ -z "$2" ] ; then
+  HOSTNAME="localhost"
+else
+  HOSTNAME="$2"
+fi
+
+if [ -z "$3" ] ; then
+  HOSTIP="127.0.0.1"
+else
+  HOSTIP="$3"
+fi
+
 DOMAIN="localdomain"
 ENVIRONMENT="test_env2"
 
@@ -16,14 +34,12 @@ MEDIUM="Fedora mirror"
 
 HOSTGROUP="test-group"
 
-HOSTNAME="localhost"
 MACADDRESS="50:7b:9d:4d:f1:39"
 EXAMPLE_LABEL="label1"
 JENKINS_SLAVE_REMOTEFS_ROOT="/tmp/remoteFSRoot"
 
 USER="admin" 
 PASS="changeme" 
-FOREMAN_URL="http://localhost:32768/" 
 
 check_for_hammer_foreman()
 {
@@ -52,7 +68,7 @@ check_for_entity()
 create_object() {
     entity=$1
     command=$2
-    check=`hammer $command`
+    check=`hammer -u $USER -p $PASS -s $FOREMAN_URL $command`
     status=$?
     echo $status
 }
@@ -126,6 +142,8 @@ if [ -z "$OPERATINGSYSTEMID" ] ; then
   if [ `create_object os "os create --name $OPERATINGSYSTEM --major $MAJOR"` -eq 0 ] ; then
      OPERATINGSYSTEMID=`check_for_entity os $OPERATINGSYSTEM`
      echo -e "\t** Created os $OPERATINGSYSTEM $MAJOR ($OPERATINGSYSTEMID)"
+     create_object os "os add-architecture --id $OPERATINGSYSTEMID  --architecture-id $ARCHID"
+     create_object os "os add-ptable --id $OPERATINGSYSTEMID  --partition-table-id $PARTITIONTABLEID"
   else
      echo "ERROR: os $OPERATINGSYSTEM $MAJOR creation failed!"
      exit 1
@@ -150,12 +168,17 @@ else
 fi
 
 echo ""
-HOSTNAMEID=`check_for_entity host $HOSTNAME`
+HOSTNAMEID=`check_for_entity host $HOSTNAME.$DOMAIN`
 if [ -z "$HOSTNAMEID" ] ; then
   echo "** Creating host $HOSTNAME"
-  if [ `create_object host "host create --name $HOSTNAME"` -eq 0 ] ; then
-     HOSTNAMEID=`check_for_entity host $HOSTNAME`
+  if [ `create_object host "host create --name $HOSTNAME --domain-id $DOMAINID --partition-table-id $PARTITIONTABLEID --mac $MACADDRESS --architecture-id $ARCHID --operatingsystem-id $OPERATINGSYSTEMID --hostgroup-id $HOSTGROUPID --build false --managed false --environment-id $ENVIRONMENTID"` -eq 0 ] ; then
+    ##--parameters "JENKINS_LABEL=$EXAMPLE_LABEL,RESERVED=false,JENKINS_SLAVE_REMOTEFS_ROOT=$JENKINS_SLAVE_REMOTEFS_ROOT"
+     HOSTNAMEID=`check_for_entity host $HOSTNAME.$DOMAIN`
      echo -e "\t** Created host $HOSTNAME ($HOSTNAMEID)"
+     create_object host "host update --id $HOSTNAMEID --parameters "JENKINS_LABEL=$EXAMPLE_LABEL""
+     create_object host "host update --id $HOSTNAMEID --parameters "RESERVED=false""
+     create_object host "host update --id $HOSTNAMEID --parameters "JENKINS_SLAVE_REMOTEFS_ROOT=$JENKINS_SLAVE_REMOTEFS_ROOT""
+     create_object host "host update --id $HOSTNAMEID --ip $HOSTIP"
   else
      echo "ERROR: host $HOSTNAME creation failed!"
      exit 1
