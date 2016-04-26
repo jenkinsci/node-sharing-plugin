@@ -54,6 +54,10 @@ import hudson.model.Cause.UserIdCause;
 import hudson.model.labels.LabelAtom;
 import hudson.util.Secret;
 
+/**
+ * Cloud Unit Tests.
+ *
+ */
 public class ForemanCloudTest {
 
     private static final int HTTPOK = 200;
@@ -62,15 +66,27 @@ public class ForemanCloudTest {
     private static final String USER = "admin";
     private static final String PASSWORD = "changeme";
 
-    @Rule 
+    /**
+     * Rule for Jenkins.
+     */
+    @Rule
+    //CS IGNORE VisibilityModifier FOR NEXT 2 LINES. REASON: Parent.
     public JenkinsRule j = new JenkinsRule();
 
+    /**
+     * Rule for wiremock.
+     */
     @Rule
+    //CS IGNORE VisibilityModifier FOR NEXT 2 LINES. REASON: Parent.
     public final WireMockRule wireMockRule = new WireMockRule(32789);
 
+    /**
+     * Test for configuration of a Foreman Cloud.
+     * @throws Exception if occurs.
+     */
     @Test
     public void testConfigRoundtrip() throws Exception {
-        ForemanCloud orig = new ForemanCloud("mycloud", URL, 
+        ForemanCloud orig = new ForemanCloud("mycloud", URL,
                 USER, Secret.fromString(PASSWORD));
         j.getInstance().clouds.add(orig);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
@@ -78,19 +94,27 @@ public class ForemanCloudTest {
         j.assertEqualBeans(orig, j.jenkins.clouds.iterator().next(), "cloudName,url,user,password");
     }
 
-    private static String readFile(String path, Charset encoding) 
-            throws IOException 
-    {
+    /**
+     * Utility method for reading files.
+     * @param path path to file.
+     * @param encoding Encoding.
+     * @return contents of file.
+     * @throws IOException if occurs.
+     * @throws URISyntaxException if occurs.
+     */
+    private static String readFile(String path, Charset encoding)
+            throws IOException, URISyntaxException {
         byte[] encoded;
-        try {
-            encoded = Files.readAllBytes(Paths.get(ForemanCloudTest.class.getResource(path).toURI()));
-            return new String(encoded, encoding);
-        } catch (URISyntaxException e) {
-        }
-        return null;
+        encoded = Files.readAllBytes(Paths.get(ForemanCloudTest.class.getResource(path).toURI()));
+        return new String(encoded, encoding);
     }
 
-    private void setupWireMock() throws IOException {
+    /**
+     * Prepare wiremocks.
+     * @throws IOException if occurs.
+     * @throws URISyntaxException if occurs.
+     */
+    private void setupWireMock() throws IOException, URISyntaxException {
         String body1 = readFile("body1.txt", StandardCharsets.UTF_8);
         String body2 = readFile("body2.txt", StandardCharsets.UTF_8);
         String body3 = readFile("body3.txt", StandardCharsets.UTF_8);
@@ -105,8 +129,8 @@ public class ForemanCloudTest {
                         .withHeader("Content-Type", "text/json")
                         .withBody(body1)));
 
-        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1+and+params.RESERVED%3D" +
-                "false+and+has+params.JENKINS_SLAVE_REMOTEFS_ROOT"))
+        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1+and+params.RESERVED%3D"
+                + "false+and+has+params.JENKINS_SLAVE_REMOTEFS_ROOT"))
                 .willReturn(aResponse()
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
@@ -156,19 +180,31 @@ public class ForemanCloudTest {
 
     }
 
+    /**
+     * Perform a test connection.
+     * @throws ServletException if occurs.
+     * @throws IOException if occurs.
+     * @throws URISyntaxException if occurs.
+     */
     @Test
-    public void doTestConnection() throws ServletException, IOException {
+    public void doTestConnection() throws ServletException, IOException, URISyntaxException {
         setupWireMock();
         DescriptorImpl descr = new ForemanCloud.DescriptorImpl();
         descr.doTestConnection(URL, USER, Secret.fromString(PASSWORD));
     }
 
+    /**
+     * Round trip test that configures, builds, provisions and tears down.
+     * @throws IOException if occurs.
+     * @throws URISyntaxException if occurs.
+     * @throws InterruptedException if occurs.
+     */
     @Test
     public void testRoundTrip() throws IOException, URISyntaxException, InterruptedException {
 
         setupWireMock();
         // Add cloud
-        ForemanCloud fCloud = new ForemanCloud("mycloud", URL, 
+        ForemanCloud fCloud = new ForemanCloud("mycloud", URL,
                 USER, Secret.fromString(PASSWORD));
 
         fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
@@ -182,7 +218,7 @@ public class ForemanCloudTest {
 
         Computer[] computers = j.jenkins.getComputers();
         int initialComputerSet = computers.length;
-        for (int i = 0; i < initialComputerSet ; i++) {
+        for (int i = 0; i < initialComputerSet; i++) {
             if (computers[i] instanceof ForemanComputer) {
                 ((ForemanComputer)computers[i]).getNode().terminate();
                 break;

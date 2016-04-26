@@ -1,10 +1,6 @@
 package com.redhat.foreman.integration.po;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-
 import org.jenkinsci.test.acceptance.plugins.ssh_credentials.SshCredentialDialog;
-import org.jenkinsci.test.acceptance.plugins.ssh_credentials.SshPrivateKeyCredential;
 import org.jenkinsci.test.acceptance.po.Cloud;
 import org.jenkinsci.test.acceptance.po.Control;
 import org.jenkinsci.test.acceptance.po.Describable;
@@ -17,74 +13,104 @@ import org.jenkinsci.test.acceptance.po.PageObject;
 @Describable("Foreman")
 public class ForemanCloudPageArea extends Cloud {
 
-    public final Control credentialsId = control("credentialsId");
+    /**
+     * Control for credentials.
+     */
+    private final Control credentialsId = control("credentialsId");
     private String name;
 
+    /**
+     * Constructor.
+     * @param context page area.
+     * @param path path of pa.
+     */
     public ForemanCloudPageArea(PageObject context, String path) {
         super(context, path);
     }
 
+    /**
+     * Set name.
+     * @param value name.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea name(String value) {
         control("cloudName").set(value);
         this.name = value;
         return this;
     }
 
+    /**
+     * Set user.
+     * @param value user.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea user(String value) {
         control("user").set(value);
         return this;
     }
 
+    /**
+     * Set url.
+     * @param value url.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea url(String value) {
         control("url").set(value);
         return this;
     }
 
+    /**
+     * Set password.
+     * @param value password.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea password(String value) {
         control("password").set(value);
         return this;
     }
 
+    /**
+     * Test connection.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea testConnection() {
         clickButton("Test Connection");
         return this;
     }
 
     /**
-     * Once a credential has been created for a given slave, this method can be used 
-     * to check whether it has already been rendered in the dropdown.
+     * Add credential.
+     * @return dialog.
      */
-    private void waitForCredentialVisible(final String credUsername) {
-        waitFor().withTimeout(5, TimeUnit.SECONDS).until(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                return credentialsId.resolve().getText().contains(credUsername);
-            }
-        });
-    }
-
     public SshCredentialDialog addCredential() {
         self().findElement(by.button("Add")).click();
 
         return new SshCredentialDialog(getPage(), "/credentials");
     }
 
-    public ForemanCloudPageArea addCredentials(String username) {
-        SshCredentialDialog dia = this.addCredential();
-        waitForCredentialVisible(username);
-        return this;
-    }
-
+    /**
+     * Set credentials.
+     * @param string credentials.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea setCredentials(String string) {
         credentialsId.select(string);
         return this;
     }
 
+    /**
+     * Checks for compatible hosts.
+     * @return ForemanCloudPageArea.
+     */
     public ForemanCloudPageArea checkForCompatibleHosts() {
         clickButton("Check for Compatible Foreman Hosts");
         return this;
     }
 
+    /**
+     * Get Cloud name.
+     * @return name.
+     */
     public String getCloudName() {
         return name;
     }

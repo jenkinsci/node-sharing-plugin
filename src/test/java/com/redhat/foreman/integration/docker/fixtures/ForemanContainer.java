@@ -7,15 +7,20 @@ import java.io.IOException;
 import java.net.URL;
 
 /**
- * Runs Foreman container
+ * Runs Foreman container.
  *
  */
-@DockerFixture(id="foreman", ports=32768)
+//CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Mock object.
+@DockerFixture(id = "foreman" , ports = 32768)
 public class ForemanContainer extends DockerContainer {
+
     /**
      * URL of Foreman.
+     * @return URL.
+     * @throws IOException if occurs.
      */
+    //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Mock object.
     public URL getUrl() throws IOException {
-        return new URL("http://"+getIpAddress()+":3000");
+        return new URL("http://" + getIpAddress() + ":3000");
     }
 }

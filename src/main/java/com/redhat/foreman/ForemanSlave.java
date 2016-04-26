@@ -15,6 +15,10 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+/**
+ * Foreman Slave.
+ *
+ */
 public class ForemanSlave extends AbstractCloudSlave {
     private static final int NUM_EXECUTORS = 1;
 
@@ -23,6 +27,20 @@ public class ForemanSlave extends AbstractCloudSlave {
     private transient String cloudName;
     private transient JsonNode host;
 
+    /**
+     * Foreman Slave.
+     * @param cloudName name of cloud.
+     * @param host json form of resource.
+     * @param name name or IP of host.
+     * @param description same.
+     * @param label Jenkins label requested.
+     * @param remoteFS Remote FS root.
+     * @param launcher Slave launcher.
+     * @param strategy Retention Strategy.
+     * @param nodeProperties node props.
+     * @throws FormException if occurs.
+     * @throws IOException if occurs.
+     */
     public ForemanSlave(
             String cloudName,
             JsonNode host,
@@ -33,7 +51,8 @@ public class ForemanSlave extends AbstractCloudSlave {
             ComputerLauncher launcher,
             RetentionStrategy<AbstractCloudComputer> strategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
-        super(host.get("name").asText(), description, remoteFS, NUM_EXECUTORS, Node.Mode.EXCLUSIVE, label, launcher, strategy, nodeProperties);
+        super(host.get("name").asText(), description, remoteFS, NUM_EXECUTORS,
+                Node.Mode.EXCLUSIVE, label, launcher, strategy, nodeProperties);
         this.cloudName = cloudName;
         this.host = host;
     }
@@ -51,11 +70,16 @@ public class ForemanSlave extends AbstractCloudSlave {
     }
 
     @Override
+    //CS IGNORE MethodName FOR NEXT 2 LINES. REASON: Parent.
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         ForemanCloud cloud = ForemanCloud.getByName(cloudName);
         cloud.getForemanAPI().release(host.get("name").asText());
     }
 
+    /**
+     * Slave descriptor.
+     *
+     */
     @Extension
     public static final class DescriptorImpl extends SlaveDescriptor {
 

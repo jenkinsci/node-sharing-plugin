@@ -1,15 +1,15 @@
 package com.redhat.foreman;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-
 import hudson.EnvVars;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import jenkins.model.Jenkins;
 
+/**
+ * Dummy Foreman Launcher for unit testing.
+ *
+ */
 public class ForemanDummyComputerLauncherFactory extends ForemanComputerLauncherFactory {
 
     @Override

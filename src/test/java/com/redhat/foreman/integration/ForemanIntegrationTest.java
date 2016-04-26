@@ -21,18 +21,17 @@ import org.jenkinsci.test.acceptance.po.DumbSlave;
 import org.jenkinsci.test.acceptance.po.FreeStyleJob;
 import org.jenkinsci.test.acceptance.po.Jenkins;
 import org.jenkinsci.test.acceptance.po.JenkinsConfig;
-import org.jenkinsci.test.acceptance.po.Node;
-import org.jenkinsci.test.acceptance.po.Slave;
-import org.jenkinsci.test.acceptance.po.SlavesMixIn;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.inject.Inject;
-import com.redhat.foreman.ForemanCloud;
-import com.redhat.foreman.ForemanSlave;
 import com.redhat.foreman.integration.docker.fixtures.ForemanContainer;
 import com.redhat.foreman.integration.po.ForemanCloudPageArea;
 
+/**
+ * Acceptance Test Harness Test for Foreman.
+ *
+ */
 @WithPlugins("foreman-slave")
 @WithDocker
 public class ForemanIntegrationTest extends AbstractJUnitTest {
@@ -43,6 +42,13 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
     private JavaContainer sshslave = null;
     private ForemanCloudPageArea cloud = null;
 
+    private static final int FOREMAN_CLOUD_INIT_WAIT = 180;
+    private static final int PROVISION_TIMEOUT = 240;
+
+    /**
+     * Setup instance before each test.
+     * @throws Exception if occurs.
+     */
     @Before public void setUp() throws Exception {
         foreman = docker.get();
         sshslave = docker2.get();
@@ -54,6 +60,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         sc.selectEnterDirectly().privateKey.set(sshslave.getPrivateKeyString());
         c.save();
 
+        //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Mock object.
         elasticSleep(6000);
 
         if (populateForeman(foreman.getUrl().toString(), sshslave.getCid()) != 0) {
@@ -62,28 +69,41 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
 
         jenkins.configure();
         cloud = addCloud(jenkins.getConfigPage());
+        //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Mock object.
         elasticSleep(10000);
 
     }
 
+    /**
+     * Test the connection and check version.
+     * @throws IOException if occurs.
+     */
     @Test
     public void testConnection() throws IOException {
         System.out.println(foreman.getIpAddress());
         cloud.testConnection();
-        waitFor(driver, hasContent("Foreman version is"), 180);
+        waitFor(driver, hasContent("Foreman version is"), FOREMAN_CLOUD_INIT_WAIT);
     }
 
+    /**
+     * Verify that compatible host checker works.
+     * @throws IOException if occurs.
+     */
     @Test
     public void testCheckForCompatible() throws IOException {
         cloud.checkForCompatibleHosts();
-        waitFor(driver, hasContent(sshslave.getCid()), 180);
+        waitFor(driver, hasContent(sshslave.getCid()), FOREMAN_CLOUD_INIT_WAIT);
     }
 
-    @Test 
+    /**
+     * Test that we can provision, build and release.
+     * @throws Exception if occurs.
+     */
+    @Test
     public void testProvision() throws Exception {
         jenkins.save();
 
-        DumbSlave slave = jenkins.slaves.create(DumbSlave.class);
+        DumbSlave slave = jenkins.slaves.create(DumbSlave.class, "ignore-this-slave++needed-to-enable-job-labels");
         slave.setExecutors(1);
         slave.save();
 
@@ -91,19 +111,28 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         job.setLabelExpression("label1");
         job.save();
 
-        slave.delete();
-
         Build b = job.scheduleBuild();
-        b.waitUntilFinished(120);
+        b.waitUntilFinished(PROVISION_TIMEOUT);
 
         jenkins.runScript("Jenkins.instance.nodes.each { it.terminate() }");
 
     }
 
-    private int populateForeman(String server, String hostToCreate) throws URISyntaxException, IOException, InterruptedException {
+    /**
+     * Populate Foreman using hammer script.
+     * @param server Foreman server url.
+     * @param hostToCreate host name for creation.
+     * @return exit code of script execution.
+     * @throws URISyntaxException if occurs.
+     * @throws IOException if occurs.
+     * @throws InterruptedException if occurs.
+     */
+    private int populateForeman(String server, String hostToCreate) throws
+        URISyntaxException, IOException, InterruptedException {
 
         URL script =
-                ForemanIntegrationTest.class.getClassLoader().getResource("com/redhat/foreman/integration/hammer-setup.sh");
+                ForemanIntegrationTest.class.getClassLoader()
+                .getResource("com/redhat/foreman/integration/hammer-setup.sh");
         File tempScriptFile = File.createTempFile("hammer-setup", ".sh");
         tempScriptFile.setExecutable(true);
         FileUtils.copyURLToFile(script, tempScriptFile);
@@ -121,6 +150,12 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         return p.waitFor();
     }
 
+    /**
+     * Add cloud to Jenkins Config.
+     * @param config Jenkins Configuration Page.
+     * @return a ForemanCloudPageArea.
+     * @throws IOException if occurs.
+     */
     private ForemanCloudPageArea addCloud(JenkinsConfig config) throws IOException {
         return config.addCloud(ForemanCloudPageArea.class)
                 .name(Jenkins.createRandomName())
@@ -131,4 +166,3 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
     }
 
 }
-
