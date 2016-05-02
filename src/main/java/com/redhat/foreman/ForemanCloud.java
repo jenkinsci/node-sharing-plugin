@@ -44,6 +44,8 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.redhat.foreman.launcher.ForemanComputerLauncherFactory;
+import com.redhat.foreman.launcher.ForemanSSHComputerLauncherFactory;
 
 /**
  * Foreman Cloud implementation.
@@ -74,6 +76,10 @@ public class ForemanCloud extends Cloud {
      * The id of the credentials to use.
      */
     private String credentialsId = null;
+    /**
+     * The time in minutes to retain slave after it becomes idle.
+     */
+    private Integer retentionTime = null;
 
     private transient ForemanAPI api = null;
     private transient ForemanComputerLauncherFactory launcherFactory = null;
@@ -94,9 +100,12 @@ public class ForemanCloud extends Cloud {
      * @param user user to connect with.
      * @param password password to connect with.
      * @param credentialsId creds to use to connect to slave.
+     * @param retentionTime time in mins to terminate slave after
+     *          it becomes idle.
      */
     @DataBoundConstructor
-    public ForemanCloud(String cloudName, String url, String user, Secret password, String credentialsId) {
+    public ForemanCloud(String cloudName, String url, String user, Secret password, String credentialsId,
+            Integer retentionTime) {
         super(cloudName);
 
         this.cloudName = cloudName;
@@ -104,6 +113,7 @@ public class ForemanCloud extends Cloud {
         this.user = user;
         this.password = password;
         this.credentialsId = credentialsId;
+        this.retentionTime = retentionTime;
         api = new ForemanAPI(this.url, this.user, this.password);
     }
 
@@ -194,7 +204,7 @@ public class ForemanCloud extends Cloud {
                     }
                 }
 
-                RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
+                RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(retentionTime);
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
                 return new ForemanSlave(this.cloudName, host, name, hostForConnection, label.toString(), remoteFS,
@@ -289,6 +299,22 @@ public class ForemanCloud extends Cloud {
     }
 
     /**
+     * Get credentials for SSH connection.
+     * @return credential id.
+     */
+    public String getCredentialsId() {
+        return credentialsId;
+    }
+
+    /**
+     * Get retention time in mins.
+     * @return time.
+     */
+    public Integer getRetentionTime() {
+        return retentionTime;
+    }
+
+    /**
      * Descriptor for Foreman Cloud.
      *
      */
@@ -361,10 +387,10 @@ public class ForemanCloud extends Cloud {
 
             List<String> hosts = checkForCompatibleHosts(url, user, password);
             StringBuffer hostsMessage = new StringBuffer();
-            hostsMessage.append("<u>The following hosts have the parameters JENKINS_LABEL, "
-                    + "RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT</u><br>");
+            hostsMessage.append("<b>The following hosts are compatible:</b> <small>(parameters JENKINS_LABEL, "
+                    + "RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT are defined)</small><br><br>");
             for (String host: hosts) {
-                hostsMessage.append("<b>" + host + "</b><br>");
+                hostsMessage.append("<font face=\"verdana\" color=\"green\">" + host + "</font><br>");
             }
             if (hosts == null || hosts.isEmpty()) {
                 return FormValidation.error("NO hosts found that have defined parameters of JENKINS_LABEL,"

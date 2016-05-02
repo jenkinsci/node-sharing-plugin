@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.foreman.launcher;
 
 import hudson.slaves.ComputerLauncher;
 

@@ -47,6 +47,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.redhat.foreman.ForemanCloud.DescriptorImpl;
+import com.redhat.foreman.launcher.ForemanDummyComputerLauncherFactory;
 
 import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
@@ -87,11 +88,12 @@ public class ForemanCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
         ForemanCloud orig = new ForemanCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD));
+                USER, Secret.fromString(PASSWORD), "", 1);
         j.getInstance().clouds.add(orig);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
-        j.assertEqualBeans(orig, j.jenkins.clouds.iterator().next(), "cloudName,url,user,password");
+        j.assertEqualBeans(orig, j.jenkins.clouds.iterator().next(),
+                "cloudName,url,user,password,credentialsId,retentionTime");
     }
 
     /**
@@ -205,7 +207,7 @@ public class ForemanCloudTest {
         setupWireMock();
         // Add cloud
         ForemanCloud fCloud = new ForemanCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD));
+                USER, Secret.fromString(PASSWORD), "", 1);
 
         fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         j.getInstance().clouds.add(fCloud);
