@@ -93,15 +93,17 @@ public class ForemanCloud extends Cloud {
      * @param url Foreman URL.
      * @param user user to connect with.
      * @param password password to connect with.
+     * @param credentialsId creds to use to connect to slave.
      */
     @DataBoundConstructor
-    public ForemanCloud(String cloudName, String url, String user, Secret password) {
+    public ForemanCloud(String cloudName, String url, String user, Secret password, String credentialsId) {
         super(cloudName);
 
         this.cloudName = cloudName;
         this.url = url;
         this.user = user;
         this.password = password;
+        this.credentialsId = credentialsId;
         api = new ForemanAPI(this.url, this.user, this.password);
     }
 
@@ -304,7 +306,6 @@ public class ForemanCloud extends Cloud {
          */
         public ListBoxModel doFillCredentialsIdItems() {
             return new StandardListBoxModel()
-                    .withEmptySelection()
                     .withMatching(anyOf(
                                 instanceOf(SSHUserPrivateKey.class),
                                 instanceOf(UsernamePasswordCredentials.class)),

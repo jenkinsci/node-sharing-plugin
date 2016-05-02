@@ -48,16 +48,31 @@
  <!-- Assuming you want to host on @jenkinsci: <scm> <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection> 
   <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection> 
   <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url> </scm> -->
+
+ <distributionManagement>
+  <repository>
+   <id>central</id>
+   <name>artifactory.rhev-ci-vms.eng.rdu2.redhat.com-releases</name>
+   <url>http://artifactory.rhev-ci-vms.eng.rdu2.redhat.com:8081/artifactory/ci-ops-releases-local</url>
+  </repository>
+  <snapshotRepository>
+   <id>central</id>
+   <name>artifactory.rhev-ci-vms.eng.rdu2.redhat.com-snapshots</name>
+   <url>http://artifactory.rhev-ci-vms.eng.rdu2.redhat.com:8081/artifactory/ci-ops-releases-local</url>
+  </snapshotRepository>
+ </distributionManagement>
  <repositories>
   <repository>
-   <id>repo.jenkins-ci.org</id>
-   <url>http://repo.jenkins-ci.org/public/</url>
+   <id>central</id>
+   <name>artifactory.rhev-ci-vms.eng.rdu2.redhat.com-releases</name>
+   <url>http://artifactory.rhev-ci-vms.eng.rdu2.redhat.com:8081/artifactory/ci-ops-releases-local</url>
   </repository>
  </repositories>
  <pluginRepositories>
   <pluginRepository>
-   <id>repo.jenkins-ci.org</id>
-   <url>http://repo.jenkins-ci.org/public/</url>
+   <id>central</id>
+   <name>artifactory.rhev-ci-vms.eng.rdu2.redhat.com-releases</name>
+   <url>http://artifactory.rhev-ci-vms.eng.rdu2.redhat.com:8081/artifactory/ci-ops-releases-local</url>
   </pluginRepository>
  </pluginRepositories>
  <dependencies>
@@ -117,7 +132,7 @@
   <dependency>
    <groupId>org.kohsuke</groupId>
    <artifactId>cucumber-annotation-indexer</artifactId>
-   <version>1.2-Ericsson.1</version>
+   <version>1.3-SNAPSHOT</version>
   </dependency>
   <dependency>
    <groupId>org.jenkins-ci</groupId>

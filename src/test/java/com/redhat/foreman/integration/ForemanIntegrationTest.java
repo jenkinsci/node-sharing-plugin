@@ -109,6 +109,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
 
         FreeStyleJob job = jenkins.jobs.create(FreeStyleJob.class);
         job.setLabelExpression("label1");
+        job.addShellStep("sleep 15");
         job.save();
 
         Build b = job.scheduleBuild();
