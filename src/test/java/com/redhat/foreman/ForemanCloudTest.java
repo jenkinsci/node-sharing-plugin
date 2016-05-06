@@ -34,10 +34,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import javax.servlet.ServletException;
 
@@ -88,7 +85,7 @@ public class ForemanCloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
         ForemanCloud orig = new ForemanCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1);
+                USER, Secret.fromString(PASSWORD), "", 1, 1);
         j.getInstance().clouds.add(orig);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
@@ -97,33 +94,21 @@ public class ForemanCloudTest {
     }
 
     /**
-     * Utility method for reading files.
-     * @param path path to file.
-     * @param encoding Encoding.
-     * @return contents of file.
-     * @throws IOException if occurs.
-     * @throws URISyntaxException if occurs.
-     */
-    private static String readFile(String path, Charset encoding)
-            throws IOException, URISyntaxException {
-        byte[] encoded;
-        encoded = Files.readAllBytes(Paths.get(ForemanCloudTest.class.getResource(path).toURI()));
-        return new String(encoded, encoding);
-    }
-
-    /**
      * Prepare wiremocks.
      * @throws IOException if occurs.
      * @throws URISyntaxException if occurs.
      */
     private void setupWireMock() throws IOException, URISyntaxException {
-        String body1 = readFile("body1.txt", StandardCharsets.UTF_8);
-        String body2 = readFile("body2.txt", StandardCharsets.UTF_8);
-        String body3 = readFile("body3.txt", StandardCharsets.UTF_8);
-        String body4 = readFile("body4.txt", StandardCharsets.UTF_8);
-        String body5 = readFile("body5.txt", StandardCharsets.UTF_8);
-        String body6 = readFile("body6.txt", StandardCharsets.UTF_8);
-        String body7 = readFile("body7.txt", StandardCharsets.UTF_8);
+        String body1  = TestUtils.readFile("body1.txt", StandardCharsets.UTF_8);
+        String body2  = TestUtils.readFile("body2.txt", StandardCharsets.UTF_8);
+        String body3  = TestUtils.readFile("body3.txt", StandardCharsets.UTF_8);
+        String body4  = TestUtils.readFile("body4.txt", StandardCharsets.UTF_8);
+        String body5  = TestUtils.readFile("body5.txt", StandardCharsets.UTF_8);
+        String body6  = TestUtils.readFile("body6.txt", StandardCharsets.UTF_8);
+        String body7  = TestUtils.readFile("body7.txt", StandardCharsets.UTF_8);
+        String body8  = TestUtils.readFile("body8.txt", StandardCharsets.UTF_8);
+        String body9  = TestUtils.readFile("body9.txt", StandardCharsets.UTF_8);
+        String body10 = TestUtils.readFile("body10.txt", StandardCharsets.UTF_8);
 
         stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1"))
                 .willReturn(aResponse()
@@ -180,6 +165,24 @@ public class ForemanCloudTest {
                         .withHeader("Content-Type", "text/json")
                         .withBody(body7)));
 
+        stubFor(get(urlEqualTo("/api/v2/status"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body8)));
+
+        stubFor(get(urlEqualTo("/api/v2/hosts?search=has+params.JENKINS_LABEL+"
+                + "and+has+params.RESERVED+and+has+params.JENKINS_SLAVE_REMOTEFS_ROOT"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body9)));
+
+        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain/parameters/JENKINS_LABEL"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body10)));
     }
 
     /**
@@ -207,7 +210,7 @@ public class ForemanCloudTest {
         setupWireMock();
         // Add cloud
         ForemanCloud fCloud = new ForemanCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1);
+                USER, Secret.fromString(PASSWORD), "", 1, 1);
 
         fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         j.getInstance().clouds.add(fCloud);

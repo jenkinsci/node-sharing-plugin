@@ -20,6 +20,12 @@ else
   HOSTIP="$3"
 fi
 
+if [ -z "$4" ] ; then
+  EXAMPLE_LABEL="label1"
+else
+  EXAMPLE_LABEL="$4"
+fi
+
 DOMAIN="localdomain"
 ENVIRONMENT="test_env2"
 
@@ -35,7 +41,6 @@ MEDIUM="Fedora mirror"
 HOSTGROUP="test-group"
 
 MACADDRESS="50:7b:9d:4d:f1:39"
-EXAMPLE_LABEL="label1"
 JENKINS_SLAVE_REMOTEFS_ROOT="/tmp/remoteFSRoot"
 
 USER="admin" 
@@ -175,7 +180,11 @@ if [ -z "$HOSTNAMEID" ] ; then
     ##--parameters "JENKINS_LABEL=$EXAMPLE_LABEL,RESERVED=false,JENKINS_SLAVE_REMOTEFS_ROOT=$JENKINS_SLAVE_REMOTEFS_ROOT"
      HOSTNAMEID=`check_for_entity host $HOSTNAME.$DOMAIN`
      echo -e "\t** Created host $HOSTNAME ($HOSTNAMEID)"
-     create_object host "host update --id $HOSTNAMEID --parameters "JENKINS_LABEL=$EXAMPLE_LABEL""
+     #set -x
+     #create_object host "host update --id $HOSTNAMEID --parameters "JENKINS_LABEL=$EXAMPLE_LABEL""
+     hammer -u $USER -p $PASS -s $FOREMAN_URL host update --id $HOSTNAMEID --parameters "JENKINS_LABEL=$EXAMPLE_LABEL"
+     status=$?
+     echo $status
      create_object host "host update --id $HOSTNAMEID --parameters "RESERVED=false""
      create_object host "host update --id $HOSTNAMEID --parameters "JENKINS_SLAVE_REMOTEFS_ROOT=$JENKINS_SLAVE_REMOTEFS_ROOT""
      create_object host "host update --id $HOSTNAMEID --ip $HOSTIP"

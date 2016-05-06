@@ -12,18 +12,21 @@ public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFa
     private String hostName;
     private int port;
     private String credentialsId;
+    private Integer timeoutInSecs;
 
     /**
      * Default Constructor.
      * @param host name or ip of host to launch.
      * @param p port to launch on.
      * @param credId Credentials to use.
+     * @param timeOut timeout for SSH connection in secs.
      */
-    public ForemanSSHComputerLauncherFactory(String host, int p, String credId) {
+    public ForemanSSHComputerLauncherFactory(String host, int p, String credId, Integer timeOut) {
         super();
         this.hostName = host;
         this.port = p;
         this.credentialsId = credId;
+        this.timeoutInSecs = timeOut;
     }
 
     /**
@@ -31,11 +34,13 @@ public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFa
      * @param host name or ip of host to launch.
      * @param p port to launch on.
      * @param credId Credentials to use.
+     * @param timeOut timeout for SSH connection in secs.
      */
-    public void configure(String host, int p, String credId) {
+    public void configure(String host, int p, String credId, Integer timeOut) {
         this.hostName = host;
         this.port = p;
         this.credentialsId = credId;
+        this.timeoutInSecs = timeOut;
     }
 
     @Override
@@ -46,7 +51,8 @@ public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFa
                 null,
                 null,
                 null,
-                null);
+                null,
+                timeoutInSecs);
     }
 
 }

@@ -41,6 +41,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
     private ForemanContainer foreman = null;
     private JavaContainer sshslave = null;
     private ForemanCloudPageArea cloud = null;
+    private String labelExpression = "label1 aix";
 
     private static final int FOREMAN_CLOUD_INIT_WAIT = 180;
     private static final int PROVISION_TIMEOUT = 240;
@@ -63,7 +64,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Mock object.
         elasticSleep(6000);
 
-        if (populateForeman(foreman.getUrl().toString(), sshslave.getCid()) != 0) {
+        if (populateForeman(foreman.getUrl().toString(), sshslave.getCid(), labelExpression) != 0) {
             throw new Exception("failed to populate foreman");
         }
 
@@ -108,7 +109,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         slave.save();
 
         FreeStyleJob job = jenkins.jobs.create(FreeStyleJob.class);
-        job.setLabelExpression("label1");
+        job.setLabelExpression("label1 && aix");
         job.addShellStep("sleep 15");
         job.save();
 
@@ -123,12 +124,13 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
      * Populate Foreman using hammer script.
      * @param server Foreman server url.
      * @param hostToCreate host name for creation.
+     * @param labels list of labels to add to host.
      * @return exit code of script execution.
      * @throws URISyntaxException if occurs.
      * @throws IOException if occurs.
      * @throws InterruptedException if occurs.
      */
-    private int populateForeman(String server, String hostToCreate) throws
+    private int populateForeman(String server, String hostToCreate, String labels) throws
         URISyntaxException, IOException, InterruptedException {
 
         URL script =
@@ -141,7 +143,8 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         ProcessBuilder pb = new ProcessBuilder("/bin/bash", tempScriptFile.getAbsolutePath(),
                 server,
                 hostToCreate,
-                sshslave.getIpAddress());
+                sshslave.getIpAddress(),
+                labels);
 
         pb.directory(tempScriptFile.getParentFile());
         pb.redirectOutput(Redirect.INHERIT);

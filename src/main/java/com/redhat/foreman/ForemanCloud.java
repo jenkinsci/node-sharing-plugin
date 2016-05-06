@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 import javax.security.auth.login.LoginException;
@@ -80,6 +82,10 @@ public class ForemanCloud extends Cloud {
      * The time in minutes to retain slave after it becomes idle.
      */
     private Integer retentionTime = null;
+    /**
+     * The time in seconds to attempt to establish a SSH connection.
+     */
+    private Integer sshConnectionTimeOut = null;
 
     private transient ForemanAPI api = null;
     private transient ForemanComputerLauncherFactory launcherFactory = null;
@@ -102,10 +108,11 @@ public class ForemanCloud extends Cloud {
      * @param credentialsId creds to use to connect to slave.
      * @param retentionTime time in mins to terminate slave after
      *          it becomes idle.
+     * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
     public ForemanCloud(String cloudName, String url, String user, Secret password, String credentialsId,
-            Integer retentionTime) {
+            Integer retentionTime, Integer sshConnectionTimeOut) {
         super(cloudName);
 
         this.cloudName = cloudName;
@@ -114,6 +121,7 @@ public class ForemanCloud extends Cloud {
         this.password = password;
         this.credentialsId = credentialsId;
         this.retentionTime = retentionTime;
+        this.sshConnectionTimeOut = sshConnectionTimeOut;
         api = new ForemanAPI(this.url, this.user, this.password);
     }
 
@@ -147,13 +155,21 @@ public class ForemanCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        return getForemanAPI().hasResources(label.toString());
+        Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
+        Set<String> hosts = hostsMap.keySet();
+        for (String host: hosts) {
+            boolean match = label.matches(Label.parse(hostsMap.get(host)));
+            if (match) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
-        if (getForemanAPI().hasAvailableResources(label.toString())) {
+        if (canProvision(label)) {
             result.add(new NodeProvisioner.PlannedNode(
                     label.toString(),
                     Computer.threadPoolForRemoting.submit(new Callable<Node>() {
@@ -181,34 +197,56 @@ public class ForemanCloud extends Cloud {
     private ForemanSlave provision(Label label) throws Exception {
         LOGGER.info("Trying to provision Foreman slave for '" + label.toString() + "'");
 
-        final JsonNode host = getForemanAPI().reserve(label.toString());
-        if (host != null) {
-            String name = null;
-            try {
-                name = host.get("name").asText();
+        String reservedHostName = reserve(label);
+        if (reservedHostName == null) {
+            // Something has changed and there are now no resources available...
+            throw new Exception("No Foreman resources available...");
+        }
 
-                String remoteFS = getForemanAPI().getRemoteFSForSlave(name);
-                String hostIP = getForemanAPI().getIPForHost(name);
-                String hostForConnection = name;
+        final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
+        if (host != null) {
+            try {
+
+                String certName = null;
+                if (host.elements().hasNext()) {
+                    certName = host.elements().next().get("host").get("certname").asText();
+                }
+
+                if (!reservedHostName.equals(certName)) {
+                    throw new Exception("Reserved host is not what we asked to reserve?");
+                }
+
+                String labelsForHost = getForemanAPI().getLabelsForHost(reservedHostName);
+                String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
+                String hostIP = getForemanAPI().getIPForHost(reservedHostName);
+                String hostForConnection = reservedHostName;
                 if (hostIP != null) {
                     hostForConnection = hostIP;
                 }
 
                 if (launcherFactory == null) {
                     launcherFactory = new ForemanSSHComputerLauncherFactory(hostForConnection,
-                            SSH_DEFAULT_PORT, credentialsId);
+                            SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                 } else {
                     if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
                         ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(hostForConnection,
-                                SSH_DEFAULT_PORT, credentialsId);
+                                SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                     }
                 }
 
                 RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(retentionTime);
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
-                return new ForemanSlave(this.cloudName, host, name, hostForConnection, label.toString(), remoteFS,
-                        launcherFactory.getForemanComputerLauncher(), strategy, properties);
+
+                return new ForemanSlave(this.cloudName,
+                        reservedHostName,
+                        hostForConnection,
+                        labelsForHost,
+                        remoteFS,
+                        launcherFactory.getForemanComputerLauncher(),
+                        strategy,
+                        properties);
+
             } catch (Exception e) {
                 LOGGER.warn("Exception encountered when trying to create slave. "
                         + "Trying to release Foreman slave '" + name + "'");
@@ -218,6 +256,23 @@ public class ForemanCloud extends Cloud {
 
         // Something has changed and there are now no resources available...
         throw new Exception("No Foreman resources available...");
+    }
+
+    /**
+     * Reserve a host with the label. canProvision() would have already been called.
+     * @param label Label to reserve for.
+     * @return name of host that was reserved.
+     */
+    private String reserve(Label label) {
+        Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
+        Set<String> hosts = hostsMap.keySet();
+        for (String host: hosts) {
+            boolean match = label.matches(Label.parse(hostsMap.get(host)));
+            if (match) {
+                return host;
+            }
+        }
+        return null;
     }
 
     /**
@@ -315,6 +370,14 @@ public class ForemanCloud extends Cloud {
     }
 
     /**
+     * Get SSH connection time in seconds.
+     * @return timeout in secs.
+     */
+    public Integer getSshConnectionTimeOut() {
+        return sshConnectionTimeOut;
+    }
+
+    /**
      * Descriptor for Foreman Cloud.
      *
      */
@@ -354,7 +417,7 @@ public class ForemanCloud extends Cloud {
                 try {
                     String version = testConnection(url, user, password);
                     if (version != null) {
-                        return FormValidation.okWithMarkup("<string>Foreman version is " + version + "<strong>");
+                        return FormValidation.okWithMarkup("<strong>Foreman version is " + version + "<strong>");
                     } else {
                         return FormValidation.error("Unhandled error in getting version from Foreman");
                     }
@@ -385,7 +448,7 @@ public class ForemanCloud extends Cloud {
                 return testConn;
             }
 
-            List<String> hosts = checkForCompatibleHosts(url, user, password);
+            Set<String> hosts = checkForCompatibleHosts(url, user, password);
             StringBuffer hostsMessage = new StringBuffer();
             hostsMessage.append("<b>The following hosts are compatible:</b> <small>(parameters JENKINS_LABEL, "
                     + "RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT are defined)</small><br><br>");
@@ -407,9 +470,10 @@ public class ForemanCloud extends Cloud {
          * @param password password.
          * @return List of hosts.
          */
-        private List<String> checkForCompatibleHosts(String url, String user, Secret password) {
+        private Set<String> checkForCompatibleHosts(String url, String user, Secret password) {
             ForemanAPI testApi = new ForemanAPI(url, user, password);
-            return testApi.getCompatibleHosts();
+            Map<String, String> hosts = testApi.getCompatibleHosts();
+            return hosts.keySet();
         }
 
         /**

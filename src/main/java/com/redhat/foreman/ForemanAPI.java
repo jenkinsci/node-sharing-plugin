@@ -4,6 +4,7 @@ import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -67,108 +68,11 @@ public class ForemanAPI {
     }
 
     /**
-     * Check Foreman if resources exist for the label.
-     * @param label Jenkins label to check for.
-     * @return true if Foreman has resources for this label.
-     */
-    public boolean hasResources(String label) {
-        WebTarget target = base.path(FOREMAN_HOSTS_PATH).queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label);
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        LOGGER.info(target.toString());
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
-
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> json = mapper.readValue(responseAsString, Map.class);
-                if (json.containsKey("subtotal") && (Integer)json.get("subtotal") > 0) {
-                    return true;
-                }
-            } catch (Exception e) {
-                LOGGER.debug(e.getMessage(), e);
-                return false;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Check Foreman if resources are available for label.
-     * Also checks if JENKINS_SLAVE_REMOTEFS_ROOT is defined.
-     * @param label Jenkins labels to check for.
-     * @return true if resources available.
-     */
-    public boolean hasAvailableResources(String label) {
-        WebTarget target = base.path(FOREMAN_HOSTS_PATH)
-                .queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label
-                + " and " + FOREMAN_SEARCH_FREE
-                + " and has " + FOREMAN_REMOTEFS_ROOT);
-        LOGGER.info(target.toString());
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
-
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> json = mapper.readValue(responseAsString, Map.class);
-                if (json.containsKey("subtotal") && (Integer)json.get("subtotal") > 0) {
-                    return true;
-                }
-            } catch (Exception e) {
-                LOGGER.debug(e.getMessage(), e);
-                return false;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Reserve the Foreman resource.
-     * @param label Label to use.
-     * @return host in json form.
-     */
-    public JsonNode reserve(String label) {
-        WebTarget target = base.path(FOREMAN_HOSTS_PATH)
-                .queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_LABEL + label
-                        + " and " + FOREMAN_SEARCH_FREE);
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        LOGGER.info(target.toString());
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
-
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode json = mapper.readValue(responseAsString, JsonNode.class);
-                JsonNode hosts = json.get("results");
-                if (hosts != null && hosts.isArray()) {
-                    for (JsonNode host : hosts) {
-                        if (reserve(host) != null) {
-                            return host;
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("Unhandled exception retrieving available resources for '" + label + "'.", e);
-            }
-        } else {
-            LOGGER.error("Retrieving available resources for '" + label
-                    + "' returned code " + response.getStatus() + ".");
-        }
-        return null;
-    }
-
-    /**
      * Reserve host outright.
-     * @param host resource in Foreman.
+     * @param hostname resource in Foreman.
      * @return host in json form.
      */
-    private JsonNode reserve(JsonNode host) {
-        String hostname = host.get("name").asText();
+    public JsonNode reserveHost(String hostname) {
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
                 .queryParam(FOREMAN_RESERVE_REASON, "Reserved for " + Jenkins.getInstance().getRootUrl());
@@ -234,7 +138,7 @@ public class ForemanAPI {
      * @param parameterName name of param.
      * @return value.
      */
-    public String getHostParamterValue(String hostname, String parameterName) {
+    public String getHostParameterValue(String hostname, String parameterName) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
         WebTarget target = base.path(hostParamPath);
         LOGGER.info(target.toString());
@@ -260,13 +164,14 @@ public class ForemanAPI {
         }
         return null;
     }
+
     /**
      * Get Jenkins Slave Remote FS root.
      * @param hostname name of host.
      * @return value of slave remote FS root.
      */
     public String getRemoteFSForSlave(String hostname) {
-        return getHostParamterValue(hostname, JENKINS_SLAVE_REMOTEFS_ROOT);
+        return getHostParameterValue(hostname, JENKINS_SLAVE_REMOTEFS_ROOT);
     }
 
     /**
@@ -313,8 +218,9 @@ public class ForemanAPI {
      * @param query query string.
      * @return list of hosts.
      */
-    public List<String> getHostForQuery(String query) {
-        ArrayList<String> hostsList = new ArrayList<String>();
+    public Map<String, String> getHostForQuery(String query) {
+        Map<String, String> hostsMap = new HashMap<String, String>();
+        List<String> hostsList = new ArrayList<String>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH)
                 .queryParam(FOREMAN_SEARCH_PARAM,
                   query);
@@ -337,18 +243,33 @@ public class ForemanAPI {
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception getting compatible hosts", e);
             }
+            for (String host: hostsList) {
+                String labelsAsString = getHostParameterValue(host, JENKINS_LABEL);
+                if (labelsAsString != null) {
+                    hostsMap.put(host, labelsAsString);
+                }
+            }
         }
-        return hostsList;
+        return hostsMap;
     }
 
     /**
      * Get list of compatible hosts.
      * @return list of host names.
      */
-    public List<String> getCompatibleHosts() {
+    public Map<String, String> getCompatibleHosts() {
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
                 + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
                 + " and has " + FOREMAN_REMOTEFS_ROOT;
         return getHostForQuery(query);
+    }
+
+    /**
+     * Get Host's Jenkins labels.
+     * @param hostName name of host.
+     * @return value of label parameter.
+     */
+    public String getLabelsForHost(String hostName) {
+        return getHostParameterValue(hostName, JENKINS_LABEL);
     }
 }
