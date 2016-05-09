@@ -26,13 +26,13 @@ import org.junit.Test;
 
 import com.google.inject.Inject;
 import com.redhat.foreman.integration.docker.fixtures.ForemanContainer;
-import com.redhat.foreman.integration.po.ForemanCloudPageArea;
+import com.redhat.foreman.integration.po.ForemanSharedNodeCloudPageArea;
 
 /**
  * Acceptance Test Harness Test for Foreman.
  *
  */
-@WithPlugins("foreman-slave")
+@WithPlugins("foreman-node-sharing")
 @WithDocker
 public class ForemanIntegrationTest extends AbstractJUnitTest {
     @Inject private DockerContainerHolder<ForemanContainer> docker;
@@ -40,7 +40,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
 
     private ForemanContainer foreman = null;
     private JavaContainer sshslave = null;
-    private ForemanCloudPageArea cloud = null;
+    private ForemanSharedNodeCloudPageArea cloud = null;
     private String labelExpression = "label1 aix";
 
     private static final int FOREMAN_CLOUD_INIT_WAIT = 180;
@@ -160,8 +160,8 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
      * @return a ForemanCloudPageArea.
      * @throws IOException if occurs.
      */
-    private ForemanCloudPageArea addCloud(JenkinsConfig config) throws IOException {
-        return config.addCloud(ForemanCloudPageArea.class)
+    private ForemanSharedNodeCloudPageArea addCloud(JenkinsConfig config) throws IOException {
+        return config.addCloud(ForemanSharedNodeCloudPageArea.class)
                 .name(Jenkins.createRandomName())
                 .url(foreman.getUrl().toString() + "/api/")
                 .user("admin")

@@ -10,8 +10,8 @@ import org.jenkinsci.test.acceptance.po.PageObject;
  * Foreman Cloud.
  *
  */
-@Describable("Foreman")
-public class ForemanCloudPageArea extends Cloud {
+@Describable("Foreman Shared Node")
+public class ForemanSharedNodeCloudPageArea extends Cloud {
 
     /**
      * Control for credentials.
@@ -24,7 +24,7 @@ public class ForemanCloudPageArea extends Cloud {
      * @param context page area.
      * @param path path of pa.
      */
-    public ForemanCloudPageArea(PageObject context, String path) {
+    public ForemanSharedNodeCloudPageArea(PageObject context, String path) {
         super(context, path);
     }
 
@@ -33,7 +33,7 @@ public class ForemanCloudPageArea extends Cloud {
      * @param value name.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea name(String value) {
+    public ForemanSharedNodeCloudPageArea name(String value) {
         control("cloudName").set(value);
         this.name = value;
         return this;
@@ -44,7 +44,7 @@ public class ForemanCloudPageArea extends Cloud {
      * @param value user.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea user(String value) {
+    public ForemanSharedNodeCloudPageArea user(String value) {
         control("user").set(value);
         return this;
     }
@@ -54,7 +54,7 @@ public class ForemanCloudPageArea extends Cloud {
      * @param value url.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea url(String value) {
+    public ForemanSharedNodeCloudPageArea url(String value) {
         control("url").set(value);
         return this;
     }
@@ -64,7 +64,7 @@ public class ForemanCloudPageArea extends Cloud {
      * @param value password.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea password(String value) {
+    public ForemanSharedNodeCloudPageArea password(String value) {
         control("password").set(value);
         return this;
     }
@@ -73,7 +73,7 @@ public class ForemanCloudPageArea extends Cloud {
      * Test connection.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea testConnection() {
+    public ForemanSharedNodeCloudPageArea testConnection() {
         clickButton("Test Connection");
         return this;
     }
@@ -93,7 +93,7 @@ public class ForemanCloudPageArea extends Cloud {
      * @param string credentials.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea setCredentials(String string) {
+    public ForemanSharedNodeCloudPageArea setCredentials(String string) {
         credentialsId.select(string);
         return this;
     }
@@ -102,7 +102,7 @@ public class ForemanCloudPageArea extends Cloud {
      * Checks for compatible hosts.
      * @return ForemanCloudPageArea.
      */
-    public ForemanCloudPageArea checkForCompatibleHosts() {
+    public ForemanSharedNodeCloudPageArea checkForCompatibleHosts() {
         clickButton("Check for Compatible Foreman Hosts");
         return this;
     }

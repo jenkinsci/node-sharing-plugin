@@ -36,9 +36,7 @@ public class ForemanAPI {
 
     private static final String FOREMAN_SEARCH_PARAM         = "search";
     private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
-    private static final String FOREMAN_SEARCH_LABEL         = FOREMAN_SEARCH_LABELPARAM + "=";
     private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params.RESERVED";
-    private static final String FOREMAN_SEARCH_FREE          = FOREMAN_SEARCH_RESERVEDPARAM + "=false";
 
     private static final String FOREMAN_QUERY_PARAM = "query";
     private static final String FOREMAN_QUERY_NAME = "name ~ ";
@@ -73,13 +71,14 @@ public class ForemanAPI {
      * @return host in json form.
      */
     public JsonNode reserveHost(String hostname) {
+        LOGGER.info("Reserving host " + hostname);
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
                 .queryParam(FOREMAN_RESERVE_REASON, "Reserved for " + Jenkins.getInstance().getRootUrl());
-        LOGGER.info(target.toString());
+        LOGGER.debug(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {
@@ -98,12 +97,13 @@ public class ForemanAPI {
      * @param hostname name of host to release.
      */
     public void release(String hostname) {
+        LOGGER.info("Releasing host " + hostname);
         WebTarget target = base.path(FOREMAN_RELEASE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
-        LOGGER.info(target.toString());
+        LOGGER.debug(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
             LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
@@ -119,12 +119,12 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_STATUS_PATH);
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-            LOGGER.info(param.toString());
+            LOGGER.debug(param.toString());
             if ((param.get("version") != null)) {
                 return param.get("version").asText();
             }
@@ -141,18 +141,19 @@ public class ForemanAPI {
     public String getHostParameterValue(String hostname, String parameterName) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
         WebTarget target = base.path(hostParamPath);
-        LOGGER.info(target.toString());
+        LOGGER.debug(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-                LOGGER.info(param.toString());
+                LOGGER.debug(param.toString());
                 if ((param.get("name") != null && param.get("name").textValue().equals(parameterName))) {
-                    LOGGER.info(param.get("value"));
+                    LOGGER.debug("Returning host parameter "
+                            + parameterName + "=" + param.get("value") + " for " + hostname);
                     return param.get("value").asText();
                 }
             } catch (Exception e) {
@@ -183,17 +184,18 @@ public class ForemanAPI {
     public String getHostAttributeValue(String hostname, String attribute) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname;
         WebTarget target = base.path(hostParamPath);
-        LOGGER.info(target.toString());
+        LOGGER.debug(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-                LOGGER.info(param.toString());
-                LOGGER.info(param.get(attribute));
+                LOGGER.debug(param.toString());
+                LOGGER.debug(param.get(attribute));
+                LOGGER.info("Retrieving " + attribute + "=" + param.get(attribute) + " for " + hostname);
                 return param.get(attribute).asText();
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception getting " + attribute + " for " + hostname + ".", e);
@@ -225,10 +227,10 @@ public class ForemanAPI {
                 .queryParam(FOREMAN_SEARCH_PARAM,
                   query);
 
-        LOGGER.info(target.toString());
+        LOGGER.debug(target.toString());
         Response response = target.request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             try {

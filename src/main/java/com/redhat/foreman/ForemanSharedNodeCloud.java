@@ -50,11 +50,11 @@ import com.redhat.foreman.launcher.ForemanComputerLauncherFactory;
 import com.redhat.foreman.launcher.ForemanSSHComputerLauncherFactory;
 
 /**
- * Foreman Cloud implementation.
+ * Foreman Shared Node Cloud implementation.
  *
  */
-public class ForemanCloud extends Cloud {
-    private static final Logger LOGGER = Logger.getLogger(ForemanCloud.class);
+public class ForemanSharedNodeCloud extends Cloud {
+    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNodeCloud.class);
 
     private static final int SSH_DEFAULT_PORT = 22;
 
@@ -79,10 +79,6 @@ public class ForemanCloud extends Cloud {
      */
     private String credentialsId = null;
     /**
-     * The time in minutes to retain slave after it becomes idle.
-     */
-    private Integer retentionTime = null;
-    /**
      * The time in seconds to attempt to establish a SSH connection.
      */
     private Integer sshConnectionTimeOut = null;
@@ -94,7 +90,7 @@ public class ForemanCloud extends Cloud {
      * Constructor with name.
      * @param name Name of cloud.
      */
-    public ForemanCloud(String name) {
+    public ForemanSharedNodeCloud(String name) {
         super(name);
         this.cloudName = name;
     }
@@ -106,13 +102,11 @@ public class ForemanCloud extends Cloud {
      * @param user user to connect with.
      * @param password password to connect with.
      * @param credentialsId creds to use to connect to slave.
-     * @param retentionTime time in mins to terminate slave after
-     *          it becomes idle.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public ForemanCloud(String cloudName, String url, String user, Secret password, String credentialsId,
-            Integer retentionTime, Integer sshConnectionTimeOut) {
+    public ForemanSharedNodeCloud(String cloudName, String url, String user, Secret password, String credentialsId,
+            Integer sshConnectionTimeOut) {
         super(cloudName);
 
         this.cloudName = cloudName;
@@ -120,7 +114,6 @@ public class ForemanCloud extends Cloud {
         this.user = user;
         this.password = password;
         this.credentialsId = credentialsId;
-        this.retentionTime = retentionTime;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
         api = new ForemanAPI(this.url, this.user, this.password);
     }
@@ -194,8 +187,8 @@ public class ForemanCloud extends Cloud {
      * @return a Foreman Slave.
      * @throws Exception if occurs.
      */
-    private ForemanSlave provision(Label label) throws Exception {
-        LOGGER.info("Trying to provision Foreman slave for '" + label.toString() + "'");
+    private ForemanSharedNode provision(Label label) throws Exception {
+        LOGGER.info("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
 
         String reservedHostName = reserve(label);
         if (reservedHostName == null) {
@@ -234,11 +227,11 @@ public class ForemanCloud extends Cloud {
                     }
                 }
 
-                RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(retentionTime);
+                RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
 
-                return new ForemanSlave(this.cloudName,
+                return new ForemanSharedNode(this.cloudName,
                         reservedHostName,
                         hostForConnection,
                         labelsForHost,
@@ -248,8 +241,8 @@ public class ForemanCloud extends Cloud {
                         properties);
 
             } catch (Exception e) {
-                LOGGER.warn("Exception encountered when trying to create slave. "
-                        + "Trying to release Foreman slave '" + name + "'");
+                LOGGER.warn("Exception encountered when trying to create shared node. "
+                        + "Trying to release Foreman resource '" + name + "'");
                 throw e;
             }
         }
@@ -281,12 +274,12 @@ public class ForemanCloud extends Cloud {
      * @return a Foreman Cloud.
      * @throws IllegalArgumentException if occurs.
      */
-    public static ForemanCloud getByName(String name) throws IllegalArgumentException {
+    public static ForemanSharedNodeCloud getByName(String name) throws IllegalArgumentException {
         Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
-        if (cloud instanceof ForemanCloud) {
-            return (ForemanCloud)cloud;
+        if (cloud instanceof ForemanSharedNodeCloud) {
+            return (ForemanSharedNodeCloud)cloud;
         }
-        throw new IllegalArgumentException(name + " is not an Foreman cloud: " + cloud);
+        throw new IllegalArgumentException(name + " is not an Foreman Shared Node cloud: " + cloud);
     }
 
     /**
@@ -362,14 +355,6 @@ public class ForemanCloud extends Cloud {
     }
 
     /**
-     * Get retention time in mins.
-     * @return time.
-     */
-    public Integer getRetentionTime() {
-        return retentionTime;
-    }
-
-    /**
      * Get SSH connection time in seconds.
      * @return timeout in secs.
      */
@@ -386,7 +371,7 @@ public class ForemanCloud extends Cloud {
 
         @Override
         public String getDisplayName() {
-            return "Foreman";
+            return "Foreman Shared Node";
         }
 
         /**

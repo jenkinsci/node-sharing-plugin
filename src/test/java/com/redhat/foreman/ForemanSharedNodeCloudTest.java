@@ -43,7 +43,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import com.redhat.foreman.ForemanCloud.DescriptorImpl;
+import com.redhat.foreman.ForemanSharedNodeCloud.DescriptorImpl;
 import com.redhat.foreman.launcher.ForemanDummyComputerLauncherFactory;
 
 import hudson.model.Computer;
@@ -56,7 +56,7 @@ import hudson.util.Secret;
  * Cloud Unit Tests.
  *
  */
-public class ForemanCloudTest {
+public class ForemanSharedNodeCloudTest {
 
     private static final int HTTPOK = 200;
 
@@ -84,13 +84,13 @@ public class ForemanCloudTest {
      */
     @Test
     public void testConfigRoundtrip() throws Exception {
-        ForemanCloud orig = new ForemanCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1, 1);
+        ForemanSharedNodeCloud orig = new ForemanSharedNodeCloud("mycloud", URL,
+                USER, Secret.fromString(PASSWORD), "", 1);
         j.getInstance().clouds.add(orig);
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
         j.assertEqualBeans(orig, j.jenkins.clouds.iterator().next(),
-                "cloudName,url,user,password,credentialsId,retentionTime");
+                "cloudName,url,user,password,credentialsId");
     }
 
     /**
@@ -194,7 +194,7 @@ public class ForemanCloudTest {
     @Test
     public void doTestConnection() throws ServletException, IOException, URISyntaxException {
         setupWireMock();
-        DescriptorImpl descr = new ForemanCloud.DescriptorImpl();
+        DescriptorImpl descr = new ForemanSharedNodeCloud.DescriptorImpl();
         descr.doTestConnection(URL, USER, Secret.fromString(PASSWORD));
     }
 
@@ -209,8 +209,11 @@ public class ForemanCloudTest {
 
         setupWireMock();
         // Add cloud
-        ForemanCloud fCloud = new ForemanCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1, 1);
+        ForemanSharedNodeCloud fCloud = new ForemanSharedNodeCloud("mycloud", URL,
+                USER, Secret.fromString(PASSWORD), "", 1);
+
+        Computer[] computers = j.jenkins.getComputers();
+        int initialComputerSet = computers.length;
 
         fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         j.getInstance().clouds.add(fCloud);
@@ -220,19 +223,17 @@ public class ForemanCloudTest {
 
         assertTrue(job.scheduleBuild(0, new UserIdCause()));
         TestUtils.waitForBuilds(job, 1);
-
-        Computer[] computers = j.jenkins.getComputers();
-        int initialComputerSet = computers.length;
-        for (int i = 0; i < initialComputerSet; i++) {
-            if (computers[i] instanceof ForemanComputer) {
-                ((ForemanComputer)computers[i]).getNode().terminate();
-                break;
-            }
+        try {
+            //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Parent.
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            System.err.println("Interrupted while waiting!");
         }
 
         Computer[] computersAfter = j.jenkins.getComputers();
         int finalComputerSet = computersAfter.length;
-        assertTrue(initialComputerSet > finalComputerSet);
+
+        assertTrue(initialComputerSet == finalComputerSet);
     }
 
 }

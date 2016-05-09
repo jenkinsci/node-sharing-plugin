@@ -27,7 +27,7 @@ THE SOFTWARE.
     <st:include page="sidepanel.jelly"/>
     <l:main-panel>
       <p>
-        This is a Foreman Slave. Configuration not yet supported
+        This is a Foreman Shared Node. Configuration not yet supported
       </p>
     </l:main-panel>
   </l:layout>

@@ -131,7 +131,7 @@ public final class TestUtils {
     public static String readFile(String path, Charset encoding)
             throws IOException, URISyntaxException {
         byte[] encoded;
-        encoded = Files.readAllBytes(Paths.get(ForemanCloudTest.class.getResource(path).toURI()));
+        encoded = Files.readAllBytes(Paths.get(ForemanSharedNodeCloudTest.class.getResource(path).toURI()));
         return new String(encoded, encoding);
     }
 

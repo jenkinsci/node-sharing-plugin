@@ -3,5 +3,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
-  This plugin allows jobs to use foreman resources as Jenkins slaves.
+  This plugin allows jobs to shared Foreman resources as Jenkins nodes.
 </div>

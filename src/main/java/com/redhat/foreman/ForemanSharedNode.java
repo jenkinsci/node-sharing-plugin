@@ -11,16 +11,17 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
+import hudson.slaves.EphemeralNode;
 import hudson.slaves.RetentionStrategy;
 
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Foreman Slave.
+ * Foreman Shared Node.
  *
  */
-public class ForemanSlave extends AbstractCloudSlave {
+public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNode {
     private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
@@ -28,7 +29,7 @@ public class ForemanSlave extends AbstractCloudSlave {
     private transient String cloudName;
 
     /**
-     * Foreman Slave.
+     * Foreman Shared Node.
      * @param cloudName name of cloud.
      * @param name name or IP of host.
      * @param description same.
@@ -40,7 +41,7 @@ public class ForemanSlave extends AbstractCloudSlave {
      * @throws FormException if occurs.
      * @throws IOException if occurs.
      */
-    public ForemanSlave(
+    public ForemanSharedNode(
             String cloudName,
             String name,
             String description,
@@ -56,7 +57,7 @@ public class ForemanSlave extends AbstractCloudSlave {
 
     @Override
     public void terminate() throws InterruptedException, IOException {
-        ForemanCloud cloud = ForemanCloud.getByName(cloudName);
+        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
         cloud.getForemanAPI().release(name);
         super.terminate();
     }
@@ -82,7 +83,7 @@ public class ForemanSlave extends AbstractCloudSlave {
     @Override
     //CS IGNORE MethodName FOR NEXT 2 LINES. REASON: Parent.
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        ForemanCloud cloud = ForemanCloud.getByName(cloudName);
+        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
         cloud.getForemanAPI().release(name);
     }
 
@@ -103,4 +104,10 @@ public class ForemanSlave extends AbstractCloudSlave {
             return false;
         }
     }
+
+    @Override
+    public Node asNode() {
+        return this;
+    }
+
 }
