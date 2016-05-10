@@ -42,6 +42,7 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
     private JavaContainer sshslave = null;
     private ForemanSharedNodeCloudPageArea cloud = null;
     private String labelExpression = "label1 aix";
+    private String jobLabelExpression = "label1 && aix";
 
     private static final int FOREMAN_CLOUD_INIT_WAIT = 180;
     private static final int PROVISION_TIMEOUT = 240;
@@ -108,16 +109,47 @@ public class ForemanIntegrationTest extends AbstractJUnitTest {
         slave.setExecutors(1);
         slave.save();
 
-        FreeStyleJob job = jenkins.jobs.create(FreeStyleJob.class);
-        job.setLabelExpression("label1 && aix");
-        job.addShellStep("sleep 15");
-        job.save();
+        FreeStyleJob job = createAndConfigureJob();
 
         Build b = job.scheduleBuild();
         b.waitUntilFinished(PROVISION_TIMEOUT);
 
         jenkins.runScript("Jenkins.instance.nodes.each { it.terminate() }");
 
+    }
+
+    /**
+     * Test that we can provision after a restart, build and release.
+     * @throws Exception if occurs.
+     */
+    @Test
+    public void testProvisionAfterRestart() throws Exception {
+        jenkins.save();
+
+        DumbSlave slave = jenkins.slaves.create(DumbSlave.class, "ignore-this-slave++needed-to-enable-job-labels");
+        slave.setExecutors(1);
+        slave.save();
+
+        FreeStyleJob job = createAndConfigureJob();
+
+        Build b = job.scheduleBuild();
+        jenkins.restart();
+        b.waitUntilFinished(PROVISION_TIMEOUT);
+
+        jenkins.runScript("Jenkins.instance.nodes.each { it.terminate() }");
+
+    }
+
+    /**
+     * Create and configure Test job.
+     * @return FreeStyleJob.
+     */
+    private FreeStyleJob createAndConfigureJob() {
+        FreeStyleJob job = jenkins.jobs.create(FreeStyleJob.class);
+        job.setLabelExpression(jobLabelExpression);
+        job.addShellStep("sleep 15");
+        job.save();
+        return job;
     }
 
     /**

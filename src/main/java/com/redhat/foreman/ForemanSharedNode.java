@@ -11,7 +11,6 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
-import hudson.slaves.EphemeralNode;
 import hudson.slaves.RetentionStrategy;
 
 import java.io.IOException;
@@ -21,7 +20,7 @@ import java.util.List;
  * Foreman Shared Node.
  *
  */
-public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNode {
+public class ForemanSharedNode extends AbstractCloudSlave {
     private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
@@ -96,18 +95,13 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
 
         @Override
         public String getDisplayName() {
-            return "Foreman Slave";
+            return "Foreman Shared Node";
         }
 
         @Override
         public boolean isInstantiable() {
             return false;
         }
-    }
-
-    @Override
-    public Node asNode() {
-        return this;
     }
 
 }

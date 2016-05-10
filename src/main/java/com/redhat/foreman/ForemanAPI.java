@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  */
 public class ForemanAPI {
+
     private static final Logger LOGGER = Logger.getLogger(ForemanAPI.class);;
 
     private static final String JENKINS_LABEL = "JENKINS_LABEL";
@@ -76,11 +77,11 @@ public class ForemanAPI {
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
                 .queryParam(FOREMAN_RESERVE_REASON, "Reserved for " + Jenkins.getInstance().getRootUrl());
         LOGGER.debug(target.toString());
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.debug(responseAsString);
+        Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.debug(responseAsString);
             try {
                 return new ObjectMapper().readValue(responseAsString, JsonNode.class);
             } catch (Exception e) {
@@ -101,13 +102,28 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_RELEASE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
         LOGGER.debug(target.toString());
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.debug(responseAsString);
+        Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.debug(responseAsString);
             LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
         }
+    }
+
+    /**
+     * Gracefully handle getting a response from Foreman.
+     * @param target WebTarget to get.
+     * @return Response. 500 error is the default.
+     */
+    private Response getForemanResponse(WebTarget target) {
+        Response response = Response.serverError().entity(new String("error")).build();
+        try {
+            response = target.request(MediaType.APPLICATION_JSON).get();
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+        }
+        return response;
     }
 
     /**
@@ -117,11 +133,11 @@ public class ForemanAPI {
      */
     public String getVersion() throws Exception {
         WebTarget target = base.path(FOREMAN_STATUS_PATH);
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.debug(responseAsString);
+        Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.debug(responseAsString);
             ObjectMapper mapper = new ObjectMapper();
             JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
             LOGGER.debug(param.toString());
@@ -142,11 +158,11 @@ public class ForemanAPI {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
         WebTarget target = base.path(hostParamPath);
         LOGGER.debug(target.toString());
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.debug(responseAsString);
+        Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.debug(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
@@ -185,11 +201,11 @@ public class ForemanAPI {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname;
         WebTarget target = base.path(hostParamPath);
         LOGGER.debug(target.toString());
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.debug(responseAsString);
+        Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.debug(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
@@ -228,11 +244,11 @@ public class ForemanAPI {
                   query);
 
         LOGGER.debug(target.toString());
-        Response response = target.request(MediaType.APPLICATION_JSON).get();
-        String responseAsString = response.readEntity(String.class);
-        LOGGER.debug(responseAsString);
+        Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.debug(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode json = mapper.readValue(responseAsString, JsonNode.class);

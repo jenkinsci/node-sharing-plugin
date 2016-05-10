@@ -21,7 +21,7 @@ else
 fi
 
 if [ -z "$4" ] ; then
-  EXAMPLE_LABEL="label1"
+  EXAMPLE_LABEL="label1 label2"
 else
   EXAMPLE_LABEL="$4"
 fi
