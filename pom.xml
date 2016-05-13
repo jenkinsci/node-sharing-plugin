@@ -13,7 +13,7 @@
   <version>1.625.3</version>
   <relativePath />
  </parent>
- <groupId>com.redhat.foreman-slave</groupId>
+ <groupId>org.jenkins-ci.plugins</groupId>
  <artifactId>foreman-node-sharing</artifactId>
  <version>1.0-SNAPSHOT</version>
  <packaging>hpi</packaging>
@@ -47,12 +47,14 @@
    <url>http://opensource.org/licenses/MIT</url>
   </license>
  </licenses>
- <!-- If you want this to appear on the wiki page: <developers> <developer> 
-  <id>bhacker</id> <name>Bob Q. Hacker</name> <email>bhacker@nowhere.net</email> 
-  </developer> </developers> -->
- <!-- Assuming you want to host on @jenkinsci: <scm> <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection> 
-  <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection> 
-  <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url> </scm> -->
+
+ <developers>
+    <developer>
+        <id>scoheb</id>
+        <name>Scott Hebert</name>
+        <email>shebert@redhat.com</email>
+    </developer>
+ </developers>
 
  <dependencies>
   <dependency>
@@ -105,23 +107,6 @@
     <exclusion>
      <artifactId>xml-apis</artifactId>
      <groupId>xml-apis</groupId>
-    </exclusion>
-   </exclusions>
-  </dependency>
-  <dependency>
-   <groupId>org.kohsuke</groupId>
-   <artifactId>cucumber-annotation-indexer</artifactId>
-   <version>1.3-SNAPSHOT</version>
-  </dependency>
-  <dependency>
-   <groupId>org.jenkins-ci</groupId>
-   <artifactId>acceptance-test-harness</artifactId>
-   <version>1.28</version>
-   <scope>test</scope>
-   <exclusions>
-    <exclusion>
-     <groupId>org.sonatype.sisu</groupId>
-     <artifactId>sisu-guice</artifactId>
     </exclusion>
    </exclusions>
   </dependency>
