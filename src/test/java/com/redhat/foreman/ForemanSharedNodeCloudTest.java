@@ -109,6 +109,7 @@ public class ForemanSharedNodeCloudTest {
         String body8  = TestUtils.readFile("body8.txt", StandardCharsets.UTF_8);
         String body9  = TestUtils.readFile("body9.txt", StandardCharsets.UTF_8);
         String body10 = TestUtils.readFile("body10.txt", StandardCharsets.UTF_8);
+        String body11 = TestUtils.readFile("body11.txt", StandardCharsets.UTF_8);
 
         stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1"))
                 .willReturn(aResponse()
@@ -183,6 +184,12 @@ public class ForemanSharedNodeCloudTest {
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
                         .withBody(body10)));
+
+        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain/parameters/RESERVED"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body11)));
     }
 
     /**

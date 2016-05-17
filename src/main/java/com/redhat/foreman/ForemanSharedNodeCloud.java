@@ -153,7 +153,10 @@ public class ForemanSharedNodeCloud extends Cloud {
         for (String host: hosts) {
             boolean match = label.matches(Label.parse(hostsMap.get(host)));
             if (match) {
-                return true;
+                // Check if free and un-reserved
+                if (getForemanAPI().isHostFree(host)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -167,12 +170,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                     label.toString(),
                     Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                         public Node call() throws Exception {
-                            try {
-                                return provision(label);
-                            } catch (Exception ex) {
-                                LOGGER.error("Error in provisioning label='" + label.toString() + "'", ex);
-                                throw ex;
-                            }
+                            return provision(label);
                         }
                     }),
                     1));
@@ -202,7 +200,16 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                 String certName = null;
                 if (host.elements().hasNext()) {
-                    certName = host.elements().next().get("host").get("certname").asText();
+                    JsonNode h = host.elements().next();
+                    if (h.has("host")) {
+                        certName = h.get("host").get("certname").asText();
+                    } else {
+                        if (h.has("certname")) {
+                            certName = h.get("certname").asText();
+                        } else {
+                            throw new Exception("Reserve plugin did not return correct data?");
+                        }
+                    }
                 }
 
                 if (!reservedHostName.equals(certName)) {

@@ -37,7 +37,9 @@ public class ForemanAPI {
 
     private static final String FOREMAN_SEARCH_PARAM         = "search";
     private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
-    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params.RESERVED";
+    private static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
+    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params."
+            + FOREMAN_SEARCH_RESERVEDPARAMNAME;
 
     private static final String FOREMAN_QUERY_PARAM = "query";
     private static final String FOREMAN_QUERY_NAME = "name ~ ";
@@ -289,5 +291,15 @@ public class ForemanAPI {
      */
     public String getLabelsForHost(String hostName) {
         return getHostParameterValue(hostName, JENKINS_LABEL);
+    }
+
+    /**
+     * Determine if a host is reserved.
+     * @param host name of host in foreman.
+     * @return true if not reserved.
+     */
+    public boolean isHostFree(String host) {
+        String free = getHostParameterValue(host, FOREMAN_SEARCH_RESERVEDPARAMNAME);
+        return free.equalsIgnoreCase("false");
     }
 }

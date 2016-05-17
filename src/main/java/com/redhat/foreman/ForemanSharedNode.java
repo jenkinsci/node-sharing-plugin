@@ -55,13 +55,6 @@ public class ForemanSharedNode extends AbstractCloudSlave {
     }
 
     @Override
-    public void terminate() throws InterruptedException, IOException {
-        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
-        cloud.getForemanAPI().release(name);
-        super.terminate();
-    }
-
-    @Override
     public AbstractCloudComputer<?> createComputer() {
         return new ForemanComputer(this);
     }
