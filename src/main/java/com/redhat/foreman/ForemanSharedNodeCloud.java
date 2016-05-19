@@ -170,7 +170,12 @@ public class ForemanSharedNodeCloud extends Cloud {
                     label.toString(),
                     Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                         public Node call() throws Exception {
-                            return provision(label);
+                            try {
+                                return provision(label);
+                            } catch (Exception e) {
+                                LOGGER.error(e);
+                                throw e;
+                            }
                         }
                     }),
                     1));
