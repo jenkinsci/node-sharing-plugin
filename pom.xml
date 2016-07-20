@@ -10,12 +10,12 @@
   <artifactId>plugin</artifactId>
   <!-- Baseline Jenkins version you use to build and test the plugin. Users 
    must have this version or newer to run. -->
-  <version>1.625.3</version>
+  <version>2.8</version>
   <relativePath />
  </parent>
  <groupId>org.jenkins-ci.plugins</groupId>
  <artifactId>foreman-node-sharing</artifactId>
- <version>1.0.0-SNAPSHOT</version>
+ <version>1.1.0-SNAPSHOT</version>
  <packaging>hpi</packaging>
 
   <scm>
@@ -26,7 +26,7 @@
   </scm>
 
  <properties>
-  <jenkins.version>1.625.3</jenkins.version>
+  <jenkins.version>1.651.3</jenkins.version>
   <!-- Java Level to use. Java 7 required when using core >= 1.612 -->
   <java.level>7</java.level>
   <!-- Jenkins Test Harness version you use to test the plugin. -->

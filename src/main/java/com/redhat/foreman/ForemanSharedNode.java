@@ -16,11 +16,22 @@ import hudson.slaves.RetentionStrategy;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.log4j.Logger;
+
 /**
  * Foreman Shared Node.
  *
  */
 public class ForemanSharedNode extends AbstractCloudSlave {
+
+    @Override
+    public void terminate() throws InterruptedException, IOException {
+        super.terminate();
+        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
+        cloud.getForemanAPI().release(name);
+    }
+
+    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class);
     private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
@@ -72,12 +83,6 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         return super.canTake(item);
     }
 
-    @Override
-    //CS IGNORE MethodName FOR NEXT 2 LINES. REASON: Parent.
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
-        cloud.getForemanAPI().release(name);
-    }
 
     /**
      * Slave descriptor.
@@ -95,6 +100,12 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         public boolean isInstantiable() {
             return false;
         }
+    }
+
+
+    @Override
+    //CS IGNORE MethodName FOR NEXT 2 LINES. REASON: Parent.
+    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
     }
 
 }

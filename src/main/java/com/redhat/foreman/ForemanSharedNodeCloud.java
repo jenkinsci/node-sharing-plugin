@@ -166,19 +166,23 @@ public class ForemanSharedNodeCloud extends Cloud {
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
         if (canProvision(label)) {
-            result.add(new NodeProvisioner.PlannedNode(
-                    label.toString(),
-                    Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-                        public Node call() throws Exception {
-                            try {
-                                return provision(label);
-                            } catch (Exception e) {
-                                LOGGER.error(e);
-                                throw e;
+            try {
+                result.add(new NodeProvisioner.PlannedNode(
+                        label.toString(),
+                        Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                            public Node call() throws Exception {
+                                try {
+                                    return provision(label);
+                                } catch (Exception e) {
+                                    LOGGER.error(e);
+                                    throw e;
+                                }
                             }
-                        }
-                    }),
-                    1));
+                        }),
+                        1));
+            } catch (Exception e) {
+                LOGGER.error(e);
+            }
         }
         return result;
     }

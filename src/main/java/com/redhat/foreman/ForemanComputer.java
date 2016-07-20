@@ -7,8 +7,10 @@ import org.apache.log4j.Logger;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Node;
+import hudson.model.User;
 import hudson.model.Queue.Task;
 import hudson.slaves.AbstractCloudComputer;
+import hudson.slaves.OfflineCause;
 
 /**
  * Foreman Cloud Computer.
@@ -31,30 +33,30 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
      * We want to eagerly return the node to Foreman.
      * @param owner Computer.
      */
-    private void eagerlyReturnNodeLater(final Computer owner) {
-        Computer.threadPoolForRemoting.submit(new Runnable() {
-            public void run() {
-                try {
-                    //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Parent.
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    LOGGER.warn(e.getMessage());
-                }
-                if (owner instanceof ForemanComputer) {
-                    Node node = owner.getNode();
-                    if (node instanceof ForemanSharedNode) {
-                          try {
-                              ForemanSharedNode sharedNode = (ForemanSharedNode)node;
-                              sharedNode.terminate();
-                          } catch (InterruptedException e) {
-                              LOGGER.warn(e.getMessage());
-                          } catch (IOException e) {
-                              LOGGER.warn(e.getMessage());
-                          }
+    private synchronized void eagerlyReturnNodeLater(final Computer owner) {
+        Node node = owner.getNode();
+        if (node instanceof ForemanSharedNode) {
+            ForemanSharedNode sharedNode = (ForemanSharedNode)node;
+            sharedNode.toComputer().setTemporarilyOffline(true,
+                    new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin offline"));
+            Computer.threadPoolForRemoting.submit(new Runnable() {
+                public void run() {
+                    if (owner instanceof ForemanComputer) {
+                        Node node = owner.getNode();
+                        if (node instanceof ForemanSharedNode) {
+                              try {
+                                  ForemanSharedNode sharedNode = (ForemanSharedNode)node;
+                                  sharedNode.terminate();
+                              } catch (InterruptedException e) {
+                                  LOGGER.warn(e.getMessage());
+                              } catch (IOException e) {
+                                  LOGGER.warn(e.getMessage());
+                              }
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     }
 
     /**

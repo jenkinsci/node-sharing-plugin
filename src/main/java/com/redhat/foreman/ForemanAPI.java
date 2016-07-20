@@ -77,7 +77,7 @@ public class ForemanAPI {
         LOGGER.info("Reserving host " + hostname);
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
-                .queryParam(FOREMAN_RESERVE_REASON, "Reserved for " + Jenkins.getInstance().getRootUrl());
+                .queryParam(FOREMAN_RESERVE_REASON, getReserveReason());
         LOGGER.debug(target.toString());
         Response response = getForemanResponse(target);
 
@@ -96,20 +96,42 @@ public class ForemanAPI {
     }
 
     /**
+     * Reserve reason.
+     * @return string to be used for reserving.
+     */
+    private String getReserveReason() {
+        return "Reserved for " + Jenkins.getInstance().getRootUrl();
+    }
+
+    /**
      * Release host from Foreman.
      * @param hostname name of host to release.
      */
-    public void release(String hostname) {
-        LOGGER.info("Releasing host " + hostname);
-        WebTarget target = base.path(FOREMAN_RELEASE_PATH)
-                .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
-        LOGGER.debug(target.toString());
-        Response response = getForemanResponse(target);
+    public synchronized void release(String hostname) {
+        // Get RESERVED value first to make sure we are not releasing someone
+        // else's lock...
+        String currentValue = getHostParameterValue(hostname, FOREMAN_SEARCH_RESERVEDPARAMNAME);
+        if (currentValue == null) {
+            LOGGER.info("Host " + hostname + " not reserved. Not releasing.");
+            return;
+        }
 
-        if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
-            LOGGER.debug(responseAsString);
-            LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
+        if (currentValue.trim().equals(getReserveReason())) {
+            LOGGER.info("Attempting to Release host " + hostname);
+            WebTarget target = base.path(FOREMAN_RELEASE_PATH)
+                    .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
+            LOGGER.debug(target.toString());
+            Response response = getForemanResponse(target);
+
+            if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
+                String responseAsString = response.readEntity(String.class);
+                LOGGER.debug(responseAsString);
+                LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
+            } else {
+                LOGGER.info("Host " + hostname + " successfully released.");
+            }
+        } else {
+            LOGGER.info("Host " + hostname + " not reserved by us! Not releasing.");
         }
     }
 
