@@ -141,7 +141,7 @@ public class ForemanAPI {
      * @return Response. 500 error is the default.
      */
     private Response getForemanResponse(WebTarget target) {
-        Response response = Response.serverError().entity(new String("error")).build();
+        Response response = Response.serverError().entity("error").build();
         try {
             response = target.request(MediaType.APPLICATION_JSON).get();
         } catch (Exception e) {

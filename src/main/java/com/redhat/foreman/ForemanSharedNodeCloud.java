@@ -153,10 +153,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         for (String host: hosts) {
             boolean match = label.matches(Label.parse(hostsMap.get(host)));
             if (match) {
-                // Check if free and un-reserved
-                if (getForemanAPI().isHostFree(host)) {
                     return true;
-                }
             }
         }
         return false;
@@ -197,9 +194,8 @@ public class ForemanSharedNodeCloud extends Cloud {
     private ForemanSharedNode provision(Label label) throws Exception {
         LOGGER.info("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
 
-        String reservedHostName = reserve(label);
+        String reservedHostName = getHostToReserve(label);
         if (reservedHostName == null) {
-            // Something has changed and there are now no resources available...
             throw new Exception("No Foreman resources available...");
         }
 
@@ -247,6 +243,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
 
+                LOGGER.info("Returning a ForemanSharedNode for " + hostForConnection);
                 return new ForemanSharedNode(this.cloudName,
                         reservedHostName,
                         hostForConnection,
@@ -268,17 +265,19 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Reserve a host with the label. canProvision() would have already been called.
+     * Get host to Reserve for the label. Host must be free.
      * @param label Label to reserve for.
      * @return name of host that was reserved.
      */
-    private String reserve(Label label) {
+    private String getHostToReserve(Label label) {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
         Set<String> hosts = hostsMap.keySet();
         for (String host: hosts) {
             boolean match = label.matches(Label.parse(hostsMap.get(host)));
             if (match) {
-                return host;
+                if (getForemanAPI().isHostFree(host)) {
+                    return host;
+                }
             }
         }
         return null;
@@ -453,13 +452,13 @@ public class ForemanSharedNodeCloud extends Cloud {
             StringBuffer hostsMessage = new StringBuffer();
             hostsMessage.append("<b>The following hosts are compatible:</b> <small>(parameters JENKINS_LABEL, "
                     + "RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT are defined)</small><br><br>");
-            for (String host: hosts) {
-                hostsMessage.append("<font face=\"verdana\" color=\"green\">" + host + "</font><br>");
-            }
             if (hosts == null || hosts.isEmpty()) {
                 return FormValidation.error("NO hosts found that have defined parameters of JENKINS_LABEL,"
                         + " RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT");
             } else {
+                for (String host: hosts) {
+                    hostsMessage.append("<font face=\"verdana\" color=\"green\">" + host + "</font><br>");
+                }
                 return FormValidation.okWithMarkup(hostsMessage.toString());
             }
         }
