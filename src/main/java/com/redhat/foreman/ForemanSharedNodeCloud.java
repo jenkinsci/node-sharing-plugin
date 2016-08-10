@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 import javax.security.auth.login.LoginException;
 import javax.servlet.ServletException;
@@ -164,19 +165,22 @@ public class ForemanSharedNodeCloud extends Cloud {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
         if (canProvision(label)) {
             try {
-                result.add(new NodeProvisioner.PlannedNode(
+                Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                    public Node call() throws Exception {
+                        try {
+                            return provision(label);
+                        } catch (Exception e) {
+                            LOGGER.error(e);
+                            throw e;
+                        }
+                    }
+                });
+                if (futurePlannedNode.get() != null) {
+                    result.add(new NodeProvisioner.PlannedNode(
                         label.toString(),
-                        Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-                            public Node call() throws Exception {
-                                try {
-                                    return provision(label);
-                                } catch (Exception e) {
-                                    LOGGER.error(e);
-                                    throw e;
-                                }
-                            }
-                        }),
+                        futurePlannedNode,
                         1));
+                }
             } catch (Exception e) {
                 LOGGER.error(e);
             }
@@ -192,11 +196,12 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @throws Exception if occurs.
      */
     private ForemanSharedNode provision(Label label) throws Exception {
-        LOGGER.info("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
+        LOGGER.debug("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
 
         String reservedHostName = getHostToReserve(label);
         if (reservedHostName == null) {
-            throw new Exception("No Foreman resources available...");
+            LOGGER.debug("No Foreman resources available...");
+            return null;
         }
 
         final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
@@ -218,7 +223,8 @@ public class ForemanSharedNodeCloud extends Cloud {
                 }
 
                 if (!reservedHostName.equals(certName)) {
-                    throw new Exception("Reserved host is not what we asked to reserve?");
+                    LOGGER.debug("Reserved host is not what we asked to reserve?");
+                    return null;
                 }
 
                 String labelsForHost = getForemanAPI().getLabelsForHost(reservedHostName);
@@ -243,7 +249,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
 
-                LOGGER.info("Returning a ForemanSharedNode for " + hostForConnection);
+                LOGGER.debug("Returning a ForemanSharedNode for " + hostForConnection);
                 return new ForemanSharedNode(this.cloudName,
                         reservedHostName,
                         hostForConnection,
@@ -254,14 +260,14 @@ public class ForemanSharedNodeCloud extends Cloud {
                         properties);
 
             } catch (Exception e) {
-                LOGGER.warn("Exception encountered when trying to create shared node. "
-                        + "Trying to release Foreman resource '" + name + "'");
-                throw e;
+                LOGGER.warn("Exception encountered when trying to create shared node. ", e);
+                getForemanAPI().release(reservedHostName);
             }
         }
 
         // Something has changed and there are now no resources available...
-        throw new Exception("No Foreman resources available...");
+        LOGGER.debug("No Foreman resources available...");
+        return null;
     }
 
     /**
