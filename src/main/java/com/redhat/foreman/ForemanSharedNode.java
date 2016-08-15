@@ -26,9 +26,9 @@ public class ForemanSharedNode extends AbstractCloudSlave {
 
     @Override
     public void terminate() throws InterruptedException, IOException {
-        super.terminate();
         ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
         cloud.getForemanAPI().release(name);
+        super.terminate();
     }
 
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class);
