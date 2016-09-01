@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import hudson.Extension;
 import hudson.model.Computer;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerListener;
 

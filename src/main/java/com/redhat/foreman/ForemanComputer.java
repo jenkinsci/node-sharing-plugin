@@ -48,6 +48,8 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
     /**
      * Utility method to terminate a Foreman shared node.
      * @param c Computer
+     * @throws IOException when occured
+     * @throws InterruptedException when occurred
      */
     static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
         if (c instanceof ForemanComputer) {
