@@ -36,6 +36,8 @@
    Maven Plugin version used by the plugin.. ~ stapler-plugin.version: The Stapler 
    Maven plugin version required by the plugin. -->
   <checkstyle.version>2.13</checkstyle.version>
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  <surefire.useFile>false</surefire.useFile>
  </properties>
 
  <name>Foreman Node Sharing Plugin</name>
