@@ -296,11 +296,14 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @throws IllegalArgumentException if occurs.
      */
     public static ForemanSharedNodeCloud getByName(String name) throws IllegalArgumentException {
+        if (name == null) {
+            return null;
+        }
         Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
         if (cloud instanceof ForemanSharedNodeCloud) {
             return (ForemanSharedNodeCloud)cloud;
         }
-        throw new IllegalArgumentException(name + " is not an Foreman Shared Node cloud: " + cloud);
+        throw new IllegalArgumentException(name + " is not a Foreman Shared Node cloud");
     }
 
     /**

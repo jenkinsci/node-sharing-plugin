@@ -30,6 +30,11 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
     }
 
     @Override
+    public ForemanSharedNode getNode() {
+        return super.getNode();
+    }
+
+    @Override
     protected void kill() {
         setTemporarilyOffline(true,
                 new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin setTemporarilyOffline()"));
@@ -48,6 +53,8 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
     /**
      * Utility method to terminate a Foreman shared node.
      * @param c Computer
+     * @throws IOException if occurs.
+     * @throws InterruptedException if occurs.
      */
     static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
         if (c instanceof ForemanComputer) {
