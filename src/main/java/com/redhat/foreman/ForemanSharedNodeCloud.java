@@ -151,15 +151,9 @@ public class ForemanSharedNodeCloud extends Cloud {
     public boolean canProvision(Label label) {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
         Set<String> hosts = hostsMap.keySet();
-
-        if (label == null) {
-            return !hostsMap.isEmpty();
-        }
-
         for (String host: hosts) {
-            boolean match = label.matches(Label.parse(hostsMap.get(host)));
-            if (match) {
-                    return true;
+            if (label == null || label.matches(Label.parse(hostsMap.get(host)))) {
+                return true;
             }
         }
         return false;
@@ -284,11 +278,9 @@ public class ForemanSharedNodeCloud extends Cloud {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
         Set<String> hosts = hostsMap.keySet();
         for (String host: hosts) {
-            boolean match = label.matches(Label.parse(hostsMap.get(host)));
-            if (match) {
-                if (getForemanAPI().isHostFree(host)) {
-                    return host;
-                }
+            if (getForemanAPI().isHostFree(host)
+                    && (label == null || label.matches(Label.parse(hostsMap.get(host))))) {
+                return host;
             }
         }
         return null;
