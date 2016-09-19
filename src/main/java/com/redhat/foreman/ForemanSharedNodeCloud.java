@@ -199,7 +199,11 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @throws Exception if occurs.
      */
     private ForemanSharedNode provision(Label label) throws Exception {
-        LOGGER.debug("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
+        String labelName = "";
+        if (label != null) {
+            labelName = label.toString();
+        }
+        LOGGER.debug("Trying to provision Foreman Shared Node for '" + labelName + "'");
 
         String reservedHostName = getHostToReserve(label);
         if (reservedHostName == null) {
