@@ -175,8 +175,12 @@ public class ForemanSharedNodeCloud extends Cloud {
                     }
                 });
                 if (futurePlannedNode.get() != null) {
+                    String name = "ForemanNode";
+                    if (label != null) {
+                        name = label.toString();
+                    }
                     result.add(new NodeProvisioner.PlannedNode(
-                        label.toString(),
+                        name,
                         futurePlannedNode,
                         1));
                 }
