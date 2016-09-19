@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
+import javax.annotation.CheckForNull;
 import javax.security.auth.login.LoginException;
 import javax.servlet.ServletException;
 
@@ -161,6 +162,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     @Override
+    @CheckForNull
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
         if (canProvision(label)) {
@@ -195,6 +197,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @return a Foreman Slave.
      * @throws Exception if occurs.
      */
+    @CheckForNull
     private ForemanSharedNode provision(Label label) throws Exception {
         LOGGER.debug("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
 
@@ -275,6 +278,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @param label Label to reserve for.
      * @return name of host that was reserved.
      */
+    @CheckForNull
     private String getHostToReserve(Label label) {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
         Set<String> hosts = hostsMap.keySet();
@@ -295,6 +299,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @return a Foreman Cloud.
      * @throws IllegalArgumentException if occurs.
      */
+    @CheckForNull
     public static ForemanSharedNodeCloud getByName(String name) throws IllegalArgumentException {
         if (name == null) {
             return null;
@@ -493,6 +498,7 @@ public class ForemanSharedNodeCloud extends Cloud {
          * @return Foreman version.
          * @throws Exception if occurs.
          */
+        @CheckForNull
         private String testConnection(String url, String user, Secret password) throws Exception {
             url = StringUtils.strip(StringUtils.stripToNull(url), "/");
             if (url != null && isValidURL(url)) {
