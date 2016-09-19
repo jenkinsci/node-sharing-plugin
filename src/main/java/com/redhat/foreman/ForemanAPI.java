@@ -92,6 +92,7 @@ public class ForemanAPI {
                 return new ObjectMapper().readValue(responseAsString, JsonNode.class);
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception reserving " + hostname + ".", e);
+                e.printStackTrace();
             }
         } else {
             LOGGER.error("Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".");
@@ -208,6 +209,7 @@ public class ForemanAPI {
                 }
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception getting " + parameterName + " for " + hostname + ".", e);
+                e.printStackTrace();
                 throw e;
             }
         } else {
@@ -254,6 +256,7 @@ public class ForemanAPI {
                 return param.get(attribute).asText();
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception getting " + attribute + " for " + hostname + ".", e);
+                e.printStackTrace();
             }
         } else {
             LOGGER.error("Retrieving " + attribute + " for " + hostname
@@ -299,7 +302,8 @@ public class ForemanAPI {
                     }
                 }
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception getting compatible hosts", e);
+                LOGGER.error("Unhandled exception getting compatible hosts: ", e);
+                e.printStackTrace();
             }
             for (String host: hostsList) {
                 String labelsAsString = getHostParameterValue(host, JENKINS_LABEL);
