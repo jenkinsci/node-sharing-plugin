@@ -8,12 +8,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.CheckForNull;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
@@ -73,6 +75,7 @@ public class ForemanAPI {
      * @param hostname resource in Foreman.
      * @return host in json form.
      */
+    @CheckForNull
     public JsonNode reserveHost(String hostname) {
         LOGGER.info("Reserving host " + hostname);
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
@@ -155,6 +158,7 @@ public class ForemanAPI {
      * @return version.
      * @throws Exception if occurs.
      */
+    @CheckForNull
     public String getVersion() throws Exception {
         WebTarget target = base.path(FOREMAN_STATUS_PATH);
         Response response = getForemanResponse(target);
@@ -178,6 +182,7 @@ public class ForemanAPI {
      * @param parameterName name of param.
      * @return value.
      */
+    @CheckForNull
     public String getHostParameterValue(String hostname, String parameterName) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
         WebTarget target = base.path(hostParamPath);
@@ -211,6 +216,7 @@ public class ForemanAPI {
      * @param hostname name of host.
      * @return value of slave remote FS root.
      */
+    @CheckForNull
     public String getRemoteFSForSlave(String hostname) {
         return getHostParameterValue(hostname, JENKINS_SLAVE_REMOTEFS_ROOT);
     }
@@ -221,6 +227,7 @@ public class ForemanAPI {
      * @param attribute attrib to look for.
      * @return value of attrib.
      */
+    @CheckForNull
     public String getHostAttributeValue(String hostname, String attribute) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname;
         WebTarget target = base.path(hostParamPath);
@@ -251,6 +258,7 @@ public class ForemanAPI {
      * @param hostname name of host.
      * @return IP.
      */
+    @CheckForNull
     public String getIPForHost(String hostname) {
         return getHostAttributeValue(hostname, "ip");
     }
@@ -322,6 +330,6 @@ public class ForemanAPI {
      */
     public boolean isHostFree(String host) {
         String free = getHostParameterValue(host, FOREMAN_SEARCH_RESERVEDPARAMNAME);
-        return free.equalsIgnoreCase("false");
+        return !StringUtils.isEmpty(free) && free.equalsIgnoreCase("false");
     }
 }
