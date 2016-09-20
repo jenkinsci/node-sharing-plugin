@@ -153,9 +153,8 @@ public class ForemanSharedNodeCloud extends Cloud {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
         Set<String> hosts = hostsMap.keySet();
         for (String host: hosts) {
-            boolean match = label.matches(Label.parse(hostsMap.get(host)));
-            if (match) {
-                    return true;
+            if (label == null || label.matches(Label.parse(hostsMap.get(host)))) {
+                return true;
             }
         }
         return false;
@@ -178,8 +177,12 @@ public class ForemanSharedNodeCloud extends Cloud {
                     }
                 });
                 if (futurePlannedNode.get() != null) {
+                    String name = "ForemanNode";
+                    if (label != null) {
+                        name = label.toString();
+                    }
                     result.add(new NodeProvisioner.PlannedNode(
-                        label.toString(),
+                        name,
                         futurePlannedNode,
                         1));
                 }
@@ -199,7 +202,11 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     @CheckForNull
     private ForemanSharedNode provision(Label label) throws Exception {
-        LOGGER.debug("Trying to provision Foreman Shared Node for '" + label.toString() + "'");
+        String labelName = "";
+        if (label != null) {
+            labelName = label.toString();
+        }
+        LOGGER.debug("Trying to provision Foreman Shared Node for '" + labelName + "'");
 
         String reservedHostName = getHostToReserve(label);
         if (reservedHostName == null) {
@@ -283,11 +290,9 @@ public class ForemanSharedNodeCloud extends Cloud {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
         Set<String> hosts = hostsMap.keySet();
         for (String host: hosts) {
-            boolean match = label.matches(Label.parse(hostsMap.get(host)));
-            if (match) {
-                if (getForemanAPI().isHostFree(host)) {
-                    return host;
-                }
+            if (getForemanAPI().isHostFree(host)
+                    && (label == null || label.matches(Label.parse(hostsMap.get(host))))) {
+                return host;
             }
         }
         return null;
