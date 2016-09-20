@@ -2,6 +2,7 @@ package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
@@ -249,7 +250,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                     return null;
                 }
 
-                String labelsForHost = getForemanAPI().getLabelsForHost(reservedHostName);
+                String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
                 String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
                 String hostIP = getForemanAPI().getIPForHost(reservedHostName);
                 String hostForConnection = reservedHostName;
