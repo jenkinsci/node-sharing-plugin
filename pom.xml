@@ -8,9 +8,7 @@
  <parent>
   <groupId>org.jenkins-ci.plugins</groupId>
   <artifactId>plugin</artifactId>
-  <!-- Baseline Jenkins version you use to build and test the plugin. Users 
-   must have this version or newer to run. -->
-  <version>2.8</version>
+  <version>2.12</version>
   <relativePath />
  </parent>
  <groupId>org.jenkins-ci.plugins</groupId>
@@ -26,17 +24,10 @@
   </scm>
 
  <properties>
-  <jenkins.version>1.651.3</jenkins.version>
-  <!-- Java Level to use. Java 7 required when using core >= 1.612 -->
-  <java.level>7</java.level>
-  <!-- Jenkins Test Harness version you use to test the plugin. -->
-  <!-- For Jenkins version >= 1.580.1 use JTH 2.x or higher. -->
-  <jenkins-test-harness.version>2.1</jenkins-test-harness.version>
-  <!-- Other properties you may want to use: ~ hpi-plugin.version: The HPI 
-   Maven Plugin version used by the plugin.. ~ stapler-plugin.version: The Stapler 
-   Maven plugin version required by the plugin. -->
-  <checkstyle.version>2.13</checkstyle.version>
- </properties>
+    <jenkins.version>1.651.3</jenkins.version>
+    <java.level>7</java.level>
+    <argLine></argLine>
+  </properties>
 
  <name>Foreman Node Sharing Plugin</name>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
@@ -98,142 +89,7 @@
    <artifactId>jackson-databind</artifactId>
    <version>2.6.6</version>
   </dependency>
-  <dependency>
-   <groupId>org.jacoco</groupId>
-   <artifactId>jacoco-maven-plugin</artifactId>
-   <version>0.7.6.201602180812</version>
-   <scope>test</scope>
-   <exclusions>
-    <exclusion>
-     <artifactId>xml-apis</artifactId>
-     <groupId>xml-apis</groupId>
-    </exclusion>
-   </exclusions>
-  </dependency>
-  <dependency>
-   <groupId>org.apache.maven</groupId>
-   <artifactId>maven-model</artifactId>
-   <version>3.0.5</version>
-  </dependency>
  </dependencies>
  <build>
-  <plugins>
-   <!-- <plugin> <artifactId>maven-compiler-plugin</artifactId> <configuration> 
-    <source>1.7</source> <target>1.7</target> </configuration> </plugin> -->
-   <plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-surefire-plugin</artifactId>
-    <configuration>
-     <!-- Sets the VM argument line used when unit tests are run. -->
-     <argLine>${surefireArgLine}</argLine>
-     <!-- Skips unit tests if the value of skip.unit.tests property is true -->
-     <skipTests>${skip.unit.tests}</skipTests>
-     <!-- Excludes integration tests when unit tests are run. -->
-     <excludes>
-      <exclude>InjectedTest.java</exclude>
-     </excludes>
-     <environmentVariables>
-      <JENKINS_JAVA_OPTS>${surefireATHArgLine}</JENKINS_JAVA_OPTS>
-      <PLUGIN_DIR>plugins</PLUGIN_DIR>
-     </environmentVariables>
-    </configuration>
-   </plugin>
-   <plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-checkstyle-plugin</artifactId>
-    <version>${checkstyle.version}</version>
-    <configuration>
-     <configLocation>build-config/swe_checkstyle.xml</configLocation>
-     <suppressionsLocation>build-config/checkstyle-suppressions.xml</suppressionsLocation>
-     <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
-     <includeTestSourceDirectory>true</includeTestSourceDirectory>
-     <consoleOutput>true</consoleOutput>
-    </configuration>
-    <executions>
-     <execution>
-      <id>compile-checkstyle</id>
-      <goals>
-       <goal>checkstyle</goal>
-      </goals>
-      <phase>compile</phase>
-     </execution>
-     <execution>
-      <id>test-check</id>
-      <goals>
-       <goal>check</goal>
-      </goals>
-      <phase>test</phase>
-      <configuration>
-       <violationSeverity>warning</violationSeverity>
-      </configuration>
-     </execution>
-    </executions>
-   </plugin>
-   <plugin>
-    <groupId>org.jacoco</groupId>
-    <artifactId>jacoco-maven-plugin</artifactId>
-    <version>0.7.6.201602180812</version>
-    <executions>
-     <!-- Prepares the property pointing to the JaCoCo runtime agent which 
-      is passed as VM argument when Maven the Surefire plugin is executed. -->
-     <execution>
-      <id>pre-unit-test</id>
-      <goals>
-       <goal>prepare-agent</goal>
-      </goals>
-      <configuration>
-       <!-- Sets the path to the file which contains the execution data. -->
-       <destFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</destFile>
-       <!-- Sets the name of the property containing the settings for JaCoCo 
-        runtime agent. -->
-       <propertyName>surefireArgLine</propertyName>
-      </configuration>
-     </execution>
-     <execution>
-      <id>pre-ath-test</id>
-      <goals>
-       <goal>prepare-agent</goal>
-      </goals>
-      <configuration>
-       <!-- Sets the path to the file which contains the execution data. -->
-       <destFile>${project.build.directory}/coverage-reports/jacoco-it.exec</destFile>
-       <!-- Sets the name of the property containing the settings for JaCoCo 
-        runtime agent. -->
-       <propertyName>surefireATHArgLine</propertyName>
-      </configuration>
-     </execution>
-     <!-- Ensures that the code coverage report for unit tests is created 
-      after unit tests have been run. -->
-     <execution>
-      <id>post-unit-test-merge</id>
-      <phase>test</phase>
-      <goals>
-       <goal>merge</goal>
-      </goals>
-      <configuration>
-       <fileSets>
-        <fileSet implementation="org.apache.maven.shared.model.fileset.FileSet">
-         <directory>${project.build.directory}/coverage-reports</directory>
-         <includes>
-          <include>*.exec</include>
-         </includes>
-        </fileSet>
-       </fileSets>
-      </configuration>
-     </execution>
-     <execution>
-      <id>post-unit-test</id>
-      <phase>test</phase>
-      <goals>
-       <goal>report</goal>
-      </goals>
-      <configuration>
-       <dataFile>${project.build.directory}/jacoco.exec</dataFile>
-       <outputDirectory>${project.reporting.outputDirectory}/jacoco</outputDirectory>
-      </configuration>
-     </execution>
-    </executions>
-   </plugin>
-  </plugins>
  </build>
 </project>
