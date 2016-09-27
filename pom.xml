@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project
- xmlns="http://maven.apache.org/POM/4.0.0"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
  <modelVersion>4.0.0</modelVersion>
 
  <parent>
   <groupId>org.jenkins-ci.plugins</groupId>
   <artifactId>plugin</artifactId>
   <version>2.12</version>
-  <relativePath />
+  <relativePath/>
  </parent>
  <groupId>org.jenkins-ci.plugins</groupId>
  <artifactId>foreman-node-sharing</artifactId>
  <version>1.1.0-SNAPSHOT</version>
  <packaging>hpi</packaging>
 
-  <scm>
-    <connection>scm:git:git://github.com/jenkinsci/foreman-node-sharing-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:jenkinsci/foreman-node-sharing-plugin.git</developerConnection>
-    <url>https://github.com/jenkinsci/foreman-node-sharing-plugin</url>
-    <tag>HEAD</tag>
-  </scm>
+ <scm>
+  <connection>scm:git:git://github.com/jenkinsci/foreman-node-sharing-plugin.git</connection>
+  <developerConnection>scm:git:git@github.com:jenkinsci/foreman-node-sharing-plugin.git</developerConnection>
+  <url>https://github.com/jenkinsci/foreman-node-sharing-plugin</url>
+  <tag>HEAD</tag>
+ </scm>
 
  <properties>
-    <jenkins.version>1.651.3</jenkins.version>
-    <java.level>7</java.level>
-    <argLine></argLine>
-  </properties>
+  <jenkins.version>1.651.3</jenkins.version>
+  <java.level>7</java.level>
+  <argLine></argLine>
+ </properties>
 
  <name>Foreman Node Sharing Plugin</name>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
@@ -40,11 +40,11 @@
  </licenses>
 
  <developers>
-    <developer>
-        <id>scoheb</id>
-        <name>Scott Hebert</name>
-        <email>shebert@redhat.com</email>
-    </developer>
+  <developer>
+   <id>scoheb</id>
+   <name>Scott Hebert</name>
+   <email>shebert@redhat.com</email>
+  </developer>
  </developers>
 
  <dependencies>
