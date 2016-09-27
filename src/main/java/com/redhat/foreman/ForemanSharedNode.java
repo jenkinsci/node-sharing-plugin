@@ -40,7 +40,7 @@ public class ForemanSharedNode extends AbstractCloudSlave {
 
     private static final long serialVersionUID = -3284884519464420953L;
 
-    private transient String cloudName;
+    private String cloudName;
 
     /**
      * Foreman Shared Node.

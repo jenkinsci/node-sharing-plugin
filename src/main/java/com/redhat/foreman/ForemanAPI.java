@@ -103,7 +103,12 @@ public class ForemanAPI {
      * @return string to be used for reserving.
      */
     private String getReserveReason() {
-        return "Reserved for " + Jenkins.getInstance().getRootUrl();
+        String url = "unknown";
+        Jenkins instance = Jenkins.getInstance();
+        if (instance != null) {
+            url = instance.getRootUrl();
+        }
+        return "Reserved for " + url;
     }
 
     /**

@@ -40,8 +40,9 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
                 new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin setTemporarilyOffline()"));
         super.kill();
         try {
-            if (getNode() != null) {
-                this.getNode().terminate();
+            ForemanSharedNode node = this.getNode();
+            if (node != null) {
+                node.terminate();
             }
         } catch (InterruptedException e) {
             LOGGER.warn("Error during ForemanComputer kill() - " + e.getMessage());
@@ -60,7 +61,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
         if (c instanceof ForemanComputer) {
             ForemanComputer fc = (ForemanComputer)c;
             Node node = fc.getNode();
-            if (node instanceof ForemanSharedNode) {
+            if (node != null) {
                 ForemanSharedNode sharedNode = (ForemanSharedNode)node;
                 sharedNode.terminate();
             }
@@ -75,8 +76,11 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
         Node node = owner.getNode();
         if (node instanceof ForemanSharedNode) {
             ForemanSharedNode sharedNode = (ForemanSharedNode)node;
-            sharedNode.toComputer().setTemporarilyOffline(true,
-                    new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin setTemporarilyOffline()"));
+            Computer computer = sharedNode.toComputer();
+            if (computer != null) {
+                computer.setTemporarilyOffline(true,
+                        new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin setTemporarilyOffline()"));
+            }
             Computer.threadPoolForRemoting.submit(new Runnable() {
                 public void run() {
                     try {
