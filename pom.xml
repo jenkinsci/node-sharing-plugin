@@ -26,9 +26,9 @@
   </scm>
 
  <properties>
-  <jenkins.version>1.651.3</jenkins.version>
+  <jenkins.version>1.609.3</jenkins.version>
   <!-- Java Level to use. Java 7 required when using core >= 1.612 -->
-  <java.level>7</java.level>
+  <java.level>6</java.level>
   <!-- Jenkins Test Harness version you use to test the plugin. -->
   <!-- For Jenkins version >= 1.580.1 use JTH 2.x or higher. -->
   <jenkins-test-harness.version>2.1</jenkins-test-harness.version>
@@ -36,6 +36,8 @@
    Maven Plugin version used by the plugin.. ~ stapler-plugin.version: The Stapler 
    Maven plugin version required by the plugin. -->
   <checkstyle.version>2.13</checkstyle.version>
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  <surefire.useFile>false</surefire.useFile>
  </properties>
 
  <name>Foreman Node Sharing Plugin</name>
@@ -56,6 +58,20 @@
     </developer>
  </developers>
 
+ <repositories>
+  <repository>
+   <id>repo.jenkins-ci.org</id>
+   <url>http://repo.jenkins-ci.org/public/</url>
+  </repository>
+ </repositories>
+
+ <pluginRepositories>
+  <pluginRepository>
+   <id>repo.jenkins-ci.org</id>
+   <url>http://repo.jenkins-ci.org/public/</url>
+   </pluginRepository>
+ </pluginRepositories>
+
  <dependencies>
   <dependency>
    <groupId>org.apache.commons</groupId>
@@ -70,7 +86,7 @@
   <dependency>
    <groupId>org.glassfish.jersey.media</groupId>
    <artifactId>jersey-media-json-jackson</artifactId>
-   <version>2.22.1</version>
+   <version>2.6</version>
   </dependency>
   <dependency>
    <groupId>org.jenkins-ci.plugins</groupId>
@@ -118,8 +134,15 @@
  </dependencies>
  <build>
   <plugins>
-   <!-- <plugin> <artifactId>maven-compiler-plugin</artifactId> <configuration> 
-    <source>1.7</source> <target>1.7</target> </configuration> </plugin> -->
+<!-- 
+  <plugin>
+    <artifactId>maven-compiler-plugin</artifactId>
+     <configuration> 
+     <source>1.6</source>
+     <target>1.6</target>
+    </configuration>
+   </plugin>
+-->
    <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-surefire-plugin</artifactId>
