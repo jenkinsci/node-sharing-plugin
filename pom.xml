@@ -66,6 +66,8 @@
   <jenkins.version>1.651.3</jenkins.version>
   <java.level>7</java.level>
   <argLine></argLine>
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  <surefire.useFile>false</surefire.useFile>
  </properties>
 
  <dependencies>
@@ -111,6 +113,7 @@
    <version>2.6.6</version>
   </dependency>
  </dependencies>
+
  <build>
  </build>
 </project>
