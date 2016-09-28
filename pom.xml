@@ -15,7 +15,7 @@
  <artifactId>foreman-node-sharing</artifactId>
  <packaging>hpi</packaging>
  <name>Foreman Node Sharing Plugin</name>
- <version>1.1.0-SNAPSHOT</version>
+ <version>1.1.1-SNAPSHOT</version>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
 
@@ -71,6 +71,11 @@
  </properties>
 
  <dependencies>
+  <dependency>
+    <groupId>org.jenkins-ci.plugins</groupId>
+    <artifactId>resource-disposer</artifactId>
+    <version>0.1</version>
+  </dependency>
   <dependency>
    <groupId>org.apache.commons</groupId>
    <artifactId>commons-lang3</artifactId>

@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 
 /**
  * Foreman Shared Node.
@@ -26,12 +27,8 @@ public class ForemanSharedNode extends AbstractCloudSlave {
 
     @Override
     public void terminate() throws InterruptedException, IOException {
-        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
-        if (cloud != null) {
-            cloud.getForemanAPI().release(name);
-        } else {
-            LOGGER.warn("Foreman Shared Node " + name + " is not part of a Foreman Shared Node Cloud");
-        }
+        DisposableImpl disposable = new DisposableImpl(cloudName, name);
+        AsyncResourceDisposer.get().dispose(disposable);
         super.terminate();
     }
 

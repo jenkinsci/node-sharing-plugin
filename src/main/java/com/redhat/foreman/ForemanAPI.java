@@ -113,7 +113,7 @@ public class ForemanAPI {
      * Release host from Foreman.
      * @param hostname name of host to release.
      */
-    public synchronized void release(String hostname) {
+    public synchronized void release(String hostname) throws Exception {
         // Get RESERVED value first to make sure we are not releasing someone
         // else's lock...
         String currentValue = getHostParameterValue(hostname, FOREMAN_SEARCH_RESERVEDPARAMNAME);
@@ -186,7 +186,7 @@ public class ForemanAPI {
      * @return value.
      */
     @CheckForNull
-    public String getHostParameterValue(String hostname, String parameterName) {
+    public String getHostParameterValue(String hostname, String parameterName) throws Exception {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
         WebTarget target = base.path(hostParamPath);
         LOGGER.debug(target.toString());
@@ -203,15 +203,20 @@ public class ForemanAPI {
                     LOGGER.debug("Returning host parameter "
                             + parameterName + "=" + param.get("value") + " for " + hostname);
                     return param.get("value").asText();
+                } else {
+                    return null;
                 }
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception getting " + parameterName + " for " + hostname + ".", e);
+                throw e;
             }
         } else {
-            LOGGER.error("Retrieving " + parameterName + " for " + hostname
-                    + " returned code " + response.getStatus() + ".");
+            String err = "Retrieving " + parameterName + " for " + hostname
+                    + " returned code " + response.getStatus() + ".";
+            Exception e = new Exception(err);
+            LOGGER.error(err, e);
+            throw e;
         }
-        return null;
     }
 
     /**
@@ -220,7 +225,7 @@ public class ForemanAPI {
      * @return value of slave remote FS root.
      */
     @CheckForNull
-    public String getRemoteFSForSlave(String hostname) {
+    public String getRemoteFSForSlave(String hostname) throws Exception {
         return getHostParameterValue(hostname, JENKINS_SLAVE_REMOTEFS_ROOT);
     }
 
@@ -271,7 +276,7 @@ public class ForemanAPI {
      * @param query query string.
      * @return list of hosts.
      */
-    public Map<String, String> getHostForQuery(String query) {
+    public Map<String, String> getHostForQuery(String query) throws Exception {
         Map<String, String> hostsMap = new HashMap<String, String>();
         List<String> hostsList = new ArrayList<String>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH)
@@ -310,7 +315,7 @@ public class ForemanAPI {
      * Get list of compatible hosts.
      * @return list of host names.
      */
-    public Map<String, String> getCompatibleHosts() {
+    public Map<String, String> getCompatibleHosts() throws Exception {
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
                 + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
                 + " and has " + FOREMAN_REMOTEFS_ROOT;
@@ -322,7 +327,7 @@ public class ForemanAPI {
      * @param hostName name of host.
      * @return value of label parameter.
      */
-    public String getLabelsForHost(String hostName) {
+    public String getLabelsForHost(String hostName) throws Exception {
         return getHostParameterValue(hostName, JENKINS_LABEL);
     }
 
@@ -331,7 +336,7 @@ public class ForemanAPI {
      * @param host name of host in foreman.
      * @return true if not reserved.
      */
-    public boolean isHostFree(String host) {
+    public boolean isHostFree(String host) throws Exception {
         String free = getHostParameterValue(host, FOREMAN_SEARCH_RESERVEDPARAMNAME);
         return !StringUtils.isEmpty(free) && free.equalsIgnoreCase("false");
     }
