@@ -1,5 +1,6 @@
 package com.redhat.foreman;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -306,12 +307,13 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @throws IllegalArgumentException if occurs.
      */
     @CheckForNull
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public static ForemanSharedNodeCloud getByName(String name) throws IllegalArgumentException {
         if (name == null) {
             return null;
         }
         Jenkins instance = Jenkins.getInstance();
-        if (instance != null && instance.clouds != null) {
+        if (instance.clouds != null) {
             Cloud cloud = instance.clouds.getByName(name);
             if (cloud instanceof ForemanSharedNodeCloud) {
                 return (ForemanSharedNodeCloud)cloud;
