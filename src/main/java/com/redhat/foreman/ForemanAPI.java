@@ -1,5 +1,6 @@
 package com.redhat.foreman;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
@@ -102,8 +103,10 @@ public class ForemanAPI {
      * Reserve reason.
      * @return string to be used for reserving.
      */
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     private String getReserveReason() {
-        return "Reserved for " + Jenkins.getInstance().getRootUrl();
+        String url = Jenkins.getInstance().getRootUrl();
+        return "Reserved for " + url;
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.redhat.foreman;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -24,6 +25,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -151,9 +153,9 @@ public class ForemanSharedNodeCloud extends Cloud {
     @Override
     public boolean canProvision(Label label) {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
-        Set<String> hosts = hostsMap.keySet();
-        for (String host: hosts) {
-            if (label == null || label.matches(Label.parse(hostsMap.get(host)))) {
+        Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
+        for (Map.Entry<String, String> host: hosts) {
+            if (label == null || label.matches(Label.parse(hostsMap.get(host.getKey())))) {
                 return true;
             }
         }
@@ -288,11 +290,11 @@ public class ForemanSharedNodeCloud extends Cloud {
     @CheckForNull
     private String getHostToReserve(Label label) {
         Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
-        Set<String> hosts = hostsMap.keySet();
-        for (String host: hosts) {
-            if (getForemanAPI().isHostFree(host)
-                    && (label == null || label.matches(Label.parse(hostsMap.get(host))))) {
-                return host;
+        Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
+        for (Map.Entry<String, String> host: hosts) {
+            if (getForemanAPI().isHostFree(host.getKey())
+                    && (label == null || label.matches(Label.parse(hostsMap.get(host.getKey()))))) {
+                return host.getKey();
             }
         }
         return null;
@@ -305,13 +307,17 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @throws IllegalArgumentException if occurs.
      */
     @CheckForNull
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public static ForemanSharedNodeCloud getByName(String name) throws IllegalArgumentException {
         if (name == null) {
             return null;
         }
-        Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
-        if (cloud instanceof ForemanSharedNodeCloud) {
-            return (ForemanSharedNodeCloud)cloud;
+        Jenkins instance = Jenkins.getInstance();
+        if (instance.clouds != null) {
+            Cloud cloud = instance.clouds.getByName(name);
+            if (cloud instanceof ForemanSharedNodeCloud) {
+                return (ForemanSharedNodeCloud)cloud;
+            }
         }
         throw new IllegalArgumentException(name + " is not a Foreman Shared Node cloud");
     }
