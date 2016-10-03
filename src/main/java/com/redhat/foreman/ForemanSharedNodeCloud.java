@@ -25,7 +25,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +40,7 @@ import jenkins.model.Jenkins;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -152,7 +153,13 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
+        Map<String, String> hostsMap = null;
+        try {
+            hostsMap = getForemanAPI().getCompatibleHosts();
+        } catch (Exception e) {
+            LOGGER.error(e);
+            return false;
+        }
         Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
         for (Map.Entry<String, String> host: hosts) {
             if (label == null || label.matches(Label.parse(hostsMap.get(host.getKey())))) {
@@ -273,7 +280,8 @@ public class ForemanSharedNodeCloud extends Cloud {
 
             } catch (Exception e) {
                 LOGGER.warn("Exception encountered when trying to create shared node. ", e);
-                getForemanAPI().release(reservedHostName);
+                DisposableImpl disposable = new DisposableImpl(cloudName, name);
+                AsyncResourceDisposer.get().dispose(disposable);
             }
         }
 
@@ -289,12 +297,23 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     @CheckForNull
     private String getHostToReserve(Label label) {
-        Map<String, String> hostsMap = getForemanAPI().getCompatibleHosts();
+        Map<String, String> hostsMap = null;
+        try {
+            hostsMap = getForemanAPI().getCompatibleHosts();
+        } catch (Exception e) {
+            LOGGER.error(e);
+            return null;
+        }
         Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
         for (Map.Entry<String, String> host: hosts) {
-            if (getForemanAPI().isHostFree(host.getKey())
-                    && (label == null || label.matches(Label.parse(hostsMap.get(host.getKey()))))) {
-                return host.getKey();
+            try {
+                if (getForemanAPI().isHostFree(host.getKey())
+                        && (label == null || label.matches(Label.parse(hostsMap.get(host.getKey()))))) {
+                    return host.getKey();
+                }
+            } catch (Exception e){
+                    LOGGER.error(e);
+                    return null;
             }
         }
         return null;
@@ -497,7 +516,12 @@ public class ForemanSharedNodeCloud extends Cloud {
          */
         private Set<String> checkForCompatibleHosts(String url, String user, Secret password) {
             ForemanAPI testApi = new ForemanAPI(url, user, password);
-            Map<String, String> hosts = testApi.getCompatibleHosts();
+            Map<String, String> hosts = new HashMap<String, String>();
+            try {
+                hosts = testApi.getCompatibleHosts();
+            } catch (Exception e) {
+                LOGGER.error(e);
+            }
             return hosts.keySet();
         }
 
