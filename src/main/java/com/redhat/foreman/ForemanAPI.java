@@ -112,6 +112,7 @@ public class ForemanAPI {
     /**
      * Release host from Foreman.
      * @param hostname name of host to release.
+     * @throws Exception if occurs.
      */
     public synchronized void release(String hostname) throws Exception {
         // Get RESERVED value first to make sure we are not releasing someone
@@ -183,6 +184,7 @@ public class ForemanAPI {
      * General utility method to get parameter value for host.
      * @param hostname name of host.
      * @param parameterName name of param.
+     * @throws Exception if occurs.
      * @return value.
      */
     @CheckForNull
@@ -223,6 +225,7 @@ public class ForemanAPI {
      * Get Jenkins Slave Remote FS root.
      * @param hostname name of host.
      * @return value of slave remote FS root.
+     * @throws Exception if occurs.
      */
     @CheckForNull
     public String getRemoteFSForSlave(String hostname) throws Exception {
@@ -274,6 +277,7 @@ public class ForemanAPI {
     /**
      * Get hosts based on query.
      * @param query query string.
+     * @throws Exception if occurs.
      * @return list of hosts.
      */
     public Map<String, String> getHostForQuery(String query) throws Exception {
@@ -313,6 +317,7 @@ public class ForemanAPI {
 
     /**
      * Get list of compatible hosts.
+     * @throws Exception if occurs.
      * @return list of host names.
      */
     public Map<String, String> getCompatibleHosts() throws Exception {
@@ -325,6 +330,7 @@ public class ForemanAPI {
     /**
      * Get Host's Jenkins labels.
      * @param hostName name of host.
+     * @throws Exception if occurs.
      * @return value of label parameter.
      */
     public String getLabelsForHost(String hostName) throws Exception {
@@ -334,6 +340,7 @@ public class ForemanAPI {
     /**
      * Determine if a host is reserved.
      * @param host name of host in foreman.
+     * @throws Exception if occurs.
      * @return true if not reserved.
      */
     public boolean isHostFree(String host) throws Exception {
