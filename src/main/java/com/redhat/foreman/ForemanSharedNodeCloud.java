@@ -461,14 +461,15 @@ public class ForemanSharedNodeCloud extends Cloud {
                 try {
                     String version = testConnection(url, user, password);
                     if (version != null) {
-                        return FormValidation.okWithMarkup("<strong>Foreman version is " + version + "<strong>");
+                        return FormValidation.okWithMarkup("<strong>"+Messages.TestConnectionOK(version)+"<strong>");
                     } else {
-                        return FormValidation.error("Unhandled error in getting version from Foreman");
+                        return FormValidation.error(Messages.TestConnectionFailure());
                     }
                 } catch (LoginException e) {
                     return FormValidation.error(Messages.AuthFailure());
                 } catch (Exception e) {
                     LOGGER.error("Unhandled exception in doTestConnection: ", e);
+                    e.printStackTrace();
                     return FormValidation.error(Messages.Error() + ": " + e);
                 }
             }
@@ -494,11 +495,9 @@ public class ForemanSharedNodeCloud extends Cloud {
 
             Set<String> hosts = checkForCompatibleHosts(url, user, password);
             StringBuffer hostsMessage = new StringBuffer();
-            hostsMessage.append("<b>The following hosts are compatible:</b> <small>(parameters JENKINS_LABEL, "
-                    + "RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT are defined)</small><br><br>");
+            hostsMessage.append(Messages.CheckCompatibleHostsOK() + "<br><br>");
             if (hosts == null || hosts.isEmpty()) {
-                return FormValidation.error("NO hosts found that have defined parameters of JENKINS_LABEL,"
-                        + " RESERVED, JENKINS_SLAVE_REMOTEFS_ROOT");
+                return FormValidation.error(Messages.CheckCompatibleHostsFailure());
             } else {
                 for (String host: hosts) {
                     hostsMessage.append("<font face=\"verdana\" color=\"green\">" + host + "</font><br>");
