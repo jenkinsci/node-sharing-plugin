@@ -157,7 +157,8 @@ public class ForemanSharedNodeCloud extends Cloud {
         try {
             hostsMap = getForemanAPI().getCompatibleHosts();
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unhandled exception in canProvision: ", e);
+            e.printStackTrace();
             return false;
         }
         Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
@@ -180,7 +181,8 @@ public class ForemanSharedNodeCloud extends Cloud {
                         try {
                             return provision(label);
                         } catch (Exception e) {
-                            LOGGER.error(e);
+                            LOGGER.error("Unhandled exception in provision: ", e);
+                            e.printStackTrace();
                             throw e;
                         }
                     }
@@ -196,7 +198,8 @@ public class ForemanSharedNodeCloud extends Cloud {
                         1));
                 }
             } catch (Exception e) {
-                LOGGER.error(e);
+                LOGGER.error("Unhandled exception in provision: ", e);
+                e.printStackTrace();
             }
         }
         return result;
@@ -301,7 +304,8 @@ public class ForemanSharedNodeCloud extends Cloud {
         try {
             hostsMap = getForemanAPI().getCompatibleHosts();
         } catch (Exception e) {
-            LOGGER.error(e);
+            LOGGER.error("Unhandled exception in getHostToReserve: ", e);
+            e.printStackTrace();
             return null;
         }
         Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
@@ -312,7 +316,8 @@ public class ForemanSharedNodeCloud extends Cloud {
                     return host.getKey();
                 }
             } catch (Exception e){
-                    LOGGER.error(e);
+                    LOGGER.error("Unhandled exception in getHostToReserve: ", e);
+                    e.printStackTrace();
                     return null;
             }
         }
@@ -519,7 +524,8 @@ public class ForemanSharedNodeCloud extends Cloud {
             try {
                 hosts = testApi.getCompatibleHosts();
             } catch (Exception e) {
-                LOGGER.error(e);
+                LOGGER.error("Unhandled exception in checkForCompatibleHosts: ", e);
+                e.printStackTrace();
             }
             return hosts.keySet();
         }
