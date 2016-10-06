@@ -185,6 +185,7 @@ public class ForemanAPI {
      * General utility method to get parameter value for host.
      * @param hostname name of host.
      * @param parameterName name of param.
+     * @throws Exception if occurs.
      * @return value.
      * @throws Exception if occurs.
      */
@@ -280,6 +281,7 @@ public class ForemanAPI {
     /**
      * Get hosts based on query.
      * @param query query string.
+     * @throws Exception if occurs.
      * @return list of hosts.
      * @throws Exception if occurs.
      */
@@ -321,6 +323,7 @@ public class ForemanAPI {
 
     /**
      * Get list of compatible hosts.
+     * @throws Exception if occurs.
      * @return list of host names.
      * @throws Exception if occurs.
      */
@@ -334,6 +337,7 @@ public class ForemanAPI {
     /**
      * Get Host's Jenkins labels.
      * @param hostName name of host.
+     * @throws Exception if occurs.
      * @return value of label parameter.
      * @throws Exception if occurs.
      */
@@ -344,6 +348,7 @@ public class ForemanAPI {
     /**
      * Determine if a host is reserved.
      * @param host name of host in foreman.
+     * @throws Exception if occurs.
      * @return true if not reserved.
      * @throws Exception if occurs.
      */
