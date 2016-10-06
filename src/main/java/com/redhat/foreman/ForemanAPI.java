@@ -1,6 +1,7 @@
 package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.Util;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
@@ -151,9 +152,13 @@ public class ForemanAPI {
     private Response getForemanResponse(WebTarget target) {
         Response response = Response.serverError().entity("error").build();
         try {
+            long time = System.currentTimeMillis();
             response = target.request(MediaType.APPLICATION_JSON).get();
+            LOGGER.debug("getForemanResponse() response time from Foreman: " + Util.getTimeSpanString(System.currentTimeMillis() - time)
+                    + " for URI: '" +target.getUri() + "'");
         } catch (Exception e) {
             LOGGER.error(e.getMessage());
+            e.printStackTrace();
         }
         return response;
     }

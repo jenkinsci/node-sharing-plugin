@@ -1,7 +1,9 @@
 package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.AbortException;
 import hudson.Extension;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
@@ -153,6 +155,8 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
+        LOGGER.info("canProvision asked for label '"+label+"'");
+        long time = System.currentTimeMillis();
         Map<String, String> hostsMap = null;
         try {
             hostsMap = getForemanAPI().getCompatibleHosts();
@@ -161,6 +165,8 @@ public class ForemanSharedNodeCloud extends Cloud {
             e.printStackTrace();
             return false;
         }
+        LOGGER.info("canProvision returns from Foreman in "
+                + Util.getTimeSpanString(System.currentTimeMillis() - time));
         Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
         for (Map.Entry<String, String> host: hosts) {
             if (label == null || label.matches(Label.parse(hostsMap.get(host.getKey())))) {
@@ -171,7 +177,6 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     @Override
-    @CheckForNull
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
@@ -182,25 +187,28 @@ public class ForemanSharedNodeCloud extends Cloud {
             try {
                 Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     public Node call() throws Exception {
+                        Node node = null;
                         try {
-                            return provision(label);
+                            node = provision(label);
                         } catch (Exception e) {
                             LOGGER.error("Unhandled exception in provision: ", e);
                             e.printStackTrace();
-                            throw e;
+                            throw (AbortException) new AbortException().initCause(e);
                         }
+                        if (node == null) {
+                            throw new AbortException("No Foreman resources available");
+                        }
+                        return node;
                     }
                 });
-                if (futurePlannedNode.get() != null) {
-                    String name = "ForemanNode";
-                    if (label != null) {
-                        name = label.toString();
-                    }
-                    result.add(new NodeProvisioner.PlannedNode(
-                        name,
-                        futurePlannedNode,
-                        1));
+                String name = "ForemanNode";
+                if (label != null) {
+                    name = Util.fixNull(Util.fixEmptyAndTrim(label.toString()));
                 }
+                result.add(new NodeProvisioner.PlannedNode(
+                    name,
+                    futurePlannedNode,
+                    1));
             } catch (Exception e) {
                 LOGGER.error("Unhandled exception in provision: ", e);
                 e.printStackTrace();
@@ -230,10 +238,9 @@ public class ForemanSharedNodeCloud extends Cloud {
             return null;
         }
 
-        final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
-        if (host != null) {
-            try {
-
+        try {
+            final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
+            if (host != null) {
                 String certName = null;
                 if (host.elements().hasNext()) {
                     JsonNode h = host.elements().next();
@@ -266,7 +273,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                             SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                 } else {
                     if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(hostForConnection,
+                        ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hostForConnection,
                                 SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                     }
                 }
@@ -284,12 +291,12 @@ public class ForemanSharedNodeCloud extends Cloud {
                         launcherFactory.getForemanComputerLauncher(),
                         strategy,
                         properties);
-
-            } catch (Exception e) {
-                LOGGER.warn("Exception encountered when trying to create shared node. ", e);
-                DisposableImpl disposable = new DisposableImpl(cloudName, name);
-                AsyncResourceDisposer.get().dispose(disposable);
             }
+
+        } catch (Exception e) {
+            LOGGER.warn("Exception encountered when trying to create shared node. ", e);
+            DisposableImpl disposable = new DisposableImpl(cloudName, reservedHostName);
+            AsyncResourceDisposer.get().dispose(disposable);
         }
 
         // Something has changed and there are now no resources available...
