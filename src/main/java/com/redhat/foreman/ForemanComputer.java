@@ -3,11 +3,11 @@ package com.redhat.foreman;
 import java.io.IOException;
 
 import java.util.logging.Logger;
+import hudson.remoting.VirtualChannel;
 
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Node;
-import hudson.model.User;
 import hudson.model.Queue.Task;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
@@ -27,12 +27,12 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
     @Override
     public void taskCompleted(Executor executor, Task task, long durationMS) {
-        eagerlyReturnNode(executor);
+        eagerlyReturnNodeLater();
     }
 
     @Override
     public void taskCompletedWithProblems(Executor executor, Task task, long durationMS, Throwable problems) {
-        eagerlyReturnNode(executor);
+        eagerlyReturnNodeLater();
     }
 
     @Override
@@ -40,35 +40,26 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
         return super.getNode();
     }
 
-    @Override
-    protected void kill() {
-        setPendingDelete(true);
-        super.kill();
-        try {
-            ForemanSharedNode node = this.getNode();
-            if (node != null) {
-                node.terminate();
-            }
-        } catch (InterruptedException e) {
-            LOGGER.warning("Error during ForemanComputer kill() - " + e.getMessage());
-        } catch (IOException e) {
-            LOGGER.warning("Error during ForemanComputer kill() - " + e.getMessage());
-        }
-    }
-
     /**
      * Utility method to terminate a Foreman shared node.
      *
-     * @param c Computer
+     * @param c The {@link Computer}
      * @throws IOException if occurs.
      * @throws InterruptedException if occurs.
      */
-    static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
+    private static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
         if (c instanceof ForemanComputer) {
-            ForemanComputer fc = (ForemanComputer)c;
+            ForemanComputer fc = (ForemanComputer) c;
+            fc.setPendingDelete(true);
             Node node = fc.getNode();
             if (node != null) {
-                ForemanSharedNode sharedNode = (ForemanSharedNode)node;
+                ForemanSharedNode sharedNode = (ForemanSharedNode) node;
+
+                VirtualChannel channel = sharedNode.getChannel();
+                if (channel != null) {
+                    channel.close();
+                }
+
                 sharedNode.terminate();
                 LOGGER.info("Deleted slave " + node.getDisplayName());
             }
@@ -76,44 +67,39 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
     }
 
     /**
-     * We want to eagerly return the node to Foreman.
+     * We want to eagerly return the node to Foreman in an asynchronous thread.
      *
-     * @param owner Computer.
+     * @param computer The {@link Computer}.
      */
-    private synchronized void eagerlyReturnNodeLater(final Computer owner) {
-        Node node = owner.getNode();
-        if (node instanceof ForemanSharedNode) {
-            ForemanSharedNode sharedNode = (ForemanSharedNode)node;
-            Computer computer = sharedNode.toComputer();
-            if (computer != null) {
-                setPendingDelete(true);
-            }
-            Computer.threadPoolForRemoting.submit(new Runnable() {
-                public void run() {
-                    try {
-                        ForemanComputer.terminateForemanComputer(owner);
-                    } catch (InterruptedException e) {
-                        LOGGER.warning(e.getMessage());
-                    } catch (IOException e) {
-                        LOGGER.warning(e.getMessage());
+    public static void eagerlyReturnNodeLater(final Computer computer) {
+        if (computer != null && computer.getNode() instanceof ForemanSharedNode) {
+            if (!((ForemanComputer) computer).setPendingDelete(true)) {
+                Computer.threadPoolForRemoting.submit(new Runnable() {
+                    public void run() {
+                        try {
+                            ForemanComputer.terminateForemanComputer(computer);
+                        } catch (InterruptedException e) {
+                            LOGGER.warning(e.getMessage());
+                        } catch (IOException e) {
+                            LOGGER.warning(e.getMessage());
+                        }
                     }
-                }
-            });
+                });
+            }
         }
     }
 
     /**
-     * Eagerly return resource to Foreman.
-     * @param executor Executor.
+     * We want to eagerly return current instance of {@link ForemanComputer} in an asynchronous thread.
      */
-    private void eagerlyReturnNode(Executor executor) {
-        eagerlyReturnNodeLater(executor.getOwner());
+    public void eagerlyReturnNodeLater() {
+        eagerlyReturnNodeLater(this);
     }
 
     /**
      * Default constructor.
      *
-     * @param slave Foreman slave.
+     * @param slave Foreman slave {@link ForemanSharedNode}.
      */
     public ForemanComputer(ForemanSharedNode slave) {
         super(slave);
@@ -127,6 +113,8 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
     /**
      * Is slave pending termination.
+     *
+     * @return The current state
      */
     public boolean isPendingDelete() {
         // No need  to synchronize reading as offlineCause is volatile
@@ -136,6 +124,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
     /**
      * Flag the slave to be removed
      *
+     * @param newStatus The new status
      * @return Old value.
      */
     public boolean setPendingDelete(final boolean newStatus) {
@@ -149,7 +138,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
             if (newStatus) {
                 setTemporarilyOffline(true, PENDING_TERMINATION);
             } else {
-                setTemporarilyOffline(true, null);
+                setTemporarilyOffline(false, null);
             }
             return oldStatus;
         }

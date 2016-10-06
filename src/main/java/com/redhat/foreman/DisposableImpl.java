@@ -24,12 +24,14 @@ public class DisposableImpl implements Disposable {
     public State dispose() throws Exception {
         ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
         if (cloud != null) {
+            LOGGER.finer("Attempt to release the node: " + name);
             cloud.getForemanAPI().release(name);
+            LOGGER.finer("[COMPLETED] Attempt to release the node: " + name);
             return State.PURGED;
-        } else {
-            LOGGER.warning("Foreman Shared Node " + name + " is not part of a Foreman Shared Node Cloud");
         }
-        return State.TO_DISPOSE;
+        String msg = "Foreman cloud instance '" + cloudName + "' not found.";
+        LOGGER.warning(msg);
+        return new State.Failed(msg);
     }
 
     @Nonnull

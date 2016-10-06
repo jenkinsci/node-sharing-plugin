@@ -1,6 +1,7 @@
 package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.Util;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
@@ -60,6 +61,7 @@ public class ForemanAPI {
 
     /**
      * Foreman API Constructor.
+     *
      * @param url foreman url.
      * @param user user.
      * @param password password.
@@ -75,11 +77,22 @@ public class ForemanAPI {
 
     /**
      * Reserve host outright.
+     *
      * @param hostname resource in Foreman.
      * @return host in json form.
      */
     @CheckForNull
-    public JsonNode reserveHost(String hostname) {
+    public JsonNode reserveHost(String hostname) throws Exception {
+        try {
+            if (!isHostFree(hostname)) {
+                LOGGER.info("Attempt to reserve already reserved host '" + hostname + "'!");
+                return null;
+            }
+        } catch (Exception e) {
+            LOGGER.severe("Unexpected exception occurred while detecting the reservation status for host '"
+                    + hostname + "'");
+            return null;
+        }
         LOGGER.info("Reserving host " + hostname);
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
@@ -96,15 +109,18 @@ public class ForemanAPI {
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception reserving " + hostname + ".", e);
                 e.printStackTrace();
+                throw e;
             }
         } else {
-            LOGGER.severe("Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".");
+            String msg = "Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".";
+            LOGGER.severe(msg);
+            throw new Exception(msg);
         }
-        return null;
     }
 
     /**
      * Reserve reason.
+     *
      * @return string to be used for reserving.
      */
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
@@ -115,54 +131,62 @@ public class ForemanAPI {
 
     /**
      * Release host from Foreman.
-     * @param hostname name of host to release.
+     *
+     * @param hostName name of host to release.
      * @throws Exception if occurs.
      */
-    public synchronized void release(String hostname) throws Exception {
+    public void release(String hostName) throws Exception {
         // Get RESERVED value first to make sure we are not releasing someone
         // else's lock...
-        String currentValue = getHostParameterValue(hostname, FOREMAN_SEARCH_RESERVEDPARAMNAME);
-        if (currentValue == null) {
-            LOGGER.info("Host " + hostname + " not reserved. Not releasing.");
+        if (isHostFree(hostName)) {
+            LOGGER.info("Host " + hostName + " not reserved. Not releasing.");
             return;
         }
 
-        if (currentValue.trim().equals(getReserveReason())) {
-            LOGGER.info("Attempting to Release host " + hostname);
+        if (isHostReservedByUs(hostName)) {
+            LOGGER.info("Attempting to Release host " + hostName);
             WebTarget target = base.path(FOREMAN_RELEASE_PATH)
-                    .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
+                    .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostName);
             LOGGER.finer(target.toString());
             Response response = getForemanResponse(target);
 
             if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
                 String responseAsString = response.readEntity(String.class);
                 LOGGER.finer(responseAsString);
-                LOGGER.severe("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
+                String msg = "Attempt to release " + hostName + " returned code " + response.getStatus() + ".";
+                LOGGER.severe(msg);
+                throw new Exception(msg);
             } else {
-                LOGGER.info("Host " + hostname + " successfully released.");
+                LOGGER.info("Host " + hostName + " successfully released.");
             }
         } else {
-            LOGGER.info("Host " + hostname + " not reserved by us! Not releasing.");
+            LOGGER.info("Host " + hostName + " not reserved by us! Not releasing.");
         }
     }
 
     /**
      * Gracefully handle getting a response from Foreman.
+     *
      * @param target WebTarget to get.
      * @return Response. 500 error is the default.
      */
     private Response getForemanResponse(WebTarget target) {
         Response response = Response.serverError().entity("error").build();
         try {
+            long time = System.currentTimeMillis();
             response = target.request(MediaType.APPLICATION_JSON).get();
+            LOGGER.finer("getForemanResponse() response time from Foreman: " + Util.getTimeSpanString(System.currentTimeMillis() - time)
+                    + " for URI: '" +target.getUri() + "'");
         } catch (Exception e) {
             LOGGER.severe(e.getMessage());
+            e.printStackTrace();
         }
         return response;
     }
 
     /**
      * Get Foreman version.
+     *
      * @return version.
      * @throws Exception if occurs.
      */
@@ -186,6 +210,7 @@ public class ForemanAPI {
 
     /**
      * General utility method to get parameter value for host.
+     *
      * @param hostname name of host.
      * @param parameterName name of param.
      * @return value.
@@ -228,6 +253,7 @@ public class ForemanAPI {
 
     /**
      * Get Jenkins Slave Remote FS root.
+     *
      * @param hostname name of host.
      * @return value of slave remote FS root.
      * @throws Exception if occurs.
@@ -239,6 +265,7 @@ public class ForemanAPI {
 
     /**
      * Get value for host attribute.
+     *
      * @param hostname name of host.
      * @param attribute attrib to look for.
      * @return value of attrib.
@@ -272,6 +299,7 @@ public class ForemanAPI {
     }
 
     /** Get IP for Host.
+     *
      * @param hostname name of host.
      * @return IP.
      */
@@ -282,6 +310,7 @@ public class ForemanAPI {
 
     /**
      * Get hosts based on query.
+     *
      * @param query query string.
      * @return list of hosts.
      * @throws Exception if occurs.
@@ -324,6 +353,7 @@ public class ForemanAPI {
 
     /**
      * Get list of compatible hosts.
+     *
      * @return list of host names.
      * @throws Exception if occurs.
      */
@@ -336,6 +366,7 @@ public class ForemanAPI {
 
     /**
      * Get Host's Jenkins labels.
+     *
      * @param hostName name of host.
      * @return value of label parameter.
      * @throws Exception if occurs.
@@ -346,13 +377,24 @@ public class ForemanAPI {
 
     /**
      * Determine if a host is reserved.
-     * @param host name of host in foreman.
+     *
+     * @param hostName name of host in Foreman.
      * @return true if not reserved.
      * @throws Exception if occurs.
      */
-    public boolean isHostFree(String host) throws Exception {
-        String free = getHostParameterValue(host, FOREMAN_SEARCH_RESERVEDPARAMNAME);
+    public boolean isHostFree(String hostName) throws Exception {
+        String free = getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME);
         return !StringUtils.isEmpty(free) && free.equalsIgnoreCase("false");
     }
 
+    /**
+     * Determine if a host is reserved for current Jenkins instance
+     *
+     * @param hostName name of the host in Foreman
+     * @return true if reserved for us
+     * @throws Exception if occurs
+     */
+    public boolean isHostReservedByUs(final String hostName) throws Exception {
+        return getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME).equals(getReserveReason());
+    }
 }

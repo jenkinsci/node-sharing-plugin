@@ -17,20 +17,11 @@ import java.io.IOException;
 import java.util.List;
 
 import java.util.logging.Logger;
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 
 /**
  * Foreman Shared Node.
- *
  */
 public class ForemanSharedNode extends AbstractCloudSlave {
-
-    @Override
-    public void terminate() throws InterruptedException, IOException {
-        DisposableImpl disposable = new DisposableImpl(cloudName, name);
-        AsyncResourceDisposer.get().dispose(disposable);
-        super.terminate();
-    }
 
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class.getName());
     private static final int NUM_EXECUTORS = 1;
@@ -41,18 +32,19 @@ public class ForemanSharedNode extends AbstractCloudSlave {
 
     /**
      * Foreman Shared Node.
-     * @param cloudName name of cloud.
-     * @param name name or IP of host.
-     * @param description same.
-     * @param label Jenkins label requested.
-     * @param remoteFS Remote FS root.
-     * @param launcher Slave launcher.
-     * @param strategy Retention Strategy.
+     *
+     * @param cloudName      name of cloud.
+     * @param name           name or IP of host.
+     * @param description    same.
+     * @param label          Jenkins label requested.
+     * @param remoteFS       Remote FS root.
+     * @param launcher       Slave launcher.
+     * @param strategy       Retention Strategy.
      * @param nodeProperties node props.
      * @throws FormException if occurs.
-     * @throws IOException if occurs.
+     * @throws IOException   if occurs.
      */
-     public ForemanSharedNode(
+    public ForemanSharedNode(
             String cloudName,
             String name,
             String description,
@@ -65,7 +57,8 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         super(name, description, remoteFS, NUM_EXECUTORS,
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
-        LOGGER.info("Instancing a new ForemanSharedNode: name='"+name+"', label='"+(label==null?"<NULL>":label.toString())+"'");
+        LOGGER.info("Instancing a new ForemanSharedNode: name='" + name + "', label='"
+                + (label == null ? "<NULL>" : label.toString()) + "'");
         this.cloudName = cloudName;
     }
 
@@ -87,10 +80,14 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         return super.canTake(item);
     }
 
+    @Override
+    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+        LOGGER.info("Terminating the ForenamSharedNode: name='" + name + "'");
+        ForemanSharedNodeCloud.addDisposableEvent(cloudName, name);
+    }
 
     /**
      * Slave descriptor.
-     *
      */
     @Extension
     public static final class DescriptorImpl extends SlaveDescriptor {
@@ -104,12 +101,6 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         public boolean isInstantiable() {
             return false;
         }
-    }
-
-
-    @Override
-    //CS IGNORE MethodName FOR NEXT 2 LINES. REASON: Parent.
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
     }
 
 }

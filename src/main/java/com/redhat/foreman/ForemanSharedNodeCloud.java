@@ -1,6 +1,7 @@
 package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.AsyncPeriodicWork;
@@ -46,6 +47,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -62,7 +64,6 @@ import com.redhat.foreman.launcher.ForemanSSHComputerLauncherFactory;
 
 /**
  * Foreman Shared Node Cloud implementation.
- *
  */
 public class ForemanSharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNodeCloud.class.getName());
@@ -101,6 +102,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Constructor with name.
+     *
      * @param name Name of cloud.
      */
     public ForemanSharedNodeCloud(String name) {
@@ -110,16 +112,17 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Constructor for Config Page.
-     * @param cloudName name of cloud.
-     * @param url Foreman URL.
-     * @param user user to connect with.
-     * @param password password to connect with.
-     * @param credentialsId creds to use to connect to slave.
+     *
+     * @param cloudName            name of cloud.
+     * @param url                  Foreman URL.
+     * @param user                 user to connect with.
+     * @param password             password to connect with.
+     * @param credentialsId        creds to use to connect to slave.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
     public ForemanSharedNodeCloud(String cloudName, String url, String user, Secret password, String credentialsId,
-            Integer sshConnectionTimeOut) {
+                                  Integer sshConnectionTimeOut) {
         super(cloudName);
 
         this.cloudName = cloudName;
@@ -133,6 +136,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Setter for credentialsId.
+     *
      * @param credentialsId to use to connect to slaves with.
      */
     @DataBoundSetter
@@ -142,6 +146,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Setter for Launcher Factory.
+     *
      * @param launcherFactory launcherFactory to use.
      */
     public void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
@@ -150,6 +155,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Getter for Foreman API
+     *
      * @return Foreman API.
      */
     ForemanAPI getForemanAPI() {
@@ -161,26 +167,31 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
+        LOGGER.finer("canProvision() asked for label '" + label + "'");
+        long time = System.currentTimeMillis();
         Map<String, String> mapData = getHostsMapData();
 
         Set<Map.Entry<String, String>> hosts = mapData.entrySet();
-        for (Map.Entry<String, String> host: hosts) {
+        for (Map.Entry<String, String> host : hosts) {
             try {
                 if ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
-                    || (label != null && label.matches(Label.parse(mapData.get(host.getKey()))))) {
+                        || (label != null && label.matches(Label.parse(mapData.get(host.getKey()))))) {
+                    LOGGER.finer("canProvision returns True in "
+                            + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     return true;
                 }
             } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Unexpected exception occurred in canProvision: ", e);
-                    e.printStackTrace();
-                    continue;
+                LOGGER.log(Level.SEVERE, "Unexpected exception occurred in canProvision(): ", e);
+                e.printStackTrace();
+                continue;
             }
         }
+        LOGGER.finer("canProvision returns False in "
+                + Util.getTimeSpanString(System.currentTimeMillis() - time));
         return false;
     }
 
     @Override
-    @CheckForNull
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
@@ -191,27 +202,30 @@ public class ForemanSharedNodeCloud extends Cloud {
             try {
                 Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     public Node call() throws Exception {
+                        Node node = null;
                         try {
-                            return provision(label);
+                            node = provision(label);
                         } catch (Exception e) {
-                            LOGGER.log(Level.SEVERE, "Unhandled exception in provision: ", e);
+                            LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
                             e.printStackTrace();
-                            throw e;
+                            throw (AbortException) new AbortException().initCause(e);
                         }
+                        if (node == null) {
+                            throw new AbortException("No Foreman resources available");
+                        }
+                        return node;
                     }
                 });
-                if (futurePlannedNode.get() != null) {
-                    String name = "ForemanNode";
-                    if (label != null) {
-                        name = label.toString();
-                    }
-                    result.add(new NodeProvisioner.PlannedNode(
+                String name = "ForemanNode";
+                if (label != null) {
+                    name = Util.fixNull(Util.fixEmptyAndTrim(label.toString()));
+                }
+                result.add(new NodeProvisioner.PlannedNode(
                         name,
                         futurePlannedNode,
                         1));
-                }
             } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception in provision: ", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
                 e.printStackTrace();
             }
         }
@@ -221,6 +235,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     /**
      * Perform the provisioning. This uses the Foreman hosts_reserve plugin to "lock"
      * a host for this requesting master.
+     *
      * @param label linked Jenkins Label.
      * @return a Foreman Slave.
      * @throws Exception if occurs.
@@ -239,10 +254,9 @@ public class ForemanSharedNodeCloud extends Cloud {
             return null;
         }
 
-        final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
-        if (host != null) {
-            try {
-
+        try {
+            final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
+            if (host != null) {
                 String certName = null;
                 if (host.elements().hasNext()) {
                     JsonNode h = host.elements().next();
@@ -258,8 +272,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                 }
 
                 if (!reservedHostName.equals(certName)) {
-                    LOGGER.finer("Reserved host is not what we asked to reserve?");
-                    return null;
+                    throw new Exception("Reserved host is not what we asked to reserve?");
                 }
 
                 String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
@@ -275,7 +288,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                             SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                 } else {
                     if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                        ((ForemanSSHComputerLauncherFactory)launcherFactory).configure(hostForConnection,
+                        ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hostForConnection,
                                 SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                     }
                 }
@@ -293,12 +306,11 @@ public class ForemanSharedNodeCloud extends Cloud {
                         launcherFactory.getForemanComputerLauncher(),
                         strategy,
                         properties);
-
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
-                DisposableImpl disposable = new DisposableImpl(cloudName, name);
-                AsyncResourceDisposer.get().dispose(disposable);
             }
+
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
+            addDisposableEvent(cloudName, reservedHostName);
         }
 
         // Something has changed and there are now no resources available...
@@ -308,6 +320,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Get host to Reserve for the label. Host must be free.
+     *
      * @param label Label to reserve for.
      * @return name of host that was reserved.
      */
@@ -316,17 +329,17 @@ public class ForemanSharedNodeCloud extends Cloud {
         Map<String, String> mapData = getHostsMapData();
 
         Set<Map.Entry<String, String>> hosts = mapData.entrySet();
-        for (Map.Entry<String, String> host: hosts) {
+        for (Map.Entry<String, String> host : hosts) {
             try {
                 if (getForemanAPI().isHostFree(host.getKey())
-                    && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
-                       || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
+                        && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
+                        || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
                     return host.getKey();
                 }
-            } catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve: ", e);
-                    e.printStackTrace();
-                    continue;
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
+                e.printStackTrace();
+                continue;
             }
         }
         return null;
@@ -334,6 +347,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Get Cloud using provided name.
+     *
      * @param name Cloud name.
      * @return a Foreman Cloud.
      * @throws IllegalArgumentException if occurs.
@@ -347,15 +361,27 @@ public class ForemanSharedNodeCloud extends Cloud {
         Jenkins instance = Jenkins.getInstance();
         if (instance.clouds != null) {
             Cloud cloud = instance.clouds.getByName(name);
+            if (cloud == null) {
+                return null;
+            }
             if (cloud instanceof ForemanSharedNodeCloud) {
-                return (ForemanSharedNodeCloud)cloud;
+                return (ForemanSharedNodeCloud) cloud;
             }
         }
         throw new IllegalArgumentException(name + " is not a Foreman Shared Node cloud");
     }
 
+
+    public static DisposableImpl addDisposableEvent(final String cloudName, final String hostName) {
+        LOGGER.finer("Adding the host '" + hostName + "' to the disposable queue.");
+        DisposableImpl disposable = new DisposableImpl(cloudName, hostName);
+        AsyncResourceDisposer.get().dispose(disposable);
+        return disposable;
+    }
+
     /**
      * Get Foreman Cloud Name.
+     *
      * @return name.
      */
     public String getCloudName() {
@@ -364,6 +390,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Set Foreman Cloud Name.
+     *
      * @param cloudName name of cloud.
      */
     public void setCloudName(String cloudName) {
@@ -372,6 +399,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Get Foreman url.
+     *
      * @return url.
      */
     public String getUrl() {
@@ -380,6 +408,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Set Foreman url.
+     *
      * @param url url.
      */
     public void setUrl(String url) {
@@ -388,6 +417,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Get Foreman user.
+     *
      * @return user.
      */
     public String getUser() {
@@ -396,6 +426,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Set Foreman user.
+     *
      * @param user user.
      */
     public void setUser(String user) {
@@ -404,6 +435,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Foreman password.
+     *
      * @return password as Secret.
      */
     public Secret getPassword() {
@@ -412,6 +444,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Set Foreman password.
+     *
      * @param password Secret.
      */
     public void setPassword(Secret password) {
@@ -420,6 +453,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Get credentials for SSH connection.
+     *
      * @return credential id.
      */
     public String getCredentialsId() {
@@ -428,6 +462,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /**
      * Get SSH connection time in seconds.
+     *
      * @return timeout in secs.
      */
     public Integer getSshConnectionTimeOut() {
@@ -461,9 +496,9 @@ public class ForemanSharedNodeCloud extends Cloud {
         }
         return hostsMap.get();
     }
+
     /**
      * Descriptor for Foreman Cloud.
-     *
      */
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
@@ -475,33 +510,35 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         /**
          * Fill SSH credentials.
+         *
          * @return list of creds.
          */
         public ListBoxModel doFillCredentialsIdItems() {
             return new StandardListBoxModel()
                     .withMatching(anyOf(
-                                instanceOf(SSHUserPrivateKey.class),
-                                instanceOf(UsernamePasswordCredentials.class)),
+                            instanceOf(SSHUserPrivateKey.class),
+                            instanceOf(UsernamePasswordCredentials.class)),
                             CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class));
         }
 
         /**
          * Test connection.
-         * @param url url.
-         * @param user user.
+         *
+         * @param url      url.
+         * @param user     user.
          * @param password password.
          * @return Foram Validation.
          * @throws ServletException if occurs.
          */
         public FormValidation doTestConnection(@QueryParameter("url") String url,
-                @QueryParameter("user") String user,
-                @QueryParameter("password") Secret password) throws ServletException {
+                                               @QueryParameter("user") String user,
+                                               @QueryParameter("password") Secret password) throws ServletException {
             url = StringUtils.strip(StringUtils.stripToNull(url), "/");
             if (url != null && isValidURL(url)) {
                 try {
                     String version = testConnection(url, user, password);
                     if (version != null) {
-                        return FormValidation.okWithMarkup("<strong>"+Messages.TestConnectionOK(version)+"<strong>");
+                        return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
                     } else {
                         return FormValidation.error(Messages.TestConnectionFailure());
                     }
@@ -518,15 +555,16 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         /**
          * Check for compatible hosts.
-         * @param url url.
-         * @param user user.
+         *
+         * @param url      url.
+         * @param user     user.
          * @param password password.
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
         public FormValidation doCheckForCompatibleHosts(@QueryParameter("url") String url,
-                @QueryParameter("user") String user,
-                @QueryParameter("password") Secret password) throws ServletException {
+                                                        @QueryParameter("user") String user,
+                                                        @QueryParameter("password") Secret password) throws ServletException {
 
             FormValidation testConn = this.doTestConnection(url, user, password);
             if (testConn.kind != FormValidation.Kind.OK) {
@@ -539,7 +577,7 @@ public class ForemanSharedNodeCloud extends Cloud {
             if (hosts == null || hosts.isEmpty()) {
                 return FormValidation.error(Messages.CheckCompatibleHostsFailure());
             } else {
-                for (String host: hosts) {
+                for (String host : hosts) {
                     hostsMessage.append("<font face=\"verdana\" color=\"green\">" + host + "</font><br>");
                 }
                 return FormValidation.okWithMarkup(hostsMessage.toString());
@@ -548,8 +586,9 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         /**
          * Call API to check for compatible hosts.
-         * @param url url.
-         * @param user user.
+         *
+         * @param url      url.
+         * @param user     user.
          * @param password password.
          * @return List of hosts.
          */
@@ -567,8 +606,9 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         /**
          * Call API to test connection.
-         * @param url url.
-         * @param user user.
+         *
+         * @param url      url.
+         * @param user     user.
          * @param password password.
          * @return Foreman version.
          * @throws Exception if occurs.
@@ -585,6 +625,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         /**
          * Check if URL is valid.
+         *
          * @param url url.
          * @return true if valid.
          */
@@ -617,12 +658,14 @@ public class ForemanSharedNodeCloud extends Cloud {
         public void execute(TaskListener listener) {
             Jenkins instance = Jenkins.getInstance();
             if (instance.clouds != null) {
-                for (Cloud cloud: instance.clouds) {
+                for (Cloud cloud : instance.clouds) {
                     if (cloud instanceof ForemanSharedNodeCloud) {
                         ForemanSharedNodeCloud foremanCloud = (ForemanSharedNodeCloud) cloud;
                         LOGGER.finer("Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName());
+                        long time = System.currentTimeMillis();
                         foremanCloud.updateHostData();
-                        LOGGER.finer("[COMPLETED] Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName());
+                        LOGGER.finer("[COMPLETED] Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName()
+                                + " in " + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     }
                 }
             }
