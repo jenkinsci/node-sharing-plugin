@@ -113,6 +113,7 @@ public class ForemanAPI {
     /**
      * Release host from Foreman.
      * @param hostname name of host to release.
+     * @throws Exception if occurs.
      */
     public synchronized void release(String hostname) throws Exception {
         // Get RESERVED value first to make sure we are not releasing someone
@@ -185,6 +186,7 @@ public class ForemanAPI {
      * @param hostname name of host.
      * @param parameterName name of param.
      * @return value.
+     * @throws Exception if occurs.
      */
     @CheckForNull
     public String getHostParameterValue(String hostname, String parameterName) throws Exception {
@@ -225,6 +227,7 @@ public class ForemanAPI {
      * Get Jenkins Slave Remote FS root.
      * @param hostname name of host.
      * @return value of slave remote FS root.
+     * @throws Exception if occurs.
      */
     @CheckForNull
     public String getRemoteFSForSlave(String hostname) throws Exception {
@@ -278,6 +281,7 @@ public class ForemanAPI {
      * Get hosts based on query.
      * @param query query string.
      * @return list of hosts.
+     * @throws Exception if occurs.
      */
     public Map<String, String> getHostForQuery(String query) throws Exception {
         Map<String, String> hostsMap = new HashMap<String, String>();
@@ -318,6 +322,7 @@ public class ForemanAPI {
     /**
      * Get list of compatible hosts.
      * @return list of host names.
+     * @throws Exception if occurs.
      */
     public Map<String, String> getCompatibleHosts() throws Exception {
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
@@ -330,6 +335,7 @@ public class ForemanAPI {
      * Get Host's Jenkins labels.
      * @param hostName name of host.
      * @return value of label parameter.
+     * @throws Exception if occurs.
      */
     public String getLabelsForHost(String hostName) throws Exception {
         return getHostParameterValue(hostName, JENKINS_LABEL);
@@ -339,6 +345,7 @@ public class ForemanAPI {
      * Determine if a host is reserved.
      * @param host name of host in foreman.
      * @return true if not reserved.
+     * @throws Exception if occurs.
      */
     public boolean isHostFree(String host) throws Exception {
         String free = getHostParameterValue(host, FOREMAN_SEARCH_RESERVEDPARAMNAME);
