@@ -238,6 +238,7 @@ public class ForemanSharedNodeCloudTest {
 
         fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         j.getInstance().clouds.add(fCloud);
+        fCloud.updateHostData();
 
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedLabel(new LabelAtom("label1"));
@@ -276,6 +277,7 @@ public class ForemanSharedNodeCloudTest {
 
         fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         j.getInstance().clouds.add(fCloud);
+        fCloud.updateHostData();
 
         AdministrativeMonitor adminMonitor = j.getInstance().getAdministrativeMonitor("AsyncResourceDisposer");
         assertTrue("adminMonitor not null for AsyncResourceDisposer", adminMonitor != null);
@@ -322,6 +324,7 @@ public class ForemanSharedNodeCloudTest {
         // Simulate Foreman is back online
         setupWireMock();
         Thread.sleep(1000);
+        fCloud.updateHostData();
         while(cleanedCheckLatch.getCount() >= 0) {
             boolean foundOurDisposalItem = false;
             for (AsyncResourceDisposer.WorkItem item: disposer.getBacklog()) {

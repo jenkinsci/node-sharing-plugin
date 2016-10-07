@@ -6,6 +6,7 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.PeriodicWork;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudRetentionStrategy;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.CheckForNull;
 import javax.security.auth.login.LoginException;
@@ -90,6 +92,8 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     private transient ForemanAPI api = null;
     private transient ForemanComputerLauncherFactory launcherFactory = null;
+    private transient AtomicReference<Map<String, String>> hostsMap
+            = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
 
     /**
      * Constructor with name.
@@ -153,17 +157,11 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        Map<String, String> hostsMap = null;
-        try {
-            hostsMap = getForemanAPI().getCompatibleHosts();
-        } catch (Exception e) {
-            LOGGER.error("Unhandled exception in canProvision: ", e);
-            e.printStackTrace();
-            return false;
-        }
-        Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
+        Map<String, String> mapData = getHostsMapData();
+
+        Set<Map.Entry<String, String>> hosts = mapData.entrySet();
         for (Map.Entry<String, String> host: hosts) {
-            if (label == null || label.matches(Label.parse(hostsMap.get(host.getKey())))) {
+            if (label == null || label.matches(Label.parse(mapData.get(host.getKey())))) {
                 return true;
             }
         }
@@ -304,19 +302,13 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     @CheckForNull
     private String getHostToReserve(Label label) {
-        Map<String, String> hostsMap = null;
-        try {
-            hostsMap = getForemanAPI().getCompatibleHosts();
-        } catch (Exception e) {
-            LOGGER.error("Unhandled exception in getHostToReserve: ", e);
-            e.printStackTrace();
-            return null;
-        }
-        Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
+        Map<String, String> mapData = getHostsMapData();
+
+        Set<Map.Entry<String, String>> hosts = mapData.entrySet();
         for (Map.Entry<String, String> host: hosts) {
             try {
                 if (getForemanAPI().isHostFree(host.getKey())
-                        && (label == null || label.matches(Label.parse(hostsMap.get(host.getKey()))))) {
+                        && (label == null || label.matches(Label.parse(mapData.get(host.getKey()))))) {
                     return host.getKey();
                 }
             } catch (Exception e){
@@ -430,6 +422,37 @@ public class ForemanSharedNodeCloud extends Cloud {
         return sshConnectionTimeOut;
     }
 
+    /**
+     * Update hosts data
+     */
+    void updateHostData() {
+        try {
+            if (hostsMap == null) {
+                hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
+            }
+
+            Map<String, String> testMap = getForemanAPI().getCompatibleHosts();
+            if (testMap != null) {
+                hostsMap.set(testMap);
+                return;
+            }
+        } catch (Exception e) {
+            LOGGER.error(e);
+            e.printStackTrace();
+        }
+        hostsMap.set(new HashMap<String, String>());
+    }
+
+    @CheckForNull
+    private Map<String, String> getHostsMapData() {
+        if (hostsMap == null) {
+            hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
+        }
+        if (hostsMap.get() == null) {
+            updateHostData();
+        }
+        return hostsMap.get();
+    }
     /**
      * Descriptor for Foreman Cloud.
      *
@@ -565,6 +588,42 @@ public class ForemanSharedNodeCloud extends Cloud {
                 return false;
             }
             return true;
+        }
+    }
+
+    /**
+     * Extension to update
+     */
+    @Extension
+    public static class ForemanSharedNodeWorker extends PeriodicWork {
+
+        private final Logger LOGGER =
+                Logger.getLogger(com.redhat.foreman.ForemanSharedNodeCloud.ForemanSharedNodeWorker.class);
+
+        @Override
+        @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
+        public void doRun() {
+            Jenkins instance = Jenkins.getInstance();
+            if (instance.clouds != null) {
+                for (Cloud cloud: instance.clouds) {
+                    if (cloud instanceof ForemanSharedNodeCloud) {
+                        ForemanSharedNodeCloud foremanCloud = (ForemanSharedNodeCloud) cloud;
+                        LOGGER.debug("Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName());
+                        foremanCloud.updateHostData();
+                        LOGGER.debug("[COMPLETED] Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName());
+                    }
+                }
+            }
+        }
+
+        @Override
+        public long getRecurrencePeriod() {
+            return MIN;
+        }
+
+        @Override
+        public String toString() {
+            return "ForemanSharedNodeWorker.Updater";
         }
     }
 }
