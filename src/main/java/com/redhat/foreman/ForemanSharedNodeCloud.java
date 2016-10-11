@@ -172,9 +172,13 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     @CheckForNull
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
-        if (canProvision(label)) {
+        if (excessWorkload > 0
+                && !Jenkins.getInstance().isQuietingDown()
+                && !Jenkins.getInstance().isTerminating()
+                && canProvision(label)) {
             try {
                 Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     public Node call() throws Exception {
