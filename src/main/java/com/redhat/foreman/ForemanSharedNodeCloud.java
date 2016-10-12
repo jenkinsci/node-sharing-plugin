@@ -163,8 +163,15 @@ public class ForemanSharedNodeCloud extends Cloud {
         }
         Set<Map.Entry<String, String>> hosts = hostsMap.entrySet();
         for (Map.Entry<String, String> host: hosts) {
-            if (label == null || label.matches(Label.parse(hostsMap.get(host.getKey())))) {
-                return true;
+            try {
+                if ((label == null && Label.parse(hostsMap.get(host.getKey())).isEmpty())
+                    || (label != null && label.matches(Label.parse(hostsMap.get(host.getKey()))))) {
+                    return true;
+                }
+            } catch (Exception e) {
+                    LOGGER.error(e);
+                    e.printStackTrace();
+                    continue;
             }
         }
         return false;
@@ -316,13 +323,14 @@ public class ForemanSharedNodeCloud extends Cloud {
         for (Map.Entry<String, String> host: hosts) {
             try {
                 if (getForemanAPI().isHostFree(host.getKey())
-                        && (label == null || label.matches(Label.parse(hostsMap.get(host.getKey()))))) {
+                    && ((label == null && Label.parse(hostsMap.get(host.getKey())).isEmpty())
+                       || (label != null && label.matches(Label.parse(hostsMap.get(host.getKey())))))) {
                     return host.getKey();
                 }
             } catch (Exception e){
                     LOGGER.error("Unhandled exception in getHostToReserve: ", e);
                     e.printStackTrace();
-                    return null;
+                    continue;
             }
         }
         return null;
