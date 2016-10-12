@@ -25,13 +25,6 @@ import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
  */
 public class ForemanSharedNode extends AbstractCloudSlave {
 
-    @Override
-    public void terminate() throws InterruptedException, IOException {
-        DisposableImpl disposable = new DisposableImpl(cloudName, name);
-        AsyncResourceDisposer.get().dispose(disposable);
-        super.terminate();
-    }
-
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class);
     private static final int NUM_EXECUTORS = 1;
 
@@ -84,6 +77,11 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         return super.canTake(item);
     }
 
+    @Override
+    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+        DisposableImpl disposable = new DisposableImpl(cloudName, name);
+        AsyncResourceDisposer.get().dispose(disposable);
+    }
 
     /**
      * Slave descriptor.
@@ -101,12 +99,6 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         public boolean isInstantiable() {
             return false;
         }
-    }
-
-
-    @Override
-    //CS IGNORE MethodName FOR NEXT 2 LINES. REASON: Parent.
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
     }
 
 }
