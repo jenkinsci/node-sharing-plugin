@@ -1,11 +1,11 @@
 package com.redhat.foreman;
 
 import hudson.Extension;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Queue.BuildableItem;
 import hudson.model.queue.CauseOfBlockage;
-import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
@@ -52,7 +52,7 @@ public class ForemanSharedNode extends AbstractCloudSlave {
      * @throws FormException if occurs.
      * @throws IOException if occurs.
      */
-    public ForemanSharedNode(
+     public ForemanSharedNode(
             String cloudName,
             String name,
             String description,
@@ -61,8 +61,11 @@ public class ForemanSharedNode extends AbstractCloudSlave {
             ComputerLauncher launcher,
             RetentionStrategy<AbstractCloudComputer> strategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
+        //CS IGNORE check FOR NEXT 4 LINES. REASON: necessary inline conditional in super().
         super(name, description, remoteFS, NUM_EXECUTORS,
-                Node.Mode.EXCLUSIVE, label, launcher, strategy, nodeProperties);
+                label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
+                label, launcher, strategy, nodeProperties);
+        LOGGER.info("Instancing a new ForemanSharedNode: name='"+name+"', label='"+(label==null?"<NULL>":label.toString())+"'");
         this.cloudName = cloudName;
     }
 
