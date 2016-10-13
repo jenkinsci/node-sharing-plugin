@@ -2,6 +2,7 @@ package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
@@ -161,8 +162,15 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         Set<Map.Entry<String, String>> hosts = mapData.entrySet();
         for (Map.Entry<String, String> host: hosts) {
-            if (label == null || label.matches(Label.parse(mapData.get(host.getKey())))) {
-                return true;
+            try {
+                if ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
+                    || (label != null && label.matches(Label.parse(mapData.get(host.getKey()))))) {
+                    return true;
+                }
+            } catch (Exception e) {
+                    LOGGER.error(e);
+                    e.printStackTrace();
+                    continue;
             }
         }
         return false;
@@ -251,7 +259,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                     return null;
                 }
 
-                String labelsForHost = getForemanAPI().getLabelsForHost(reservedHostName);
+                String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
                 String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
                 String hostIP = getForemanAPI().getIPForHost(reservedHostName);
                 String hostForConnection = reservedHostName;
@@ -308,13 +316,14 @@ public class ForemanSharedNodeCloud extends Cloud {
         for (Map.Entry<String, String> host: hosts) {
             try {
                 if (getForemanAPI().isHostFree(host.getKey())
-                        && (label == null || label.matches(Label.parse(mapData.get(host.getKey()))))) {
+                    && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
+                       || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
                     return host.getKey();
                 }
             } catch (Exception e){
                     LOGGER.error("Unhandled exception in getHostToReserve: ", e);
                     e.printStackTrace();
-                    return null;
+                    continue;
             }
         }
         return null;
@@ -443,7 +452,6 @@ public class ForemanSharedNodeCloud extends Cloud {
         hostsMap.set(new HashMap<String, String>());
     }
 
-    @CheckForNull
     private Map<String, String> getHostsMapData() {
         if (hostsMap == null) {
             hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
