@@ -2,6 +2,9 @@ package com.redhat.foreman;
 
 import java.io.IOException;
 
+import hudson.remoting.VirtualChannel;
+import hudson.util.JenkinsReloadFailed;
+import jenkins.model.Jenkins;
 import org.apache.log4j.Logger;
 
 import hudson.model.Computer;
@@ -63,7 +66,14 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
             Node node = fc.getNode();
             if (node != null) {
                 ForemanSharedNode sharedNode = (ForemanSharedNode)node;
+
+                VirtualChannel channel = sharedNode.getChannel();
+                if (channel != null) {
+                    channel.close();
+                }
+
                 sharedNode.terminate();
+                LOGGER.info("Deleted slave " + node.getNodeName());
             }
         }
     }
