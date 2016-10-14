@@ -17,7 +17,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -31,7 +33,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class ForemanAPI {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanAPI.class);;
+    private static final Logger LOGGER = Logger.getLogger(ForemanAPI.class.getName());;
 
     private static final String JENKINS_LABEL = "JENKINS_LABEL";
     private static final String FOREMAN_HOSTS_PATH = "v2/hosts";
@@ -82,20 +84,21 @@ public class ForemanAPI {
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
                 .queryParam(FOREMAN_RESERVE_REASON, getReserveReason());
-        LOGGER.debug(target.toString());
+        LOGGER.fine(target.toString());
+
         Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
-            LOGGER.debug(responseAsString);
+            LOGGER.finer(responseAsString);
             try {
                 return new ObjectMapper().readValue(responseAsString, JsonNode.class);
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception reserving " + hostname + ".", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception reserving " + hostname + ".", e);
                 e.printStackTrace();
             }
         } else {
-            LOGGER.error("Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".");
+            LOGGER.severe("Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".");
         }
         return null;
     }
@@ -128,13 +131,13 @@ public class ForemanAPI {
             LOGGER.info("Attempting to Release host " + hostname);
             WebTarget target = base.path(FOREMAN_RELEASE_PATH)
                     .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname);
-            LOGGER.debug(target.toString());
+            LOGGER.finer(target.toString());
             Response response = getForemanResponse(target);
 
             if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
                 String responseAsString = response.readEntity(String.class);
-                LOGGER.debug(responseAsString);
-                LOGGER.error("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
+                LOGGER.finer(responseAsString);
+                LOGGER.severe("Attempt to release " + hostname + " returned code " + response.getStatus() + ".");
             } else {
                 LOGGER.info("Host " + hostname + " successfully released.");
             }
@@ -153,7 +156,7 @@ public class ForemanAPI {
         try {
             response = target.request(MediaType.APPLICATION_JSON).get();
         } catch (Exception e) {
-            LOGGER.error(e.getMessage());
+            LOGGER.severe(e.getMessage());
         }
         return response;
     }
@@ -170,10 +173,10 @@ public class ForemanAPI {
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
-            LOGGER.debug(responseAsString);
+            LOGGER.finer(responseAsString);
             ObjectMapper mapper = new ObjectMapper();
             JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-            LOGGER.debug(param.toString());
+            LOGGER.finer(param.toString());
             if ((param.get("version") != null)) {
                 return param.get("version").asText();
             }
@@ -192,25 +195,25 @@ public class ForemanAPI {
     public String getHostParameterValue(String hostname, String parameterName) throws Exception {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
         WebTarget target = base.path(hostParamPath);
-        LOGGER.debug(target.toString());
+        LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
-            LOGGER.debug(responseAsString);
+            LOGGER.finer(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-                LOGGER.debug(param.toString());
+                LOGGER.finer(param.toString());
                 if ((param.get("name") != null && param.get("name").textValue().equals(parameterName))) {
-                    LOGGER.debug("Returning host parameter "
+                    LOGGER.finer("Returning host parameter "
                             + parameterName + "=" + param.get("value") + " for " + hostname);
                     return param.get("value").asText();
                 } else {
                     return null;
                 }
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception getting " + parameterName + " for " + hostname + ".", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception getting " + parameterName + " for " + hostname + ".", e);
                 e.printStackTrace();
                 throw e;
             }
@@ -218,7 +221,7 @@ public class ForemanAPI {
             String err = "Retrieving " + parameterName + " for " + hostname
                     + " returned code " + response.getStatus() + ".";
             Exception e = new Exception(err);
-            LOGGER.error(err, e);
+            LOGGER.log(Level.SEVERE, err, e);
             throw e;
         }
     }
@@ -244,25 +247,25 @@ public class ForemanAPI {
     public String getHostAttributeValue(String hostname, String attribute) {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname;
         WebTarget target = base.path(hostParamPath);
-        LOGGER.debug(target.toString());
+        LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
-            LOGGER.debug(responseAsString);
+            LOGGER.finer(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-                LOGGER.debug(param.toString());
-                LOGGER.debug(param.get(attribute));
+                LOGGER.finer(param.toString());
+                LOGGER.finer(param.get(attribute).toString());
                 LOGGER.info("Retrieving " + attribute + "=" + param.get(attribute) + " for " + hostname);
                 return param.get(attribute).asText();
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception getting " + attribute + " for " + hostname + ".", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception getting " + attribute + " for " + hostname + ".", e);
                 e.printStackTrace();
             }
         } else {
-            LOGGER.error("Retrieving " + attribute + " for " + hostname
+            LOGGER.severe("Retrieving " + attribute + " for " + hostname
                     + " returned code " + response.getStatus() + ".");
         }
         return null;
@@ -290,12 +293,12 @@ public class ForemanAPI {
                 .queryParam(FOREMAN_SEARCH_PARAM,
                   query);
 
-        LOGGER.debug(target.toString());
+        LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
 
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
-            LOGGER.debug(responseAsString);
+            LOGGER.finer(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode json = mapper.readValue(responseAsString, JsonNode.class);
@@ -306,7 +309,7 @@ public class ForemanAPI {
                     }
                 }
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception getting compatible hosts: ", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception getting compatible hosts: ", e);
                 e.printStackTrace();
             }
             for (String host: hostsList) {

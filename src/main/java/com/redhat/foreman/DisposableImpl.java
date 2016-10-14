@@ -1,6 +1,6 @@
 package com.redhat.foreman;
 
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 
 import javax.annotation.Nonnull;
@@ -12,7 +12,7 @@ public class DisposableImpl implements Disposable {
 
     private final String cloudName;
     private final String name;
-    private static final Logger LOGGER = Logger.getLogger(DisposableImpl.class);
+    private static final Logger LOGGER = Logger.getLogger(DisposableImpl.class.getName());
 
     public DisposableImpl(String cloudName, String name) {
         this.cloudName = cloudName;
@@ -27,7 +27,7 @@ public class DisposableImpl implements Disposable {
             cloud.getForemanAPI().release(name);
             return State.PURGED;
         } else {
-            LOGGER.warn("Foreman Shared Node " + name + " is not part of a Foreman Shared Node Cloud");
+            LOGGER.warning("Foreman Shared Node " + name + " is not part of a Foreman Shared Node Cloud");
         }
         return State.TO_DISPOSE;
     }

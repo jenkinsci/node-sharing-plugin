@@ -16,7 +16,7 @@ import hudson.slaves.RetentionStrategy;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 
 /**
@@ -32,7 +32,7 @@ public class ForemanSharedNode extends AbstractCloudSlave {
         super.terminate();
     }
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class);
+    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class.getName());
     private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
