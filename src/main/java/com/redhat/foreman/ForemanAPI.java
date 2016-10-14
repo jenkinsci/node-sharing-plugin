@@ -286,7 +286,7 @@ public class ForemanAPI {
      * @return list of hosts.
      * @throws Exception if occurs.
      */
-    public Map<String, String> getHostForQuery(String query) throws Exception {
+    private Map<String, String> getHostForQuery(String query) throws Exception {
         Map<String, String> hostsMap = new HashMap<String, String>();
         List<String> hostsList = new ArrayList<String>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH)
@@ -327,7 +327,7 @@ public class ForemanAPI {
      * @return list of host names.
      * @throws Exception if occurs.
      */
-    public Map<String, String> getCompatibleHosts() throws Exception {
+    Map<String, String> getCompatibleHosts() throws Exception {
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
                 + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
                 + " and has " + FOREMAN_REMOTEFS_ROOT;
@@ -354,4 +354,5 @@ public class ForemanAPI {
         String free = getHostParameterValue(host, FOREMAN_SEARCH_RESERVEDPARAMNAME);
         return !StringUtils.isEmpty(free) && free.equalsIgnoreCase("false");
     }
+
 }
