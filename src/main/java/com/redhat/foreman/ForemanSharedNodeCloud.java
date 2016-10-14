@@ -40,7 +40,9 @@ import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -60,7 +62,7 @@ import com.redhat.foreman.launcher.ForemanSSHComputerLauncherFactory;
  *
  */
 public class ForemanSharedNodeCloud extends Cloud {
-    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNodeCloud.class);
+    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNodeCloud.class.getName());
 
     private static final int SSH_DEFAULT_PORT = 22;
 
@@ -158,7 +160,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         try {
             hostsMap = getForemanAPI().getCompatibleHosts();
         } catch (Exception e) {
-            LOGGER.error("Unhandled exception in canProvision: ", e);
+            LOGGER.log(Level.SEVERE, "Unhandled exception in canProvision: ", e);
             e.printStackTrace();
             return false;
         }
@@ -170,7 +172,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                     return true;
                 }
             } catch (Exception e) {
-                    LOGGER.error(e);
+                    LOGGER.log(Level.SEVERE, "Unexpected exception occurred in canProvision: ", e);
                     e.printStackTrace();
                     continue;
             }
@@ -193,7 +195,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                         try {
                             return provision(label);
                         } catch (Exception e) {
-                            LOGGER.error("Unhandled exception in provision: ", e);
+                            LOGGER.log(Level.SEVERE, "Unhandled exception in provision: ", e);
                             e.printStackTrace();
                             throw e;
                         }
@@ -210,7 +212,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                         1));
                 }
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception in provision: ", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception in provision: ", e);
                 e.printStackTrace();
             }
         }
@@ -230,11 +232,11 @@ public class ForemanSharedNodeCloud extends Cloud {
         if (label != null) {
             labelName = label.toString();
         }
-        LOGGER.debug("Trying to provision Foreman Shared Node for '" + labelName + "'");
+        LOGGER.finer("Trying to provision Foreman Shared Node for '" + labelName + "'");
 
         String reservedHostName = getHostToReserve(label);
         if (reservedHostName == null) {
-            LOGGER.debug("No Foreman resources available...");
+            LOGGER.finer("No Foreman resources available...");
             return null;
         }
 
@@ -257,7 +259,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                 }
 
                 if (!reservedHostName.equals(certName)) {
-                    LOGGER.debug("Reserved host is not what we asked to reserve?");
+                    LOGGER.finer("Reserved host is not what we asked to reserve?");
                     return null;
                 }
 
@@ -283,7 +285,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                 List<? extends NodeProperty<?>> properties = Collections.emptyList();
 
-                LOGGER.debug("Returning a ForemanSharedNode for " + hostForConnection);
+                LOGGER.finer("Returning a ForemanSharedNode for " + hostForConnection);
                 return new ForemanSharedNode(this.cloudName,
                         reservedHostName,
                         hostForConnection,
@@ -294,14 +296,14 @@ public class ForemanSharedNodeCloud extends Cloud {
                         properties);
 
             } catch (Exception e) {
-                LOGGER.warn("Exception encountered when trying to create shared node. ", e);
+                LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
                 DisposableImpl disposable = new DisposableImpl(cloudName, name);
                 AsyncResourceDisposer.get().dispose(disposable);
             }
         }
 
         // Something has changed and there are now no resources available...
-        LOGGER.debug("No Foreman resources available...");
+        LOGGER.finer("No Foreman resources available...");
         return null;
     }
 
@@ -316,7 +318,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         try {
             hostsMap = getForemanAPI().getCompatibleHosts();
         } catch (Exception e) {
-            LOGGER.error("Unhandled exception in getHostToReserve: ", e);
+            LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve: ", e);
             e.printStackTrace();
             return null;
         }
@@ -329,7 +331,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                     return host.getKey();
                 }
             } catch (Exception e){
-                    LOGGER.error("Unhandled exception in getHostToReserve: ", e);
+                    LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve: ", e);
                     e.printStackTrace();
                     continue;
             }
@@ -486,7 +488,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                 } catch (LoginException e) {
                     return FormValidation.error(Messages.AuthFailure());
                 } catch (Exception e) {
-                    LOGGER.error("Unhandled exception in doTestConnection: ", e);
+                    LOGGER.log(Level.SEVERE, "Unhandled exception in doTestConnection: ", e);
                     e.printStackTrace();
                     return FormValidation.error(Messages.Error() + ": " + e);
                 }
@@ -537,7 +539,7 @@ public class ForemanSharedNodeCloud extends Cloud {
             try {
                 hosts = testApi.getCompatibleHosts();
             } catch (Exception e) {
-                LOGGER.error("Unhandled exception in checkForCompatibleHosts: ", e);
+                LOGGER.log(Level.SEVERE, "Unhandled exception in checkForCompatibleHosts: ", e);
                 e.printStackTrace();
             }
             return hosts.keySet();
@@ -570,7 +572,7 @@ public class ForemanSharedNodeCloud extends Cloud {
             try {
                 new URI(url);
             } catch (URISyntaxException e) {
-                LOGGER.error("URISyntaxException, returning false.");
+                LOGGER.severe("URISyntaxException, returning false.");
                 return false;
             }
             return true;

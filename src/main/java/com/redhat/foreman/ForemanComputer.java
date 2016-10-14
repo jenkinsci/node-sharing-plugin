@@ -2,7 +2,7 @@ package com.redhat.foreman;
 
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -17,7 +17,7 @@ import hudson.slaves.OfflineCause;
  */
 public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanComputer.class);
+    private static final Logger LOGGER = Logger.getLogger(ForemanComputer.class.getName());
 
     @Override
     public void taskCompleted(Executor executor, Task task, long durationMS) {
@@ -45,9 +45,9 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
                 node.terminate();
             }
         } catch (InterruptedException e) {
-            LOGGER.warn("Error during ForemanComputer kill() - " + e.getMessage());
+            LOGGER.warning("Error during ForemanComputer kill() - " + e.getMessage());
         } catch (IOException e) {
-            LOGGER.warn("Error during ForemanComputer kill() - " + e.getMessage());
+            LOGGER.warning("Error during ForemanComputer kill() - " + e.getMessage());
         }
     }
 
@@ -86,9 +86,9 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
                     try {
                         ForemanComputer.terminateForemanComputer(owner);
                     } catch (InterruptedException e) {
-                        LOGGER.warn(e.getMessage());
+                        LOGGER.warning(e.getMessage());
                     } catch (IOException e) {
-                        LOGGER.warn(e.getMessage());
+                        LOGGER.warning(e.getMessage());
                     }
                 }
             });
