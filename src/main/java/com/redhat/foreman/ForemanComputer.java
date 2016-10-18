@@ -11,6 +11,11 @@ import hudson.model.User;
 import hudson.model.Queue.Task;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.stapler.StaplerResponse;
+
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Foreman Cloud Computer.
@@ -109,6 +114,12 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
      */
     public ForemanComputer(ForemanSharedNode slave) {
         super(slave);
+    }
+
+    // Hide /configure view inherited from Computer
+    @Restricted(DoNotUse.class)
+    public void doConfigure(StaplerResponse rsp) throws IOException {
+        rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
 }
