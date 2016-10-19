@@ -23,6 +23,7 @@ import javax.servlet.http.HttpServletResponse;
 public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
     private static final Logger LOGGER = Logger.getLogger(ForemanComputer.class.getName());
+    private final Object pendingDeleteLock = new Object();
 
     @Override
     public void taskCompleted(Executor executor, Task task, long durationMS) {
@@ -41,8 +42,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
     @Override
     protected void kill() {
-        setTemporarilyOffline(true,
-                new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin setTemporarilyOffline()"));
+        setPendingDelete(true);
         super.kill();
         try {
             ForemanSharedNode node = this.getNode();
@@ -58,6 +58,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
     /**
      * Utility method to terminate a Foreman shared node.
+     *
      * @param c Computer
      * @throws IOException if occurs.
      * @throws InterruptedException if occurs.
@@ -69,12 +70,14 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
             if (node != null) {
                 ForemanSharedNode sharedNode = (ForemanSharedNode)node;
                 sharedNode.terminate();
+                LOGGER.info("Deleted slave " + node.getDisplayName());
             }
         }
     }
 
     /**
      * We want to eagerly return the node to Foreman.
+     *
      * @param owner Computer.
      */
     private synchronized void eagerlyReturnNodeLater(final Computer owner) {
@@ -83,8 +86,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
             ForemanSharedNode sharedNode = (ForemanSharedNode)node;
             Computer computer = sharedNode.toComputer();
             if (computer != null) {
-                computer.setTemporarilyOffline(true,
-                        new OfflineCause.UserCause(User.current(), "Foreman Shared Plugin setTemporarilyOffline()"));
+                setPendingDelete(true);
             }
             Computer.threadPoolForRemoting.submit(new Runnable() {
                 public void run() {
@@ -110,6 +112,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
 
     /**
      * Default constructor.
+     *
      * @param slave Foreman slave.
      */
     public ForemanComputer(ForemanSharedNode slave) {
@@ -122,4 +125,43 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
         rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
 
+    /**
+     * Is slave pending termination.
+     */
+    public boolean isPendingDelete() {
+        // No need  to synchronize reading as offlineCause is volatile
+        return offlineCause instanceof PendingTermination;
+    }
+
+    /**
+     * Flag the slave to be removed
+     *
+     * @return Old value.
+     */
+    public boolean setPendingDelete(final boolean newStatus) {
+        synchronized (pendingDeleteLock) {
+            boolean oldStatus = isPendingDelete();
+            if (oldStatus == newStatus) {
+                return oldStatus;
+            }
+
+            LOGGER.info("Setting " + getName() + " pending delete status to " + newStatus);
+            if (newStatus) {
+                setTemporarilyOffline(true, PENDING_TERMINATION);
+            } else {
+                setTemporarilyOffline(true, null);
+            }
+            return oldStatus;
+        }
+    }
+
+    // Singleton
+    private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
+
+    private static final class PendingTermination extends OfflineCause.SimpleOfflineCause {
+
+        protected PendingTermination() {
+            super(Messages._DeletedCause());
+        }
+    }
 }
