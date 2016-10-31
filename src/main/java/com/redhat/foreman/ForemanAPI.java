@@ -395,6 +395,12 @@ public class ForemanAPI {
      * @throws Exception if occurs
      */
     public boolean isHostReservedByUs(final String hostName) throws Exception {
-        return getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME).equals(getReserveReason());
+        final String result = getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME);
+
+        if (result == null) {
+            return false;
+        } else {
+            return result.equals(getReserveReason());
+        }
     }
 }
