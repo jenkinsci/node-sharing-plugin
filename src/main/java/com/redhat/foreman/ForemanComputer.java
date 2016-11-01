@@ -76,20 +76,18 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
      */
     public static void eagerlyReturnNodeLater(final Computer computer) {
         if (computer != null && computer.getNode() instanceof ForemanSharedNode) {
-            if (!((ForemanComputer) computer).setPendingDelete(true)) {
-                Computer.threadPoolForRemoting.submit(new Runnable() {
-                    public void run() {
-                        try {
-                            ForemanComputer.terminateForemanComputer(computer);
-                        } catch (InterruptedException e) {
-                            LOGGER.warning(e.getMessage());
-                        } catch (IOException e) {
-                            LOGGER.warning(e.getMessage());
-                        }
-                    }
-                });
-            }
+            ((ForemanComputer) computer).setPendingDelete(true);
         }
+    }
+
+    /**
+     * Delete the slave, terminate the instance
+     *
+     * @throws IOException if occurs
+     * @throws InterruptedException if occurs
+     */
+    public void deleteSlave() throws IOException, InterruptedException {
+        terminateForemanComputer(this);
     }
 
     /**
