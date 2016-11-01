@@ -13,6 +13,9 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.HttpRedirect;
+import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
 
 import javax.servlet.http.HttpServletResponse;
@@ -109,6 +112,19 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
     @Restricted(DoNotUse.class)
     public void doConfigure(StaplerResponse rsp) throws IOException {
         rsp.sendError(HttpServletResponse.SC_NOT_FOUND);
+    }
+
+    @Override
+    @Restricted(NoExternalUse.class)
+    public HttpResponse doDoDelete() throws IOException {
+        if (!isPendingDelete()) {
+            ForemanSharedNode node = getNode();
+            if (node == null) {
+                super.doDoDelete();
+            }
+            eagerlyReturnNodeLater();
+        }
+        return new HttpRedirect("..");
     }
 
     /**
