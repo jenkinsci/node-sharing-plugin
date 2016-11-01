@@ -36,7 +36,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 
@@ -113,17 +113,17 @@ public class ForemanSharedNodeCloudTest {
      * @throws URISyntaxException if occurs.
      */
     private void setupWireMock() throws IOException, URISyntaxException {
-        String body1  = TestUtils.readFile("body1.txt", StandardCharsets.UTF_8);
-        String body2  = TestUtils.readFile("body2.txt", StandardCharsets.UTF_8);
-        String body3  = TestUtils.readFile("body3.txt", StandardCharsets.UTF_8);
-        String body4  = TestUtils.readFile("body4.txt", StandardCharsets.UTF_8);
-        String body5  = TestUtils.readFile("body5.txt", StandardCharsets.UTF_8);
-        String body6  = TestUtils.readFile("body6.txt", StandardCharsets.UTF_8);
-        String body7  = TestUtils.readFile("body7.txt", StandardCharsets.UTF_8);
-        String body8  = TestUtils.readFile("body8.txt", StandardCharsets.UTF_8);
-        String body9  = TestUtils.readFile("body9.txt", StandardCharsets.UTF_8);
-        String body10 = TestUtils.readFile("body10.txt", StandardCharsets.UTF_8);
-        String body11 = TestUtils.readFile("body11.txt", StandardCharsets.UTF_8);
+        String body1  = TestUtils.readFile("body1.txt", Charset.forName("UTF-8"));
+        String body2  = TestUtils.readFile("body2.txt", Charset.forName("UTF-8"));
+        String body3  = TestUtils.readFile("body3.txt", Charset.forName("UTF-8"));
+        String body4  = TestUtils.readFile("body4.txt", Charset.forName("UTF-8"));
+        String body5  = TestUtils.readFile("body5.txt", Charset.forName("UTF-8"));
+        String body6  = TestUtils.readFile("body6.txt", Charset.forName("UTF-8"));
+        String body7  = TestUtils.readFile("body7.txt", Charset.forName("UTF-8"));
+        String body8  = TestUtils.readFile("body8.txt", Charset.forName("UTF-8"));
+        String body9  = TestUtils.readFile("body9.txt", Charset.forName("UTF-8"));
+        String body10 = TestUtils.readFile("body10.txt", Charset.forName("UTF-8"));
+        String body11 = TestUtils.readFile("body11.txt", Charset.forName("UTF-8"));
 
         stubFor(get(urlEqualTo("/api/v2/hosts?search=params.JENKINS_LABEL%3Dlabel1"))
                 .willReturn(aResponse()

@@ -24,6 +24,7 @@
  */
 package com.redhat.foreman;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -33,6 +34,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import hudson.Launcher;
+import hudson.Util;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Descriptor;
@@ -198,9 +200,7 @@ public final class TestUtils {
      */
     public static String readFile(String path, Charset encoding)
             throws IOException, URISyntaxException {
-        byte[] encoded;
-        encoded = Files.readAllBytes(Paths.get(ForemanSharedNodeCloudTest.class.getResource(path).toURI()));
-        return new String(encoded, encoding);
+        return Util.loadFile(new File(ForemanSharedNodeCloudTest.class.getResource(path).toURI()), encoding);
     }
 
 }
