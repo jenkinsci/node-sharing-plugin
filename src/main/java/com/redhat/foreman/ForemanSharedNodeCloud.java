@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.security.auth.login.LoginException;
 import javax.servlet.ServletException;
 
@@ -245,69 +246,71 @@ public class ForemanSharedNodeCloud extends Cloud {
         }
         LOGGER.finer("Trying to provision Foreman Shared Node for '" + labelName + "'");
 
-        String reservedHostName = getHostToReserve(label);
-        if (reservedHostName == null) {
-            LOGGER.finer("No Foreman resources available...");
-            return null;
-        }
-
         try {
-            final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
-            if (host != null) {
-                String certName = null;
-                if (host.elements().hasNext()) {
-                    JsonNode h = host.elements().next();
-                    if (h.has("host")) {
-                        certName = h.get("host").get("certname").asText();
-                    } else {
-                        if (h.has("certname")) {
-                            certName = h.get("certname").asText();
-                        } else {
-                            throw new Exception("Reserve plugin did not return correct data?");
+            for (String reservedHostName : getFreeHostsToReserve(label)) {
+                final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
+                if (host != null) {
+                    try {
+                        String certName = null;
+                        if (host.elements().hasNext()) {
+                            JsonNode h = host.elements().next();
+                            if (h.has("host")) {
+                                certName = h.get("host").get("certname").asText();
+                            } else {
+                                if (h.has("certname")) {
+                                    certName = h.get("certname").asText();
+                                } else {
+                                    throw new Exception("Reserve plugin did not return correct data?");
+                                }
+                            }
                         }
+
+                        if (!reservedHostName.equals(certName)) {
+                            throw new Exception("Reserved host is not what we asked to reserve?");
+                        }
+
+                        String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
+                        String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
+                        String hostIP = getForemanAPI().getIPForHost(reservedHostName);
+                        String hostForConnection = reservedHostName;
+                        if (hostIP != null) {
+                            hostForConnection = hostIP;
+                        }
+
+                        if (launcherFactory == null) {
+                            launcherFactory = new ForemanSSHComputerLauncherFactory(hostForConnection,
+                                    SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
+                        } else {
+                            if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
+                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hostForConnection,
+                                        SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
+                            }
+                        }
+
+                        RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
+
+                        List<? extends NodeProperty<?>> properties = Collections.emptyList();
+
+                        LOGGER.finer("Returning a ForemanSharedNode for " + hostForConnection);
+                        return new ForemanSharedNode(this.cloudName,
+                                reservedHostName,
+                                hostForConnection,
+                                labelsForHost,
+                                remoteFS,
+                                launcherFactory.getForemanComputerLauncher(),
+                                strategy,
+                                properties);
+                    } catch (Error e) {
+                        throw e;
+                    } catch (Throwable e) {
+                        addDisposableEvent(cloudName, reservedHostName);
                     }
                 }
-
-                if (!reservedHostName.equals(certName)) {
-                    throw new Exception("Reserved host is not what we asked to reserve?");
-                }
-
-                String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
-                String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
-                String hostIP = getForemanAPI().getIPForHost(reservedHostName);
-                String hostForConnection = reservedHostName;
-                if (hostIP != null) {
-                    hostForConnection = hostIP;
-                }
-
-                if (launcherFactory == null) {
-                    launcherFactory = new ForemanSSHComputerLauncherFactory(hostForConnection,
-                            SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-                } else {
-                    if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                        ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hostForConnection,
-                                SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-                    }
-                }
-
-                RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
-
-                List<? extends NodeProperty<?>> properties = Collections.emptyList();
-
-                LOGGER.finer("Returning a ForemanSharedNode for " + hostForConnection);
-                return new ForemanSharedNode(this.cloudName,
-                        reservedHostName,
-                        hostForConnection,
-                        labelsForHost,
-                        remoteFS,
-                        launcherFactory.getForemanComputerLauncher(),
-                        strategy,
-                        properties);
             }
-
-        } catch (Exception e) {
+        } catch (Error e) {
+            throw e;
+        } catch (Throwable e) {
             LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
-            addDisposableEvent(cloudName, reservedHostName);
         }
 
         // Something has changed and there are now no resources available...
@@ -323,22 +326,60 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     @CheckForNull
     private String getHostToReserve(Label label) {
-        Map<String, String> mapData = getHostsMapData();
+        try {
+            Map<String, String> mapData = getHostsMapData();
+            final List<String> freeHostsList = getForemanAPI().getAllFreeHosts();
 
-        Set<Map.Entry<String, String>> hosts = mapData.entrySet();
-        for (Map.Entry<String, String> host : hosts) {
-            try {
-                if (getForemanAPI().isHostFree(host.getKey())
-                        && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
-                        || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
-                    return host.getKey();
+            Set<Map.Entry<String, String>> hosts = mapData.entrySet();
+            for (Map.Entry<String, String> host : hosts) {
+                try {
+                    if (freeHostsList.contains(host.getKey())
+                            && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
+                                || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
+                        return host.getKey();
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
+                    continue;
                 }
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
-                continue;
             }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
         }
+
         return null;
+    }
+
+    /**
+     * Get the list of hosts available for reservation for the label. Each host must be free.
+     *
+     * @param label Label to reserve for.
+     * @return list of the names of host that are free for reservation.
+     */
+    @Nonnull
+    private List<String> getFreeHostsToReserve(Label label) {
+        final List<String> hostsList = new ArrayList<String>();
+        try {
+            final List<String> freeHostsList = getForemanAPI().getAllFreeHosts();
+            Map<String, String> mapData = getHostsMapData();
+
+            Set<Map.Entry<String, String>> hosts = mapData.entrySet();
+            for (Map.Entry<String, String> host : hosts) {
+                try {
+                    if (freeHostsList.contains(host.getKey())
+                            && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
+                                || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
+                        hostsList.add(host.getKey());
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Unhandled exception in getFreeHostsToReserve(): ", e);
+                    continue;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Unhandled exception in getFreeHostsToReserve(): ", e);
+        }
+        return hostsList;
     }
 
     /**

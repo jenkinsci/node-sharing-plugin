@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -318,6 +319,7 @@ public class ForemanAPI {
      * @return list of hosts.
      * @throws Exception if occurs.
      */
+    @Nonnull
     private Map<String, String> getHostForQuery(String query) throws Exception {
         Map<String, String> hostsMap = new HashMap<String, String>();
         List<String> hostsList = new ArrayList<String>();
@@ -359,6 +361,7 @@ public class ForemanAPI {
      * @return list of host names.
      * @throws Exception if occurs.
      */
+    @Nonnull
     Map<String, String> getCompatibleHosts() throws Exception {
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
                 + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
@@ -373,6 +376,7 @@ public class ForemanAPI {
      * @return value of label parameter.
      * @throws Exception if occurs.
      */
+    @CheckForNull
     public String getLabelsForHost(String hostName) throws Exception {
         return getHostParameterValue(hostName, JENKINS_LABEL);
     }
@@ -390,11 +394,11 @@ public class ForemanAPI {
     }
 
     /**
-     * Determine if a host is reserved for current Jenkins instance
+     * Determine if a host is reserved for current Jenkins instance.
      *
-     * @param hostName name of the host in Foreman
-     * @return true if reserved for us
-     * @throws Exception if occurs
+     * @param hostName name of the host in Foreman.
+     * @return true if reserved for us.
+     * @throws Exception if occurs.
      */
     public boolean isHostReservedByUs(final String hostName) throws Exception {
         final String result = getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME);
@@ -404,5 +408,46 @@ public class ForemanAPI {
         } else {
             return result.equals(getReserveReason());
         }
+    }
+
+    /**
+     * Get the list of all free hosts from Foremam.
+     *
+     * @return list of all free hosts.
+     * @throws Exception if occurs.
+     */
+    @Nonnull
+    public List<String> getAllFreeHosts() throws Exception {
+        final List<String> hostsList = new ArrayList<String>();
+
+        WebTarget target = base.path(FOREMAN_HOSTS_PATH)
+                .queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_RESERVEDPARAM+"=false");
+
+        LOGGER.finer(target.toString());
+        Response response = getForemanResponse(target);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.finer(responseAsString);
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode json = mapper.readValue(responseAsString, JsonNode.class);
+                JsonNode hosts = json.get("results");
+                if (hosts != null && hosts.isArray()) {
+                    for (JsonNode host : hosts) {
+                        hostsList.add(host.get("name").asText());
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Unhandled exception during performing search all free hosts: ", e);
+            }
+        } else {
+            String err = "Unexpected failure during retrieving all free hosts, returned code: " + response.getStatus();
+            Exception e = new Exception(err);
+            LOGGER.log(Level.SEVERE, err, e);
+            throw e;
+        }
+
+        return hostsList;
     }
 }

@@ -198,6 +198,13 @@ public class ForemanSharedNodeCloudTest {
                         .withStatus(HTTPOK)
                         .withHeader("Content-Type", "text/json")
                         .withBody(body11)));
+
+        stubFor(get(urlEqualTo("/api/v2/hosts?search=params.RESERVED%3Dfalse"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(body2)));
+
     }
 
     /**
