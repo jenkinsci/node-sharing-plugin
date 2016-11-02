@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Computer;
@@ -39,6 +40,7 @@ public final class ForemanCleanupThread extends AsyncPeriodicWork {
     }
 
     @Override
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public void execute(TaskListener listener) {
         final ImmutableList.Builder<ListenableFuture<?>> nodeTerminationBuilder = ImmutableList.builder();
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(Computer.threadPoolForRemoting);
