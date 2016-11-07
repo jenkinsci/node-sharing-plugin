@@ -115,6 +115,8 @@ public class ForemanAPI {
         } else {
             String msg = "Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".";
             LOGGER.severe(msg);
+
+            // Ruby/Foreman's possible responses (JENKINS-39481)
             if (status == Response.Status.NOT_FOUND || status == Response.Status.NOT_ACCEPTABLE) {
                 return null;
             } else {
