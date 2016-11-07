@@ -101,7 +101,8 @@ public class ForemanAPI {
 
         Response response = getForemanResponse(target);
 
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+        Response.Status status = Response.Status.fromStatusCode(response.getStatus());
+        if (status == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
             LOGGER.finer(responseAsString);
             try {
@@ -114,7 +115,11 @@ public class ForemanAPI {
         } else {
             String msg = "Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".";
             LOGGER.severe(msg);
-            throw new Exception(msg);
+            if (status == Response.Status.NOT_FOUND || status == Response.Status.NOT_ACCEPTABLE) {
+                return null;
+            } else {
+                throw new Exception(msg);
+            }
         }
     }
 
