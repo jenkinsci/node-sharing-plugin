@@ -182,7 +182,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unexpected exception occurred in canProvision(): ", e);
-                e.printStackTrace();
                 continue;
             }
         }
@@ -207,7 +206,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                             node = provision(label);
                         } catch (Exception e) {
                             LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
-                            e.printStackTrace();
                             throw (AbortException) new AbortException().initCause(e);
                         }
                         if (node == null) {
@@ -226,7 +224,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                         1));
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
-                e.printStackTrace();
             }
         }
         return result;
@@ -338,7 +335,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
-                e.printStackTrace();
                 continue;
             }
         }
@@ -485,7 +481,6 @@ public class ForemanSharedNodeCloud extends Cloud {
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Unexpected exception occurred in updateHostData: ", e);
-            e.printStackTrace();
         }
         hostsMap.set(new HashMap<String, String>());
     }
@@ -546,7 +541,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                     return FormValidation.error(Messages.AuthFailure());
                 } catch (Exception e) {
                     LOGGER.log(Level.SEVERE, "Unhandled exception in doTestConnection: ", e);
-                    e.printStackTrace();
                     return FormValidation.error(Messages.Error() + ": " + e);
                 }
             }
@@ -599,7 +593,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                 hosts = testApi.getCompatibleHosts();
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception in checkForCompatibleHosts: ", e);
-                e.printStackTrace();
             }
             return hosts.keySet();
         }
