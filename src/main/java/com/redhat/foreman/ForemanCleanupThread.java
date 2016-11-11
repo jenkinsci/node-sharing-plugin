@@ -7,6 +7,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.Plugin;
 import hudson.Util;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
@@ -17,6 +18,7 @@ import hudson.model.listeners.ItemListener;
 import hudson.node_monitors.DiskSpaceMonitorDescriptor;
 import hudson.slaves.Cloud;
 import hudson.slaves.OfflineCause;
+import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
@@ -109,23 +111,39 @@ public final class ForemanCleanupThread extends AsyncPeriodicWork {
     // Until resolved JENKINS-37759, then remove this class and use above onComplete()
     @Extension
     public final static class OnLoadedListener extends ItemListener {
-        static boolean executed = false;
+        private transient OneShotEvent executed = null;
+        private transient Object executedLock = null;
+
+        private synchronized Object getExecutedLock() {
+            if (executedLock == null) {
+                executedLock = new Object();
+            }
+            return executedLock;
+        }
 
         @Override
-        synchronized public void onLoaded() {
-            if (!executed) {
-                executed = true;
-                LOGGER.finer("[START] ForemanCleanupThread.OnLoadedListener.onLoaded()");
-
-                // Make the time consuming operation in the separate thread to not block other listeners
-                new Thread("ForemanStartCleanupThread") {
-                    @Override
-                    public void run() {
-                        runCleanup();
-                    }
-                }.start();
-                LOGGER.finer("[COMPLETED] ForemanCleanupThread.OnLoadedListener.onLoaded()");
+        public void onLoaded() {
+            LOGGER.finer("[START] ForemanCleanupThread.OnLoadedListener.onLoaded()");
+            synchronized (getExecutedLock()) {
+                if (executed == null) {
+                    executed = new OneShotEvent();
+                }
+                if (!executed.isSignaled()) {
+                    executed.signal();
+                } else {
+                    LOGGER.finer("[COMPLETED] ForemanCleanupThread.OnLoadedListener.onLoaded() - without a new thread");
+                    return;
+                }
             }
+
+            // Make the time consuming operation in the separate thread to not block other listeners
+            new Thread("ForemanStartCleanupThread") {
+                @Override
+                public void run() {
+                    runCleanup();
+                }
+            }.start();
+            LOGGER.finer("[COMPLETED] ForemanCleanupThread.OnLoadedListener.onLoaded() - with a new thread");
         }
     }
 

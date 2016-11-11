@@ -734,4 +734,5 @@ public class ForemanSharedNodeCloud extends Cloud {
             return "ForemanSharedNodeWorker.Updater";
         }
     }
+
 }
