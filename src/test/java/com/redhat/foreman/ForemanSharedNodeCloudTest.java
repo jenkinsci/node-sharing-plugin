@@ -1,7 +1,6 @@
 package com.redhat.foreman;
 /*
  * The MIT License
-
  *
  * Copyright (c) 2016-
  *
@@ -24,7 +23,6 @@ package com.redhat.foreman;
  * THE SOFTWARE.
  */
 
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -42,10 +40,7 @@ import java.util.concurrent.Future;
 
 import javax.servlet.ServletException;
 
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
 import hudson.model.AdministrativeMonitor;
-import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -63,7 +58,6 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Cause.UserIdCause;
 import hudson.model.labels.LabelAtom;
 import hudson.util.Secret;
-import org.jvnet.hudson.test.TestBuilder;
 
 /**
  * Cloud Unit Tests.
@@ -82,18 +76,17 @@ public class ForemanSharedNodeCloudTest {
      * Rule for Jenkins.
      */
     @Rule
-    //CS IGNORE VisibilityModifier FOR NEXT 2 LINES. REASON: Parent.
     public JenkinsRule j = new JenkinsRule();
 
     /**
      * Rule for wiremock.
      */
     @Rule
-    //CS IGNORE VisibilityModifier FOR NEXT 2 LINES. REASON: Parent.
     public final WireMockRule wireMockRule = new WireMockRule(32789);
 
     /**
      * Test for configuration of a Foreman Cloud.
+     *
      * @throws Exception if occurs.
      */
     @Test
@@ -109,6 +102,7 @@ public class ForemanSharedNodeCloudTest {
 
     /**
      * Prepare wiremocks.
+     *
      * @throws IOException if occurs.
      * @throws URISyntaxException if occurs.
      */
@@ -208,6 +202,7 @@ public class ForemanSharedNodeCloudTest {
 
     /**
      * Perform a test connection.
+     *
      * @throws ServletException if occurs.
      * @throws IOException if occurs.
      * @throws URISyntaxException if occurs.
@@ -221,6 +216,7 @@ public class ForemanSharedNodeCloudTest {
 
     /**
      * Round trip test that configures, builds, provisions and tears down.
+     *
      * @throws IOException if occurs.
      * @throws URISyntaxException if occurs.
      * @throws InterruptedException if occurs.
@@ -261,6 +257,7 @@ public class ForemanSharedNodeCloudTest {
     /**
      * Round trip test that simulates a loss of connection to
      * Foreman.
+     *
      * @throws IOException if occurs.
      * @throws URISyntaxException if occurs.
      * @throws InterruptedException if occurs.
