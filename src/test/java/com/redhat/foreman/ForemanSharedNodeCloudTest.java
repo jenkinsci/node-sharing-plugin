@@ -28,6 +28,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -47,7 +48,6 @@ import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.redhat.foreman.ForemanSharedNodeCloud.DescriptorImpl;
@@ -76,7 +76,7 @@ public class ForemanSharedNodeCloudTest {
      * Rule for Jenkins.
      */
     @Rule
-    public JenkinsRule j = new JenkinsRule();
+    public final ForemanTestRule j = new ForemanTestRule();
 
     /**
      * Rule for wiremock.
@@ -248,6 +248,8 @@ public class ForemanSharedNodeCloudTest {
             System.err.println("Interrupted while waiting!");
         }
 
+        j.triggerCleanupThread();
+
         Computer[] computersAfter = j.jenkins.getComputers();
         int finalComputerSet = computersAfter.length;
 
@@ -295,6 +297,7 @@ public class ForemanSharedNodeCloudTest {
         finish.signal();
         build.get();
 
+        assertThat(job.isBuilding(), equalTo(false));
         assertThat(job.getBuilds(), hasSize(1));
 
         while(disposeCheckLatch.getCount() >= 0) {
@@ -311,6 +314,7 @@ public class ForemanSharedNodeCloudTest {
                     break;
                 }
             }
+            j.triggerCleanupThread();
             Thread.sleep(1000);
             disposeCheckLatch.countDown();
         }
