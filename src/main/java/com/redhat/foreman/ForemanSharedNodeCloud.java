@@ -50,6 +50,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -526,7 +529,8 @@ public class ForemanSharedNodeCloud extends Cloud {
         hostsMap.set(new HashMap<String, String>());
     }
 
-    private Map<String, String> getHostsMapData() {
+    @Restricted(DoNotUse.class) // index.jelly
+    public Map<String, String> getHostsMapData() {
         if (hostsMap == null) {
             hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
         }
@@ -586,56 +590,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                 }
             }
             return FormValidation.error(Messages.InvalidURI());
-        }
-
-        /**
-         * Check for compatible hosts.
-         *
-         * @param url      url.
-         * @param user     user.
-         * @param password password.
-         * @return Form Validation.
-         * @throws ServletException if occurs.
-         */
-        public FormValidation doCheckForCompatibleHosts(@QueryParameter("url") String url,
-                                                        @QueryParameter("user") String user,
-                                                        @QueryParameter("password") Secret password) throws ServletException {
-
-            FormValidation testConn = this.doTestConnection(url, user, password);
-            if (testConn.kind != FormValidation.Kind.OK) {
-                return testConn;
-            }
-
-            Set<String> hosts = checkForCompatibleHosts(url, user, password);
-            StringBuffer hostsMessage = new StringBuffer();
-            hostsMessage.append(Messages.CheckCompatibleHostsOK() + "<br><br>");
-            if (hosts == null || hosts.isEmpty()) {
-                return FormValidation.error(Messages.CheckCompatibleHostsFailure());
-            } else {
-                for (String host : hosts) {
-                    hostsMessage.append("<font face=\"verdana\" color=\"green\">" + host + "</font><br>");
-                }
-                return FormValidation.okWithMarkup(hostsMessage.toString());
-            }
-        }
-
-        /**
-         * Call API to check for compatible hosts.
-         *
-         * @param url      url.
-         * @param user     user.
-         * @param password password.
-         * @return List of hosts.
-         */
-        private Set<String> checkForCompatibleHosts(String url, String user, Secret password) {
-            ForemanAPI testApi = new ForemanAPI(url, user, password);
-            Map<String, String> hosts = new HashMap<String, String>();
-            try {
-                hosts = testApi.getCompatibleHosts();
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception in checkForCompatibleHosts: ", e);
-            }
-            return hosts.keySet();
         }
 
         /**
