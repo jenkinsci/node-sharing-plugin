@@ -91,7 +91,7 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
 
     @Nonnull
     public Node asNode() {
-        return (Node) this;
+        return this;
     }
 
     /**
