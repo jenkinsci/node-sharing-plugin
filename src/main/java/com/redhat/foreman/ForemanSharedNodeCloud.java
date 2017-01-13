@@ -19,6 +19,7 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import hudson.util.OneShotEvent;
 import hudson.util.Secret;
 
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
@@ -103,6 +104,9 @@ public class ForemanSharedNodeCloud extends Cloud {
     private transient AtomicReference<Map<String, String>> hostsMap
             = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
 
+    private transient OneShotEvent startOperations = null;
+    private transient Object startLock = null;
+
     /**
      * Constructor with name.
      *
@@ -135,6 +139,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         this.credentialsId = credentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
         api = new ForemanAPI(this.url, this.user, this.password);
+        setOperational();
     }
 
     /**
@@ -512,6 +517,17 @@ public class ForemanSharedNodeCloud extends Cloud {
      * Update hosts data
      */
     void updateHostData() {
+        while (!startOperations.isSignaled()) {
+            // We are blocked
+            LOGGER.warning("Update hosts data is still blocked, sleeping 10s.");
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                LOGGER.severe("Sleeping interupted! Returning...");
+                return;
+            }
+        }
+
         try {
             if (hostsMap == null) {
                 hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
@@ -536,12 +552,56 @@ public class ForemanSharedNodeCloud extends Cloud {
         return hostsMap.get();
     }
 
+    private synchronized Object getStartLock() {
+        if (startLock == null) {
+            startLock = new Object();
+        }
+        return startLock;
+    }
+
+    /**
+     * @return current Operational state.
+     */
+    public boolean isOperational() {
+        synchronized (getStartLock()) {
+            if (startOperations == null) {
+                startOperations = new OneShotEvent();
+            }
+        }
+        return startOperations.isSignaled();
+    }
+
+    /**
+     * Set the ForemanSharedNodeCloud to Operational state (Operational == true).
+     *
+     * @return previous state.
+     */
+    public boolean setOperational() {
+        return setOperational(true);
+    }
+
+    /**
+     * Set the ForemanSharedNodeCloud to desired Operation state (Operation == status).
+     *
+     * @param status desired Operational state.
+     * @return previous Operational state.
+     */
+    public boolean setOperational(final boolean status) {
+        boolean oldStatus;
+        synchronized (getStartLock()) {
+            oldStatus = isOperational();
+            if(!oldStatus && status) {
+                startOperations.signal();
+            }
+        }
+        return oldStatus;
+    }
+
     /**
      * Descriptor for Foreman Cloud.
      */
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
-
         @Override
         public String getDisplayName() {
             return "Foreman Shared Node";
@@ -632,7 +692,6 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     @Extension
     public static class ForemanSharedNodeWorker extends AsyncPeriodicWork {
-
         private final Logger LOGGER =
                 Logger.getLogger(ForemanSharedNodeWorker.class.getName());
 
@@ -648,11 +707,18 @@ public class ForemanSharedNodeCloud extends Cloud {
                 for (Cloud cloud : instance.clouds) {
                     if (cloud instanceof ForemanSharedNodeCloud) {
                         ForemanSharedNodeCloud foremanCloud = (ForemanSharedNodeCloud) cloud;
-                        LOGGER.finer("Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName());
+                        if(!foremanCloud.isOperational() ) {
+                            // We are still blocked in updating data
+                            LOGGER.warning("Updating data in ForemanSharedNodeWorker.Updater is still blocked for foreman cloud '"
+                                    + foremanCloud.getCloudName() + "'!");
+                            continue;
+                        }
+
+                        LOGGER.finer("Updating data for ForemanSharedNodeCloud '" + foremanCloud.getCloudName() + "'");
                         long time = System.currentTimeMillis();
                         foremanCloud.updateHostData();
-                        LOGGER.finer("[COMPLETED] Updating data for ForemanSharedNodeCloud " + foremanCloud.getCloudName()
-                                + " in " + Util.getTimeSpanString(System.currentTimeMillis() - time));
+                        LOGGER.finer("[COMPLETED] Updating data for ForemanSharedNodeCloud '" + foremanCloud.getCloudName()
+                                + "' in " + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     }
                 }
             }
