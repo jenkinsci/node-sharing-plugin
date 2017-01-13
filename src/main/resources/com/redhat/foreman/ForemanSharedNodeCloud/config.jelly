@@ -1,6 +1,5 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
-    xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
 
 <f:section title="Foreman Parameters">
   <f:entry title="${%Name}" field="cloudName">
@@ -18,9 +17,8 @@
 </f:section>
   
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="url,user,password" />
-  <f:validateButton title="${%Check for Compatible Foreman Hosts}" progress="${%Checking...}" method="checkForCompatibleHosts" with="url,user,password" />
   
-<f:section title="Slave Parameters">
+<f:section title="Node Parameters">
   <f:entry title="${%Credentials}" field="credentialsId">
     <c:select/>
   </f:entry>
