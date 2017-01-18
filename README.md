@@ -1,1 +1,1 @@
-Java API for Foreman
+Foreman Host Configurator
