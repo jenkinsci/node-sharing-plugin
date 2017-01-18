@@ -6,6 +6,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Architecture;
 import com.scoheb.foreman.cli.model.Domain;
 import com.scoheb.foreman.cli.model.Environment;
@@ -67,7 +68,7 @@ public class Api {
                 .target(s);
     }
 
-    public Domain createDomain(String name) {
+    public Domain createDomain(String name) throws ForemanApiException {
         Domain domain = getDomain(name);
         if (domain != null) {
             LOGGER.info("Domain " + name + " already exists...");
@@ -83,7 +84,7 @@ public class Api {
         return (Domain)createObject("domains", Domain.class, json);
     }
 
-    private Object createObject(String objectType, Class className, String json) {
+    private Object createObject(String objectType, Class className, String json) throws ForemanApiException {
         Response response =
                 base.path(V2 + "/" + objectType).request(MediaType.APPLICATION_JSON)
                         .post(Entity.entity(json, MediaType.APPLICATION_JSON));
@@ -94,9 +95,8 @@ public class Api {
             Gson gson = new Gson();
             return gson.fromJson(responseAsString, className);
         } else {
-            LOGGER.error("Creating " + objectType
-                    + " returned code " + response.getStatus() + ".");
-            return null;
+            throw new ForemanApiException("Creating " + objectType
+                    + " returned code " + response.getStatus() + ".", responseAsString);
         }
     }
 
@@ -155,7 +155,7 @@ public class Api {
         return null;
     }
 
-    public Environment createEnvironment(String name) {
+    public Environment createEnvironment(String name) throws ForemanApiException {
         Environment env = getEnvironment(name);
         if (env != null) {
             LOGGER.info("Environment " + name + " already exists...");
@@ -246,7 +246,7 @@ public class Api {
                                                  int arch_id,
                                                  int media_id,
                                                  int ptable_id,
-                                                 String family) {
+                                                 String family) throws ForemanApiException {
         OperatingSystem os = getOperatingSystem(name);
         if (os != null) {
             LOGGER.info("OperatingSystem " + name + " already exists...");
@@ -275,7 +275,7 @@ public class Api {
                                      int osId,
                                      int mediaId,
                                      int ptableId,
-                                     String rootPass) {
+                                     String rootPass) throws ForemanApiException {
         Hostgroup hg = getHostGroup(name);
         if (hg != null) {
             LOGGER.info("Hostgroup " + name + " already exists...");
@@ -299,7 +299,7 @@ public class Api {
         return (Hostgroup)createObject("hostgroups", Hostgroup.class, json);
     }
 
-    public Hostgroup createHostGroup(String name) {
+    public Hostgroup createHostGroup(String name) throws ForemanApiException {
         Hostgroup hg = getHostGroup(name);
         if (hg != null) {
             LOGGER.info("Hostgroup " + name + " already exists...");
@@ -326,7 +326,7 @@ public class Api {
                            int ptableId,
                            int envId,
                            String rootPass,
-                           String macAddress) {
+                           String macAddress) throws ForemanApiException {
         Host host = getHost(name + "." + domain.name);
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
@@ -354,7 +354,7 @@ public class Api {
         return (Host)createObject("hosts", Host.class, json);
     }
 
-    public Host addHostParameter(Host host, Parameter parameter) {
+    public Host addHostParameter(Host host, Parameter parameter) throws ForemanApiException {
         JsonArray params = new JsonArray();
         JsonObject paramObject = new JsonObject();
         paramObject.addProperty("name", parameter.name);
@@ -379,13 +379,12 @@ public class Api {
                 Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK  ) {
             Gson gson = new Gson();
             return gson.fromJson(responseAsString, Host.class);
-        } else {
-            LOGGER.error("Updating host returned code " + response.getStatus() + ".");
-            return null;
         }
+        throw new ForemanApiException("Adding host parameter returned code " + response.getStatus()
+                + ".", responseAsString);
     }
 
-    public Parameter updateHostParameter(Host host, Parameter parameter) {
+    public Parameter updateHostParameter(Host host, Parameter parameter) throws ForemanApiException {
 
         Parameter existing = getHostParameter(host, parameter.name);
         if (existing == null) {
@@ -417,10 +416,9 @@ public class Api {
                 Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK  ) {
             Gson gson = new Gson();
             return gson.fromJson(responseAsString, Parameter.class);
-        } else {
-            LOGGER.error("Updating host parameter returned code " + response.getStatus() + ".");
-            return null;
         }
+        throw new ForemanApiException("Updating host parameter returned code " + response.getStatus()
+                    + ".", responseAsString);
     }
 
     public Parameter getHostParameter(Host host, String parameterName) {
@@ -468,6 +466,12 @@ public class Api {
         return val;
     }
 
+    public static Parameter fixParameterValue(Parameter param) {
+        if (param != null && param.value == null) {
+            param.value = "";
+        }
+        return param;
+    }
     public void releaseHost(Host h) {
         Response response = base.path("/hosts_release")
                 .queryParam("search", "name = " + h.name)
@@ -500,7 +504,7 @@ public class Api {
         }
     }
 
-    public OperatingSystem createOperatingSystem(String name, String major, String minor, int arch_id) {
+    public OperatingSystem createOperatingSystem(String name, String major, String minor, int arch_id) throws ForemanApiException {
         OperatingSystem os = getOperatingSystem(name);
         if (os != null) {
             LOGGER.info("OperatingSystem " + name + " already exists...");
@@ -519,7 +523,7 @@ public class Api {
         return (OperatingSystem)createObject("operatingsystems", OperatingSystem.class, json);
     }
 
-    public OperatingSystem createOperatingSystem(String name, String major, String minor) {
+    public OperatingSystem createOperatingSystem(String name, String major, String minor) throws ForemanApiException {
         OperatingSystem os = getOperatingSystem(name);
         if (os != null) {
             LOGGER.info("OperatingSystem " + name + " already exists...");
@@ -537,7 +541,7 @@ public class Api {
         return (OperatingSystem)createObject("operatingsystems", OperatingSystem.class, json);
     }
 
-    public Host createHost(String name, String ip, Domain domain, int archId, int osId, int envId) {
+    public Host createHost(String name, String ip, Domain domain, int archId, int osId, int envId) throws ForemanApiException {
         Host host = getHost(name + "." + domain.name);
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
@@ -560,7 +564,7 @@ public class Api {
         return (Host)createObject("hosts", Host.class, json);
     }
 
-    public Host createHost(String name, String ip, Domain domain, int hostgroup_id, int envId) {
+    public Host createHost(String name, String ip, Domain domain, int hostgroup_id, int envId) throws ForemanApiException {
         Host host = getHost(name + "." + domain.name);
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
@@ -582,7 +586,7 @@ public class Api {
         return (Host)createObject("hosts", Host.class, json);
     }
 
-    public Host createHost(String name, String ip, Domain domain, int osId) {
+    public Host createHost(String name, String ip, Domain domain, int osId) throws ForemanApiException {
         Host host = getHost(name + "." + domain.name);
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
@@ -603,7 +607,7 @@ public class Api {
         return (Host)createObject("hosts", Host.class, json);
     }
 
-    public Host createHost(String name, String ip, Domain domain) {
+    public Host createHost(String name, String ip, Domain domain) throws ForemanApiException {
         Host host = getHost(name + "." + domain.name);
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");

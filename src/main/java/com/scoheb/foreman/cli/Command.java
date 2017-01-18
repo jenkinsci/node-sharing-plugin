@@ -1,6 +1,7 @@
 package com.scoheb.foreman.cli;
 
 import com.beust.jcommander.Parameter;
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 
 /**
  * Created by shebert on 10/01/17.
@@ -19,5 +20,5 @@ public abstract class Command {
             description = "Password to connect to Foreman")
     protected String password;
 
-    public abstract void run();
+    public abstract void run() throws ForemanApiException;
 }

@@ -1,14 +1,18 @@
 {
+  "defaults": {
+    "parameters": [
+      {
+        "name": "RESERVED",
+        "value": "Reserved by Scott :)"
+      }
+    ]
+  },
   "hosts": [
     {
       "name": "host-to-release",
       "domain_name": "localdomain",
       "ip": "157.0.0.1",
       "parameters": [
-        {
-          "name": "RESERVED",
-          "value": "Reserved by Scott :)"
-        },
         {
           "name": "JENKINS_LABEL",
           "value": "SCOTT TOM"

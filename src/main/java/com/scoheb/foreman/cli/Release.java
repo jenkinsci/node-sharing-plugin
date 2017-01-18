@@ -2,6 +2,7 @@ package com.scoheb.foreman.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Host;
 import com.scoheb.foreman.cli.model.Reservation;
 import org.apache.log4j.Logger;
@@ -33,7 +34,7 @@ public class Release extends Command {
     private static Logger LOGGER = Logger.getLogger(List.class);
 
     @Override
-    public void run() {
+    public void run() throws ForemanApiException {
         if (hosts == null || hosts.size() == 0) {
             LOGGER.info("No hosts to release");
             return;

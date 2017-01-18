@@ -1,5 +1,6 @@
 package com.scoheb.foreman.cli;
 
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Architecture;
 import com.scoheb.foreman.cli.model.Domain;
 import com.scoheb.foreman.cli.model.Environment;
@@ -19,7 +20,7 @@ public class ApiTest extends AbstractTest {
     private static Logger LOGGER = Logger.getLogger(ApiTest.class);
 
     @Test
-    public void testCompleteCreate() {
+    public void testCompleteCreate() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
 

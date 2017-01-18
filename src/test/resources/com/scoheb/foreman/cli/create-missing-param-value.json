@@ -11,14 +11,10 @@
     {
       "name": "scott",
       "domain_name": "localdomain",
+      "ip": "157.0.0.1",
       "parameters": [
         {
-          "name": "JENKINS_LABEL",
-          "value": "SCOTT TOM"
-        },
-        {
-          "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
-          "value": "/tmp/scott"
+          "name": "JENKINS_LABEL"
         }
       ]
     }

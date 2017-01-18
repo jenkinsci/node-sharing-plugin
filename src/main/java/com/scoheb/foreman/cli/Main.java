@@ -3,6 +3,7 @@ package com.scoheb.foreman.cli;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -42,6 +43,10 @@ public class Main {
         jc.addCommand("create", createFromFile);
         commands.put("create", createFromFile);
 
+        UpdateFromFile updateFromFile = new UpdateFromFile();
+        jc.addCommand("update", updateFromFile);
+        commands.put("update", updateFromFile);
+
         Release release = new Release();
         jc.addCommand("release", release);
         commands.put("release", release);
@@ -74,6 +79,9 @@ public class Main {
                 LOGGER.error(pe.getMessage(), pe);
             } else {
                 LOGGER.error(pe.getMessage());
+            }
+            if (pe instanceof ForemanApiException) {
+                LOGGER.error(((ForemanApiException) pe).getDebugMessage());
             }
             System.exit(1);
         }

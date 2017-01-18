@@ -1,13 +1,17 @@
 {
+  "defaults": {
+    "parameters": [
+      {
+        "name": "RESERVED",
+        "value": "false"
+      }
+    ]
+  },
   "hosts": [
     {
       "domain_name": "localdomain",
       "ip": "157.0.0.1",
       "parameters": [
-        {
-          "name": "RESERVED",
-          "value": "false"
-        },
         {
           "name": "JENKINS_LABEL",
           "value": "SCOTT TOM"

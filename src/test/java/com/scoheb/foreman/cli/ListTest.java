@@ -1,5 +1,6 @@
 package com.scoheb.foreman.cli;
 
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Architecture;
 import com.scoheb.foreman.cli.model.Domain;
 import com.scoheb.foreman.cli.model.Environment;
@@ -21,7 +22,22 @@ import static org.junit.Assert.assertTrue;
 public class ListTest extends AbstractTest {
 
     @Test
-    public void testSearchByEnvironment()  {
+    public void testShowAll() throws ForemanApiException {
+        String url = getUrl();
+        waitUntilForemanReady(url);
+        createHosts();
+
+        ListHosts listHosts = new ListHosts();
+        listHosts.server = url;
+        listHosts.user = user;
+        listHosts.password = password;
+        listHosts.run();
+        assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
+
+    }
+
+    @Test
+    public void testSearchByEnvironment() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
         createHosts();
@@ -37,7 +53,7 @@ public class ListTest extends AbstractTest {
     }
 
     @Test
-    public void testSearchByHostGroup()  {
+    public void testSearchByHostGroup() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
         createHosts();
@@ -52,7 +68,7 @@ public class ListTest extends AbstractTest {
 
     }
 
-    public void createHosts()  {
+    public void createHosts() throws ForemanApiException {
 
         String url = null;
         try {
@@ -90,7 +106,7 @@ public class ListTest extends AbstractTest {
         host2 = api.addHostParameter(host2, labelParam);
     }
 
-    public void createHostsFull()  {
+    public void createHostsFull() throws ForemanApiException {
 
         String url = null;
         try {

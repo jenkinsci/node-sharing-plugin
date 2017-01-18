@@ -54,13 +54,11 @@ public class ListHosts extends Command {
         }
         LOGGER.info("Found " + hosts.size() + " host(s).");
         for (Host h: hosts) {
-            LOGGER.info(h.name);
-            Parameter param = api.getHostParameter(h, "RESERVED");
-            LOGGER.info("--> RESERVED: " + Api.fixValue(param));
-            param = api.getHostParameter(h, "JENKINS_LABEL");
-            LOGGER.info("--> JENKINS_LABEL: " + Api.fixValue(param));
-            param = api.getHostParameter(h, "JENKINS_SLAVE_REMOTEFS_ROOT");
-            LOGGER.info("--> JENKINS_SLAVE_REMOTEFS_ROOT: " + Api.fixValue(param));
+            Host h2 = api.getHost(h.name);
+            LOGGER.info(h2.name);
+            for (Parameter param: h2.parameters) {
+                LOGGER.info("--> " + param.name + ": " + Api.fixValue(param));
+            }
         }
     }
 }

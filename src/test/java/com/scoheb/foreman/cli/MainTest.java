@@ -41,6 +41,8 @@ public class MainTest {
                 //Usage: list [options]
                 assertTrue(systemOutRule.getLog()
                         .indexOf("Usage: list [options]") >= 0);
+                assertTrue(systemOutRule.getLog()
+                        .indexOf("Usage: update [options] <Files to process>") >= 0);
             }
         });
         Main.main(new String[] {"--help"});

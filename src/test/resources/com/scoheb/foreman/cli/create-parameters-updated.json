@@ -15,11 +15,11 @@
       "parameters": [
         {
           "name": "JENKINS_LABEL",
-          "value": "SCOTT TOM"
+          "value": "SCOTT2 TOM2"
         },
         {
           "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
-          "value": "/tmp/scott"
+          "value": "/tmp/scott3"
         }
       ]
     },
@@ -30,11 +30,11 @@
       "parameters": [
         {
           "name": "JENKINS_LABEL",
-          "value": "DAVE TERRY"
+          "value": "DAVE2 TERRY2"
         },
         {
           "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
-          "value": "/tmp/scott2"
+          "value": "/tmp/scott3"
         }
       ]
     }

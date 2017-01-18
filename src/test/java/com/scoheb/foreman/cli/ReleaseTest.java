@@ -1,5 +1,6 @@
 package com.scoheb.foreman.cli;
 
+import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Host;
 import com.scoheb.foreman.cli.model.Parameter;
 import org.junit.Test;
@@ -18,7 +19,7 @@ import static org.junit.Assert.assertTrue;
 public class ReleaseTest extends AbstractTest {
 
     @Test
-    public void testRelease()  {
+    public void testRelease() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
 
@@ -75,7 +76,7 @@ public class ReleaseTest extends AbstractTest {
     }
 
     @Test
-    public void testReleaseUnknownHost()  {
+    public void testReleaseUnknownHost() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
 
