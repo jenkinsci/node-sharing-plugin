@@ -15,6 +15,7 @@ import com.scoheb.foreman.cli.model.Medium;
 import com.scoheb.foreman.cli.model.OperatingSystem;
 import com.scoheb.foreman.cli.model.PTable;
 import com.scoheb.foreman.cli.model.Parameter;
+import com.scoheb.foreman.cli.model.Reservation;
 import org.apache.log4j.Logger;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
@@ -87,7 +88,7 @@ public class Api {
                 base.path(V2 + "/" + objectType).request(MediaType.APPLICATION_JSON)
                         .post(Entity.entity(json, MediaType.APPLICATION_JSON));
         String responseAsString = response.readEntity(String.class);
-        LOGGER.info(responseAsString);
+        LOGGER.debug(responseAsString);
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.CREATED ||
                 Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK  ) {
             Gson gson = new Gson();
@@ -215,6 +216,18 @@ public class Api {
         return gson.fromJson(result, Hostgroup.class);
     }
 
+    public String getVersion() {
+        Response response = base.path(V2 + "/status")
+                .request(MediaType.APPLICATION_JSON).get();
+        String responseAsString = response.readEntity(String.class);
+        LOGGER.debug(responseAsString);
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            JsonObject jobj = new Gson().fromJson(responseAsString, JsonObject.class);
+            return jobj.get("version").getAsString();
+        }
+        return null;
+    }
+
     public Host getHost(String name) {
         Response response = base.path(V2 + "/hosts/" + name)
                 .request(MediaType.APPLICATION_JSON).get();
@@ -286,6 +299,23 @@ public class Api {
         return (Hostgroup)createObject("hostgroups", Hostgroup.class, json);
     }
 
+    public Hostgroup createHostGroup(String name) {
+        Hostgroup hg = getHostGroup(name);
+        if (hg != null) {
+            LOGGER.info("Hostgroup " + name + " already exists...");
+            return hg;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("hostgroup", innerObject);
+        String json = jsonObject.toString();
+
+        return (Hostgroup)createObject("hostgroups", Hostgroup.class, json);
+    }
+
     public Host createHost(String name,
                            String ip,
                            Domain domain,
@@ -295,7 +325,8 @@ public class Api {
                            int mediaId,
                            int ptableId,
                            int envId,
-                           String rootPass) {
+                           String rootPass,
+                           String macAddress) {
         Host host = getHost(name + "." + domain.name);
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
@@ -313,7 +344,8 @@ public class Api {
         innerObject.addProperty("medium_id", mediaId);
         innerObject.addProperty("ptable_id", ptableId);
         innerObject.addProperty("root_pass", rootPass);
-        innerObject.addProperty("mac", "50:7b:9d:4d:f1:12");
+        innerObject.addProperty("mac", macAddress);
+        innerObject.addProperty("managed", false);
 
         JsonObject jsonObject = new JsonObject();
         jsonObject.add("host", innerObject);
@@ -331,7 +363,7 @@ public class Api {
 
         JsonObject innerObject = new JsonObject();
         innerObject.addProperty("name", host.name);
-        innerObject.addProperty("ip", host.ip);
+        innerObject.addProperty("ip", host.ip_address);
         innerObject.add("host_parameters_attributes", params);
 
         JsonObject jsonObject = new JsonObject();
@@ -419,6 +451,15 @@ public class Api {
         return gson.fromJson(result, listType);
     }
 
+    public List<Host> getHosts() {
+        Type listType = new TypeToken<ArrayList<Host>>(){}.getType();
+        Response response = base.path(V2 + "/hosts")
+                .request(MediaType.APPLICATION_JSON).get();
+        String result = getResultString(response, "hosts", false);
+        Gson gson = new Gson();
+        return gson.fromJson(result, listType);
+    }
+
     public static String fixValue(Parameter param) {
         String val = "";
         if (param != null) {
@@ -435,6 +476,15 @@ public class Api {
         LOGGER.info(responseAsString);
     }
 
+    public Reservation getHostReservation(Host h) {
+        String reservation = fixValue(this.getHostParameter(h, "RESERVED"));
+        if (reservation.equals("false")) {
+            return Reservation.none();
+        } else {
+            return new Reservation(reservation);
+        }
+    }
+
     public void reserveHost(Host h, String reserveReason) {
         String reservation = fixValue(this.getHostParameter(h, "RESERVED"));
         if (reservation.equals("false")) {
@@ -443,10 +493,133 @@ public class Api {
                     .queryParam("reason", reserveReason)
                     .request(MediaType.APPLICATION_JSON).get();
             String responseAsString = response.readEntity(String.class);
-            LOGGER.info(response.getStatus());
-            LOGGER.info(responseAsString);
+            LOGGER.debug(response.getStatus());
+            LOGGER.debug(responseAsString);
         } else {
             LOGGER.error("Already RESERVED by: " + reservation);
         }
+    }
+
+    public OperatingSystem createOperatingSystem(String name, String major, String minor, int arch_id) {
+        OperatingSystem os = getOperatingSystem(name);
+        if (os != null) {
+            LOGGER.info("OperatingSystem " + name + " already exists...");
+            return os;
+        }
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name);
+        innerObject.addProperty("major", major);
+        innerObject.addProperty("minor", minor);
+        innerObject.addProperty("architecture_ids", arch_id);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("operatingsystem", innerObject);
+        String json = jsonObject.toString();
+
+        return (OperatingSystem)createObject("operatingsystems", OperatingSystem.class, json);
+    }
+
+    public OperatingSystem createOperatingSystem(String name, String major, String minor) {
+        OperatingSystem os = getOperatingSystem(name);
+        if (os != null) {
+            LOGGER.info("OperatingSystem " + name + " already exists...");
+            return os;
+        }
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name);
+        innerObject.addProperty("major", major);
+        innerObject.addProperty("minor", minor);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("operatingsystem", innerObject);
+        String json = jsonObject.toString();
+
+        return (OperatingSystem)createObject("operatingsystems", OperatingSystem.class, json);
+    }
+
+    public Host createHost(String name, String ip, Domain domain, int archId, int osId, int envId) {
+        Host host = getHost(name + "." + domain.name);
+        if (host != null) {
+            LOGGER.info("Host " + name + " already exists...");
+            return host;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("ip", ip);
+        innerObject.addProperty("environment_id", envId);
+        innerObject.addProperty("domain_id", domain.id);
+        innerObject.addProperty("architecture_id", archId);
+        innerObject.addProperty("operatingsystem_id", osId);
+        innerObject.addProperty("managed", false);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("host", innerObject);
+        String json = jsonObject.toString();
+
+        return (Host)createObject("hosts", Host.class, json);
+    }
+
+    public Host createHost(String name, String ip, Domain domain, int hostgroup_id, int envId) {
+        Host host = getHost(name + "." + domain.name);
+        if (host != null) {
+            LOGGER.info("Host " + name + " already exists...");
+            return host;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("ip", ip);
+        innerObject.addProperty("domain_id", domain.id);
+        innerObject.addProperty("hostgroup_id", hostgroup_id);
+        innerObject.addProperty("environment_id", envId);
+        innerObject.addProperty("managed", false);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("host", innerObject);
+        String json = jsonObject.toString();
+
+        return (Host)createObject("hosts", Host.class, json);
+    }
+
+    public Host createHost(String name, String ip, Domain domain, int osId) {
+        Host host = getHost(name + "." + domain.name);
+        if (host != null) {
+            LOGGER.info("Host " + name + " already exists...");
+            return host;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("ip", ip);
+        innerObject.addProperty("domain_id", domain.id);
+        innerObject.addProperty("operatingsystem_id", osId);
+        innerObject.addProperty("managed", false);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("host", innerObject);
+        String json = jsonObject.toString();
+
+        return (Host)createObject("hosts", Host.class, json);
+    }
+
+    public Host createHost(String name, String ip, Domain domain) {
+        Host host = getHost(name + "." + domain.name);
+        if (host != null) {
+            LOGGER.info("Host " + name + " already exists...");
+            return host;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("ip", ip);
+        innerObject.addProperty("domain_id", domain.id);
+        innerObject.addProperty("managed", false);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("host", innerObject);
+        String json = jsonObject.toString();
+
+        return (Host)createObject("hosts", Host.class, json);
     }
 }

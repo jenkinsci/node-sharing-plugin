@@ -10,16 +10,23 @@ import com.scoheb.foreman.cli.model.OperatingSystem;
 import com.scoheb.foreman.cli.model.PTable;
 import com.scoheb.foreman.cli.model.Parameter;
 import org.apache.log4j.Logger;
+import org.junit.Test;
 
-public class Create {
+/**
+ * Created by shebert on 17/01/17.
+ */
+public class ApiTest extends AbstractTest {
+    private static Logger LOGGER = Logger.getLogger(ApiTest.class);
 
-    private static Logger LOGGER = Logger.getLogger(Create.class);
+    @Test
+    public void testCompleteCreate() {
+        String url = getUrl();
+        waitUntilForemanReady(url);
 
-    public static void main(String[] args) {
         String user = "admin";
         String password = "changeme";
 
-        Api api = new Api("http://localhost:3000/api/v2/", user, password);
+        Api api = new Api(url, user, password);
 
         Domain domain = api.createDomain("scoheb.com");
         Environment environment = api.createEnvironment("staging");
@@ -35,7 +42,8 @@ public class Create {
         Host host = api.createHost("stage1", "127.0.0.1",
                 domain, hostGroup.id,
                 architecture.id, os.id, medium.id, ptable.id, environment.id,
-                "changeme");
+                "changeme",
+                "50:7b:9d:4d:f1:12");
 
         LOGGER.info(domain);
         LOGGER.info(environment);
@@ -67,4 +75,5 @@ public class Create {
         LOGGER.info(host.getParameterValue("RESERVED").value);
 
     }
+
 }

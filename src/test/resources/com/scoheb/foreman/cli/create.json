@@ -1,0 +1,42 @@
+{
+  "hosts": [
+    {
+      "name": "scott",
+      "domain_name": "localdomain",
+      "ip": "157.0.0.1",
+      "parameters": [
+        {
+          "name": "RESERVED",
+          "value": "false"
+        },
+        {
+          "name": "JENKINS_LABEL",
+          "value": "SCOTT TOM"
+        },
+        {
+          "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
+          "value": "/tmp/scott"
+        }
+      ]
+    },
+    {
+      "name": "scott2",
+      "domain_name": "localdomain",
+      "ip": "167.0.0.1",
+      "parameters": [
+        {
+          "name": "RESERVED",
+          "value": "false"
+        },
+        {
+          "name": "JENKINS_LABEL",
+          "value": "DAVE TERRY"
+        },
+        {
+          "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
+          "value": "/tmp/scott2"
+        }
+      ]
+    }
+  ]
+}

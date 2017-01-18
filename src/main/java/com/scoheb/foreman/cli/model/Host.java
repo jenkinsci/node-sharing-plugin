@@ -1,5 +1,7 @@
 package com.scoheb.foreman.cli.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,14 +10,15 @@ import java.util.List;
  */
 public class Host {
     public String name;
-    public String ip;
+    @SerializedName("ip")
+    public String ip_address;
     public String domain_name;
 
     @Override
     public String toString() {
         return "Host{" +
                 "name='" + name + '\'' +
-                ", ip='" + ip + '\'' +
+                ", ip_address='" + ip_address + '\'' +
                 ", domain_name='" + domain_name + '\'' +
                 ", parameters=" + parameters +
                 ", id=" + id +
