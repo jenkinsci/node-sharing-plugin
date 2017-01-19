@@ -22,7 +22,7 @@ The tool has the following commands:
 
 > Create is used to initially setup a list of Foreman hosts.
 
-> It will not update any parameters is the host already exists.
+> It will not update any parameters if the host already exists.
 
 > It takes an argument with points to the configuration file that defines the hosts.
 
@@ -173,9 +173,15 @@ example queries
   - This matches all hosts whose parameter called JENKINS_LABEL equals "solaris10 debug"
   - **Note that you must escape the \" in the query using \\".**
 
+* **release**
+
+```
+foreman-host-configurator release --server=http://localhost:3000/api --user=admin --password=changeme --force solaris1.example.com
+```
+
 ## Initial Setup
 
-The first time you invoke this tool, it will attempt to build itself. 
+The first time you invoke this tool, it will attempt to build itself.
 
 The following are needed:
 
