@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 public class ListTest extends AbstractTest {
 
     @Test
-    public void testShowAll() throws ForemanApiException {
+    public void testQuery() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
         createHosts();
@@ -31,41 +31,39 @@ public class ListTest extends AbstractTest {
         listHosts.server = url;
         listHosts.user = user;
         listHosts.password = password;
-        listHosts.run();
-        assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
-
-    }
-
-    @Test
-    public void testSearchByEnvironment() throws ForemanApiException {
-        String url = getUrl();
-        waitUntilForemanReady(url);
-        createHosts();
-
-        ListHosts listHosts = new ListHosts();
-        listHosts.environment = "staging";
-        listHosts.server = url;
-        listHosts.user = user;
-        listHosts.password = password;
+        listHosts.query = "environment = staging";
         listHosts.run();
         assertTrue(systemOutRule.getLog().indexOf("Found 1 host") >= 0);
 
-    }
-
-    @Test
-    public void testSearchByHostGroup() throws ForemanApiException {
-        String url = getUrl();
-        waitUntilForemanReady(url);
-        createHosts();
-
-        ListHosts listHosts = new ListHosts();
-        listHosts.hostGroup = "staging servers";
-        listHosts.server = url;
-        listHosts.user = user;
-        listHosts.password = password;
+        systemOutRule.clearLog();
+        listHosts.query = "environment = prod";
         listHosts.run();
-        assertTrue(systemOutRule.getLog(),systemOutRule.getLog().indexOf("Found 2 host") >= 0);
+        assertTrue(systemOutRule.getLog().indexOf("Found 1 host") >= 0);
 
+        systemOutRule.clearLog();
+        listHosts.query = "environment = dummy";
+        listHosts.run();
+        assertTrue(systemOutRule.getLog().indexOf("Found 0 host") >= 0);
+
+        systemOutRule.clearLog();
+        listHosts.query = "hostgroup = \"staging servers\"";
+        listHosts.run();
+        assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
+
+        systemOutRule.clearLog();
+        listHosts.query = "name ~ stage";
+        listHosts.run();
+        assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
+
+        systemOutRule.clearLog();
+        listHosts.query = "params.JENKINS_LABEL = \"example1 example2\"";
+        listHosts.run();
+        assertTrue(systemOutRule.getLog().indexOf("Found 1 host") >= 0);
+
+        systemOutRule.clearLog();
+        listHosts.query = null;
+        listHosts.run();
+        assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
     }
 
     public void createHosts() throws ForemanApiException {
@@ -82,7 +80,7 @@ public class ListTest extends AbstractTest {
         Domain domain = api.createDomain("scoheb.com");
 
         Environment environment = api.createEnvironment("staging");
-        Environment environment2 = api.createEnvironment("staging2");
+        Environment environment2 = api.createEnvironment("prod");
 
         OperatingSystem os = api.createOperatingSystem("RedHat", "7", "7");
         Hostgroup hostGroup = api.createHostGroup("staging servers");
@@ -95,15 +93,16 @@ public class ListTest extends AbstractTest {
 
         Parameter reservedParam = new Parameter("RESERVED", "false");
         Parameter remoteFSParam = new Parameter("JENKINS_SLAVE_REMOTEFS_ROOT", "/tmp/remoteFSRoot");
-        Parameter labelParam = new Parameter("JENKINS_LABEL", "example1");
+        Parameter labelParam1 = new Parameter("JENKINS_LABEL", "example1 example2");
+        Parameter labelParam2 = new Parameter("JENKINS_LABEL", "example2");
 
         host = api.addHostParameter(host, reservedParam);
         host = api.addHostParameter(host, remoteFSParam);
-        host = api.addHostParameter(host, labelParam);
+        host = api.addHostParameter(host, labelParam1);
 
         host2 = api.addHostParameter(host2, reservedParam);
         host2 = api.addHostParameter(host2, remoteFSParam);
-        host2 = api.addHostParameter(host2, labelParam);
+        host2 = api.addHostParameter(host2, labelParam2);
     }
 
     public void createHostsFull() throws ForemanApiException {

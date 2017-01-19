@@ -458,6 +458,16 @@ public class Api {
         return gson.fromJson(result, listType);
     }
 
+    public List<Host> getHosts(String query) {
+        Type listType = new TypeToken<ArrayList<Host>>(){}.getType();
+        Response response = base.path(V2 + "/hosts")
+                .queryParam("search", query)
+                .request(MediaType.APPLICATION_JSON).get();
+        String result = getResultString(response, "hosts", false);
+        Gson gson = new Gson();
+        return gson.fromJson(result, listType);
+    }
+
     public static String fixValue(Parameter param) {
         String val = "";
         if (param != null) {
