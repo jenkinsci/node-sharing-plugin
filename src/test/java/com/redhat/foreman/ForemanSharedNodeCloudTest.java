@@ -85,22 +85,6 @@ public class ForemanSharedNodeCloudTest {
     public final WireMockRule wireMockRule = new WireMockRule(32789);
 
     /**
-     * Test for configuration of a Foreman Cloud.
-     *
-     * @throws Exception if occurs.
-     */
-    @Test
-    public void testConfigRoundtrip() throws Exception {
-        ForemanSharedNodeCloud orig = new ForemanSharedNodeCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1);
-        j.getInstance().clouds.add(orig);
-        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
-
-        j.assertEqualBeans(orig, j.jenkins.clouds.iterator().next(),
-                "cloudName,url,user,password,credentialsId");
-    }
-
-    /**
      * Prepare wiremocks.
      *
      * @throws IOException if occurs.
@@ -208,6 +192,21 @@ public class ForemanSharedNodeCloudTest {
     }
 
     /**
+     * Test for configuration of a Foreman Cloud.
+     *
+     * @throws Exception if occurs.
+     */
+    @Test
+    public void testConfigRoundtrip() throws Exception {
+        ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL, USER, PASSWORD);
+
+        j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
+
+        j.assertEqualBeans(orig, j.jenkins.clouds.iterator().next(),
+                "cloudName,url,user,password,credentialsId");
+    }
+
+    /**
      * Perform a test connection.
      *
      * @throws ServletException if occurs.
@@ -224,42 +223,27 @@ public class ForemanSharedNodeCloudTest {
     /**
      * Round trip test that configures, builds, provisions and tears down.
      *
-     * @throws IOException if occurs.
-     * @throws URISyntaxException if occurs.
-     * @throws InterruptedException if occurs.
+     * @throws Exception if occurs.
      */
     @Test
-    public void testRoundTrip() throws IOException, URISyntaxException, InterruptedException {
-
-        setupWireMock();
-        // Add cloud
-        ForemanSharedNodeCloud fCloud = new ForemanSharedNodeCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1);
-
+    public void testRoundTrip() throws Exception {
         Computer[] computers = j.jenkins.getComputers();
         int initialComputerSet = computers.length;
 
-        fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
-        j.getInstance().clouds.add(fCloud);
-        fCloud.updateHostData();
+        setupWireMock();
+        j.addForemanCloud("mycloud", URL, USER, PASSWORD);
 
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedLabel(new LabelAtom("label1"));
 
         assertTrue(job.scheduleBuild(0, new UserIdCause()));
         TestUtils.waitForBuilds(job, 1);
-        try {
-            //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Parent.
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            System.err.println("Interrupted while waiting!");
-        }
 
         j.triggerCleanupThread();
+        j.waitForEmptyAsyncResourceDisposer();
 
         Computer[] computersAfter = j.jenkins.getComputers();
         int finalComputerSet = computersAfter.length;
-
         assertTrue(initialComputerSet == finalComputerSet);
     }
 
@@ -273,44 +257,32 @@ public class ForemanSharedNodeCloudTest {
      */
     @Test
     public void testWithLossOfConnection() throws Exception {
-        final CountDownLatch disposeCheckLatch = new CountDownLatch(60);
-        final CountDownLatch cleanedCheckLatch = new CountDownLatch(60);
-
         setupWireMock();
-        // Add cloud
-        ForemanSharedNodeCloud fCloud = new ForemanSharedNodeCloud("mycloud", URL,
-                USER, Secret.fromString(PASSWORD), "", 1);
+        j.addForemanCloud("mycloud", URL, USER, PASSWORD);
 
-        fCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
-        j.getInstance().clouds.add(fCloud);
-        fCloud.updateHostData();
-
-        AdministrativeMonitor adminMonitor = j.getInstance().getAdministrativeMonitor("AsyncResourceDisposer");
-        assertTrue("adminMonitor not null for AsyncResourceDisposer", adminMonitor != null);
-        assertTrue("adminMonitor is instanceof AsyncResourceDisposer", adminMonitor instanceof AsyncResourceDisposer);
-        AsyncResourceDisposer disposer = (AsyncResourceDisposer)adminMonitor;
-
-        final OneShotEvent finish = new OneShotEvent();
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedLabel(new LabelAtom("label1"));
 
-        assertTrue(job.scheduleBuild(0, new UserIdCause()));
-        final Future<FreeStyleBuild> build = TestUtils.startBlockingAndFinishingBuild(job, finish);
+        final OneShotEvent finish = new OneShotEvent();
+        final Future<FreeStyleBuild> build = j.startBlockingAndFinishingBuild(job, finish);
         assertThat(job.getBuilds(), hasSize(1));
 
         // Let's simulate a Foreman connection error
         stubFor(get(urlMatching("/api/.*"))
-                .willReturn(aResponse().withStatus(HTTPERROR)));
+                .willReturn(aResponse()
+                        .withStatus(HTTPERROR)));
         finish.signal();
         build.get();
 
         assertThat(job.isBuilding(), equalTo(false));
         assertThat(job.getBuilds(), hasSize(1));
 
+        // Wait for creation of disposable item
+        final CountDownLatch disposeCheckLatch = new CountDownLatch(30);
         while(disposeCheckLatch.getCount() >= 0) {
-            if (disposer.getBacklog().size() > 0) {
+            if (j.getAsyncResourceDisposer().getBacklog().size() > 0) {
                 boolean foundOurDisposalItem = false;
-                for (AsyncResourceDisposer.WorkItem item: disposer.getBacklog()) {
+                for (AsyncResourceDisposer.WorkItem item: j.getAsyncResourceDisposer().getBacklog()) {
                     Disposable disposableItem = item.getDisposable();
                     if (disposableItem instanceof DisposableImpl) {
                         foundOurDisposalItem = true;
@@ -331,25 +303,15 @@ public class ForemanSharedNodeCloudTest {
         }
         // Simulate Foreman is back online
         setupWireMock();
-        Thread.sleep(1000);
-        fCloud.updateHostData();
-        while(cleanedCheckLatch.getCount() >= 0) {
-            boolean foundOurDisposalItem = false;
-            for (AsyncResourceDisposer.WorkItem item: disposer.getBacklog()) {
-                Disposable disposableItem = item.getDisposable();
-                if (disposableItem instanceof DisposableImpl) {
-                    foundOurDisposalItem = true;
-                }
-            }
-            if (!foundOurDisposalItem) {
-                break;
-            }
-            Thread.sleep(1000);
-            cleanedCheckLatch.countDown();
-        }
-        if (cleanedCheckLatch.getCount() <= 0) {
-            throw new Exception("backlog of DisposableImpl items did not get cleaned up: " + cleanedCheckLatch.getCount());
-        }
+        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain/parameters/RESERVED"))
+                .willReturn(aResponse()
+                        .withStatus(HTTPOK)
+                        .withHeader("Content-Type", "text/json")
+                        .withBody(TestUtils.readFile("body11.txt",
+                                Charset.forName("UTF-8")).replace("false",
+                                "Reserved for "+j.getInstance().getRootUrl()))));
 
+        // Wait for cleanup procedure
+        j.waitForEmptyAsyncResourceDisposer();
     }
 }

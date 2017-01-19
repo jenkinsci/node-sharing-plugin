@@ -9,10 +9,13 @@ import hudson.model.queue.CauseOfBlockage;
 import hudson.model.Queue;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
+import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
 
@@ -21,7 +24,7 @@ import java.util.logging.Logger;
 /**
  * Foreman Shared Node.
  */
-public class ForemanSharedNode extends AbstractCloudSlave {
+public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNode {
 
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class.getName());
     private static final int NUM_EXECUTORS = 1;
@@ -84,6 +87,16 @@ public class ForemanSharedNode extends AbstractCloudSlave {
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         LOGGER.info("Terminating the ForenamSharedNode: name='" + name + "'");
         ForemanSharedNodeCloud.addDisposableEvent(cloudName, name);
+    }
+
+    @CheckForNull
+    public String getCloudName() {
+        return cloudName;
+    }
+
+    @Nonnull
+    public Node asNode() {
+        return this;
     }
 
     /**

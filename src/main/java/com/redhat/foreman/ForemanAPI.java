@@ -41,6 +41,7 @@ public class ForemanAPI {
     private static final String FOREMAN_HOSTS_PATH = "v2/hosts";
     private static final String FOREMAN_RESERVE_PATH = "hosts_reserve";
     private static final String FOREMAN_RELEASE_PATH = "hosts_release";
+    private static final String FOREMAN_SHOW_RESERVED_PATH = "show_reserved";
 
     private static final String FOREMAN_SEARCH_PARAM         = "search";
     private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
@@ -443,6 +444,57 @@ public class ForemanAPI {
             }
         } else {
             String err = "Unexpected failure during retrieving all free hosts, returned code: " + response.getStatus();
+            Exception e = new Exception(err);
+            LOGGER.log(Level.SEVERE, err, e);
+            throw e;
+        }
+
+        return hostsList;
+    }
+
+    /**
+     * Get the list of all already reserved hosts from Foreman for this Jenkins.
+     *
+     * @return list of all reserved hosts.
+     * @throws Exception if occurs.
+     */
+    @Nonnull
+    public List<String> getAllReservedHosts() throws Exception {
+        final List<String> hostsList = new ArrayList<String>();
+
+        WebTarget target = base.path(FOREMAN_SHOW_RESERVED_PATH);
+
+        LOGGER.finer(target.toString());
+        Response response = getForemanResponse(target);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.finer(responseAsString);
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode hosts = mapper.readValue(responseAsString, JsonNode.class);
+                if (hosts != null && hosts.isArray()) {
+
+                    // Extract only our reserved hosts
+                    for (JsonNode host : hosts) {
+                        JsonNode hostParams = host.get("host_parameters");
+                        if (hostParams != null && hostParams.isArray()) {
+                            for (JsonNode hostParam : hostParams) {
+                                if (hostParam.get("name").textValue().compareTo("RESERVED") == 0
+                                        && hostParam.get("value").asText().compareTo(getReserveReason()) == 0) {
+                                    hostsList.add(host.get("name").asText());
+                                    break; //N ot necessary to profcess further 'host_parameters' for this host
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Unhandled exception during performing search all reserved hosts: ", e);
+            }
+        } else {
+            String err = "Unexpected failure during retrieving all reserved hosts, returned code: "
+                    + response.getStatus();
             Exception e = new Exception(err);
             LOGGER.log(Level.SEVERE, err, e);
             throw e;
