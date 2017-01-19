@@ -175,17 +175,12 @@ example queries
 
 ## Initial Setup
 
-This tool first needs to built using Maven.
+The first time you invoke this tool, it will attempt to build itself. 
 
-```
-mvn clean package -DskipTests
-```
+The following are needed:
 
-It can then be invoked using:
-
-```
-java -jar target/foreman-host-configurator.jar <command> [OPTIONS]
-````
+- Java JDK
+- Maven
 
 ## Testing
 
