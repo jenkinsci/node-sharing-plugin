@@ -187,7 +187,7 @@ The following are needed:
 This tools also comes with a **Docker** setup that will allow one to become familiar with the tool.
 
 ```
-./startForemanContainer.sh
+./scripts/startForemanContainer.sh
 ```
 
 This will bring up a Foreman instance that will be available at http://localhost:3000
