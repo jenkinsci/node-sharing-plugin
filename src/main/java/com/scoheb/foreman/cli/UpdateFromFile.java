@@ -5,6 +5,7 @@ import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Host;
 import com.scoheb.foreman.cli.model.Hosts;
 import com.scoheb.foreman.cli.model.Parameter;
+import com.scoheb.foreman.cli.model.Reservation;
 import org.apache.log4j.Logger;
 
 import java.util.List;
@@ -31,6 +32,12 @@ public class UpdateFromFile extends AbstractFileProcessor {
             if (hostObj == null) {
                 throw new RuntimeException("Host " + host.name + "."+ host.domain_name + " DOES NOT EXIST");
             }
+            Reservation reservation = api.getHostReservation(hostObj);
+            if (!(reservation instanceof Reservation.EmptyReservation)) {
+                LOGGER.warn("Host " + hostObj.name + " is reserved! (" + reservation.reason + "). Will not update!");
+                continue;
+            }
+            // TODO Update ip?
             if (host.parameters != null && host.parameters.size() > 0) {
                 for (Parameter p: host.parameters) {
                     if (p.name.equals("RESERVED")) {
@@ -39,7 +46,7 @@ public class UpdateFromFile extends AbstractFileProcessor {
                         continue;
                     }
                     api.updateHostParameter(hostObj, p);
-                    LOGGER.info("Added/Updated parameter " + p.name);
+                    LOGGER.info("Added/Updated parameter " + p.name + " to be '" + p.value + "'");
                 }
             }
         }

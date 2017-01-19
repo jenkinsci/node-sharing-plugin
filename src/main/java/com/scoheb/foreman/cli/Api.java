@@ -27,7 +27,6 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -635,5 +634,13 @@ public class Api {
         String json = jsonObject.toString();
 
         return (Host)createObject("hosts", Host.class, json);
+    }
+
+    public boolean isReserved(Host host) {
+        Reservation reservation = getHostReservation(host);
+        if (reservation instanceof Reservation.EmptyReservation) {
+            return false;
+        }
+        return true;
     }
 }
