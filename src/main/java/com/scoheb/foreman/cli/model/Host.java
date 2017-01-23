@@ -10,15 +10,6 @@ public class Host {
     private String name;
 
     @Override
-    public Host clone() {
-        Host newHost = new Host();
-        newHost.setName(this.getName());
-        newHost.parameters = this.parameters;
-        newHost.id = 0;
-        return newHost;
-    }
-
-    @Override
     public String toString() {
         return "Host{" +
                 "name='" + getName() + '\'' +

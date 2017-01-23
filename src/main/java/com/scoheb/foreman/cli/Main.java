@@ -19,7 +19,7 @@ public class Main {
 
     private static Logger LOGGER = Logger.getLogger(List.class);
 
-    @Parameter(names = "-debug", description = "Debug mode")
+    @Parameter(names = "--debug", description = "Debug mode")
     private boolean debug = false;
 
     @Parameter(names = "--help", help = true)
@@ -66,11 +66,12 @@ public class Main {
         }
         if (debug) {
             LOGGER.getRootLogger().setLevel(Level.ALL);
+            LOGGER.debug("Debug logging enabled.");
         }
         try {
             String commandToRun = jc.getParsedCommand();
             if (commandToRun == null || commandToRun.equals("")) {
-                throw new RuntimeException("No command passed. Run with --help to see usage.");
+                throw new RuntimeException("No command specified. Run with --help to see usage.");
             }
             commands.get(commandToRun).run();
         }

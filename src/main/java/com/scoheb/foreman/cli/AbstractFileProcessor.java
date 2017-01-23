@@ -46,13 +46,22 @@ public abstract class AbstractFileProcessor extends Command {
             throw new RuntimeException("No files provided");
         }
         if (properties != null) {
+            FileInputStream propFileStr = null;
             try {
                 File p = new File(properties);
-                FileInputStream propFileStr = new FileInputStream(p);
+                propFileStr = new FileInputStream(p);
                 props.load(propFileStr);
                 LOGGER.info("Loading properties file: " + p.getAbsolutePath());
             } catch (IOException e) {
                 LOGGER.warn("Could load properties from " + properties + ". " + e.getMessage());
+            } finally {
+                if (propFileStr != null) {
+                    try {
+                        propFileStr.close();
+                    } catch (IOException e) {
+                        //swallow
+                    }
+                }
             }
         }
         for (String path: files) {

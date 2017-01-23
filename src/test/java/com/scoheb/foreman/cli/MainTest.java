@@ -60,6 +60,17 @@ public class MainTest {
     }
 
     @Test
+    public void testNoCommand() {
+        exit.expectSystemExitWithStatus(1);
+        exit.checkAssertionAfterwards(new Assertion() {
+            public void checkAssertion() {
+                assertTrue(systemOutRule.getLog().indexOf("No command specified") >= 0);
+            }
+        });
+        Main.main(new String[] {""});
+    }
+
+    @Test
     public void testUnknownServer() {
         exit.expectSystemExitWithStatus(1);
         exit.checkAssertionAfterwards(new Assertion() {
@@ -71,4 +82,16 @@ public class MainTest {
                 "--user=admin", "--password=changeme"});
     }
 
+    @Test
+    public void testDebugLogging() {
+        exit.expectSystemExitWithStatus(1);
+        exit.checkAssertionAfterwards(new Assertion() {
+            public void checkAssertion() {
+                assertTrue(systemOutRule.getLog().indexOf("java.net.ConnectException: Connection refused (Connection refused)") >= 0);
+                assertTrue(systemOutRule.getLog().indexOf("Debug logging enabled.") >= 0);
+            }
+        });
+        Main.main(new String[] {"--debug", "list", "--server=http://127.0.0.1:9999",
+                "--user=admin", "--password=changeme"});
+    }
 }
