@@ -68,7 +68,7 @@ public abstract class AbstractTest {
                 api = new Api(url, user, password);
                 String version = api.getVersion();
                 if (version != null) {
-                    System.out.println("Foreman version " + version + " ready after " + i + " sec(s)");
+                    System.out.println("Foreman version " + version + " ready after " + i + " sec(s) at " + url);
                     return;
                 }
             }
@@ -80,7 +80,7 @@ public abstract class AbstractTest {
             } catch (InterruptedException e) {
             }
         }
-        fail("Foreman failed to start in " + maxChecks + " seconds");
+        fail("Foreman failed to start in " + maxChecks + " seconds at " + url);
     }
 
 

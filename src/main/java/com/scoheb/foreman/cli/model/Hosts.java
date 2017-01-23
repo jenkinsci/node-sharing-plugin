@@ -20,6 +20,27 @@ public class Hosts {
         return defaults;
     }
 
+    public Parameter getParameterValue(String name) {
+        if (getDefaults().parameters == null) getDefaults().parameters = new ArrayList<Parameter>();
+        for (Parameter p: getDefaults().parameters) {
+            if (p.name.equals(name)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    public void addDefaultParameter(Parameter p) {
+        Parameter c = getParameterValue(p.name);
+        if (c == null) {
+            getDefaults().parameters.add(p);
+        } else {
+            getDefaults().parameters.remove(c);
+            getDefaults().parameters.add(p);
+        }
+    }
+
+
     @Override
     public String toString() {
         return "Hosts{" +

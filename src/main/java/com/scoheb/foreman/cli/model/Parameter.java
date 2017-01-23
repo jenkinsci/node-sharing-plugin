@@ -22,4 +22,23 @@ public class Parameter {
     }
 
     public int id;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Parameter parameter = (Parameter) o;
+
+        if (!name.equals(parameter.name)) return false;
+        return value.equals(parameter.value);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + value.hashCode();
+        result = 31 * result + id;
+        return result;
+    }
 }

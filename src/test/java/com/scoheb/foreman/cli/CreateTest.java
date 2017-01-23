@@ -41,27 +41,6 @@ public class CreateTest extends AbstractTest {
         assertEquals("Should be SCOTT TOM", "SCOTT TOM", parameter.value);
     }
 
-    //create-missing-param-value.json
-    @Test
-    public void testCreateWithMissingParamValue() throws ForemanApiException {
-        String url = getUrl();
-        waitUntilForemanReady(url);
-
-        File createJson = getResourceAsFile("create-missing-param-value.json");
-        List<String> files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        exception.expect(RuntimeException.class);
-        exception.expectMessage("host parameter is missing its 'value' attribute: " +
-                "Parameter{name='JENKINS_LABEL', value=null, id=0}");
-        creator.run();
-
-    }
-
     @Test
     public void testCreateAndAddParam() throws ForemanApiException {
         String url = getUrl();
@@ -96,11 +75,11 @@ public class CreateTest extends AbstractTest {
     }
 
     @Test
-    public void testCreateDuplicateHosts() throws ForemanApiException {
+    public void testCreateDuplicateNames() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
 
-        File createJson = getResourceAsFile("create-double.json");
+        File createJson = getResourceAsFile("create-same-name.json");
         List<String> files = new ArrayList<String>();
         files.add(createJson.getAbsolutePath());
 
@@ -114,55 +93,15 @@ public class CreateTest extends AbstractTest {
     }
 
     @Test
-    public void testCreateDuplicateIPs() throws ForemanApiException {
-        String url = getUrl();
-        waitUntilForemanReady(url);
-
-        File createJson = getResourceAsFile("create-same-ip.json");
-        List<String> files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        exception.expect(ForemanApiException.class);
-        exception.expectMessage("Creating hosts returned code 422");
-        creator.run();
-    }
-
-    @Test
     public void testCreateMissingInfo() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
 
-        File createJson = getResourceAsFile("create-missing-domainname.json");
-        List<String> files = new ArrayList<String>();
+        File createJson = getResourceAsFile("create-missing-name.json");
+        ArrayList<String> files = new ArrayList<String>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        exception.expect(RuntimeException.class);
-        creator.run();
-
-        createJson = getResourceAsFile("create-missing-ip.json");
-        files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        exception.expect(RuntimeException.class);
-        creator.run();
-
-        createJson = getResourceAsFile("create-missing-name.json");
-        files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        creator = new CreateFromFile(files);
         creator.server = url;
         creator.user = user;
         creator.password = password;

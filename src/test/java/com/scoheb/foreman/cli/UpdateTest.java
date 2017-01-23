@@ -77,7 +77,7 @@ public class UpdateTest extends AbstractTest {
         updater.password = password;
         updater.run();
 
-        assertTrue(systemOutRule.getLog().indexOf("Host host-to-release.localdomain is reserved! (Reserved by Scott :)). Will not update!") >= 0);
+        assertTrue(systemOutRule.getLog().indexOf("Host host-to-release.localdomain is reserved (Reserved by Scott :)). Will update...") >= 0);
         Host checkHost = api.getHost("host-to-release.localdomain");
         assertNotNull(checkHost);
         assertNotNull(checkHost.parameters);

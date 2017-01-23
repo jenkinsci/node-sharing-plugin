@@ -33,9 +33,9 @@ The tool has the following commands:
 > It ensures that:
 
 > - The host exists in Foreman.
-- The host is **not** reserved in Foreman prior to **updating** any attribute or setting.
+- The host **is reserved** in Foreman prior to **updating** any attribute or setting.
 
-  **__This prevents any changes to the host metadata while the host is being used as a shared node by a Jenkins Master.__**
+  **__This ensures that the host is not being reserved WHILE it is being updated by this application.__**
 
 - **list**
 
@@ -55,65 +55,20 @@ Here is an example of a configuration file that can be used for the **create** a
 
 ```
 {
-  "defaults": {
-    "parameters": [
-      {
-        "name": "RESERVED",
-        "value": "false"
-      }
-    ]
-  },
   "hosts": [
     {
-      "name": "solaris-test-1",
-      "domain_name": "example.com",
-      "ip": "167.5.77.9",
-      "parameters": [
-        {
-          "name": "JENKINS_LABEL",
-          "value": "solaris9"
-        },
-        {
-          "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
-          "value": "/home/jenkins"
-        }
-      ]
+      "name": "solaris-test-1.example.com",
+      "labels": "solaris9",
+      "remoteFs": "/home/jenkins"
     },
     {
-      "name": "solaris-test-2",
-      "domain_name": "example.com",
-      "ip": "167.5.77.10",
-      "parameters": [
-        {
-          "name": "JENKINS_LABEL",
-          "value": "solaris10 test"
-        },
-        {
-          "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
-          "value": "/home/jenkins"
-        }
-      ]
+      "name": "solaris-test-2.example.com",
+      "labels": "solaris10 test",
+      "remoteFs": "/home/jenkins"
     }
   ]
 }
 ```
-
-### Defaults section
-
-The **defaults** section is used to denote parameters that must be created for all hosts.
-
-```
-"defaults": {
-    "parameters": [
-      {
-        "name": "RESERVED",
-        "value": "false"
-      }
-    ]
-  },
-```
-
-For the time being, only **RESERVED** needs to be defined.
 
 ### Hosts section
 
@@ -121,27 +76,16 @@ The **hosts** defines the hosts to be configured.
 
 ```
 {
-      "name": "solaris-test-1",
-      "domain_name": "example.com",
-      "ip": "167.5.77.10",
-      "parameters": [
-        {
-          "name": "JENKINS_LABEL",
-          "value": "DAVE TERRY"
-        },
-        {
-          "name": "JENKINS_SLAVE_REMOTEFS_ROOT",
-          "value": "/home/jenkins"
-        }
-      ]
-    }
+      "name": "solaris-test-1.example.com",
+      "labels": "solaris10 test",
+      "remoteFs": "/home/jenkins"
+}
 ```
 
 #### Notes:
 
-* **name**, **domain_name** and **ip** are all _mandatory_.
-* **RESERVED** cannot be placed in the *parameters* section. It will be ignored.
-* **name** and **value** are *mandatory* for *Parameters*
+* **name** is _mandatory_.
+* **labels** and **remoteFs** are *optional*
 
 ## Usage
 

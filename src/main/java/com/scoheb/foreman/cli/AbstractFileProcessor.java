@@ -1,8 +1,10 @@
 package com.scoheb.foreman.cli;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.scoheb.foreman.cli.exception.ForemanApiException;
 import com.scoheb.foreman.cli.model.Host;
+import com.scoheb.foreman.cli.model.HostTypeAdapter;
 import com.scoheb.foreman.cli.model.Hosts;
 import com.scoheb.foreman.cli.model.Parameter;
 import org.apache.commons.io.FileUtils;
@@ -47,10 +49,17 @@ public abstract class AbstractFileProcessor extends Command {
             } catch (IOException e) {
                 throw new RuntimeException("Exception while trying to read File " + f.getAbsolutePath() + " - " + e.getMessage());
             }
-            Gson gson = new Gson();
-            Hosts hosts = gson.fromJson(json, Hosts.class);
+            final GsonBuilder gsonBuilder = new GsonBuilder();
+            gsonBuilder.registerTypeAdapter(Host.class, new HostTypeAdapter());
+            gsonBuilder.setPrettyPrinting();
+
+            final Gson gson = gsonBuilder.create();
+            final Hosts hosts = gson.fromJson(json, Hosts.class);
             if (hosts == null || hosts.getHosts() == null || hosts.getHosts().size() == 0) {
                 throw new RuntimeException("No Hosts loaded from " + f.getAbsolutePath());
+            }
+            if (hosts.getParameterValue("RESERVED") == null) {
+                hosts.addDefaultParameter(new Parameter("RESERVED", "false"));
             }
             perform(hosts);
         }
@@ -61,12 +70,6 @@ public abstract class AbstractFileProcessor extends Command {
     protected void checkHostAttributes(Host host) {
         if (host.name == null || host.name.equals("")) {
             throw new RuntimeException("host is missing its 'name' attribute");
-        }
-        if (host.domain_name == null || host.domain_name.equals("")) {
-            throw new RuntimeException("host is missing its 'domain_name' attribute");
-        }
-        if (host.ip_address == null || host.ip_address.equals("")) {
-            throw new RuntimeException("host is missing its 'ip' attribute");
         }
         if (host.parameters != null) {
             for (Parameter p: host.parameters) {

@@ -362,7 +362,6 @@ public class Api {
 
         JsonObject innerObject = new JsonObject();
         innerObject.addProperty("name", host.name);
-        innerObject.addProperty("ip", host.ip_address);
         innerObject.add("host_parameters_attributes", params);
 
         JsonObject jsonObject = new JsonObject();
@@ -481,12 +480,13 @@ public class Api {
         }
         return param;
     }
-    public void releaseHost(Host h) {
+    public String releaseHost(Host h) {
         Response response = base.path("/hosts_release")
-                .queryParam("search", "name = " + h.name)
+                .queryParam("query", "name = " + h.name)
                 .request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
         LOGGER.info(responseAsString);
+        return responseAsString;
     }
 
     public Reservation getHostReservation(Host h) {
@@ -498,18 +498,20 @@ public class Api {
         }
     }
 
-    public void reserveHost(Host h, String reserveReason) {
+    public String reserveHost(Host h, String reserveReason) {
         String reservation = fixValue(this.getHostParameter(h, "RESERVED"));
         if (reservation.equals("false")) {
             Response response = base.path("/hosts_reserve")
-                    .queryParam("search", "name = " + h.name)
+                    .queryParam("query", "name = \"" + h.name + "\"")
                     .queryParam("reason", reserveReason)
                     .request(MediaType.APPLICATION_JSON).get();
             String responseAsString = response.readEntity(String.class);
             LOGGER.debug(response.getStatus());
             LOGGER.debug(responseAsString);
+            return responseAsString;
         } else {
             LOGGER.error("Already RESERVED by: " + reservation);
+            return "Already RESERVED by: " + reservation;
         }
     }
 
@@ -642,5 +644,42 @@ public class Api {
             return false;
         }
         return true;
+    }
+
+    public Host createHost(String name, Domain domain) throws ForemanApiException {
+        Host host = getHost(name + "." + domain.name);
+        if (host != null) {
+            LOGGER.info("Host " + name + " already exists...");
+            return host;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("domain_id", domain.id);
+        innerObject.addProperty("managed", false);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("host", innerObject);
+        String json = jsonObject.toString();
+
+        return (Host)createObject("hosts", Host.class, json);
+    }
+
+    public Host createHost(String name) throws ForemanApiException {
+        Host host = getHost(name);
+        if (host != null) {
+            LOGGER.info("Host " + name + " already exists...");
+            return host;
+        }
+
+        JsonObject innerObject = new JsonObject();
+        innerObject.addProperty("name", name);
+        innerObject.addProperty("managed", false);
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add("host", innerObject);
+        String json = jsonObject.toString();
+
+        return (Host)createObject("hosts", Host.class, json);
     }
 }

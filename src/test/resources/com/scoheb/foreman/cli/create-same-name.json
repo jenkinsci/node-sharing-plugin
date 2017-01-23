@@ -6,7 +6,7 @@
       "remoteFs": "/tmp/scott"
     },
     {
-      "name": "scott2.localdomain",
+      "name": "scott.localdomain",
       "labels": "DAVE TERRY",
       "remoteFs": "/tmp/scott2"
     }
