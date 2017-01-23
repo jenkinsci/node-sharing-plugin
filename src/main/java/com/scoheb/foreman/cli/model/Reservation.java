@@ -4,7 +4,7 @@ package com.scoheb.foreman.cli.model;
  * Created by shebert on 17/01/17.
  */
 public class Reservation {
-    public final String reason;
+    private final String reason;
 
     public Reservation(String reservation) {
         this.reason = reservation;
@@ -12,6 +12,10 @@ public class Reservation {
 
     public static Reservation none() {
         return new EmptyReservation("");
+    }
+
+    public String getReason() {
+        return reason;
     }
 
     public static class EmptyReservation extends Reservation {

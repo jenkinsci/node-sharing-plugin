@@ -30,10 +30,10 @@ public class ListHosts extends Command {
         }
         LOGGER.info("Found " + hosts.size() + " host(s).");
         for (Host h: hosts) {
-            Host h2 = api.getHost(h.name);
-            LOGGER.info(h2.name);
+            Host h2 = api.getHost(h.getName());
+            LOGGER.info(h2.getName());
             for (Parameter param: h2.parameters) {
-                LOGGER.info("--> " + param.name + ": " + Api.fixValue(param));
+                LOGGER.info("--> " + param.getName() + ": " + Api.fixValue(param));
             }
         }
     }

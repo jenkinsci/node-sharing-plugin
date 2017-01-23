@@ -57,7 +57,7 @@ public class PerformanceTest extends AbstractTest {
 
         for(int i=1; i<5; i++){
             Host newHost = new Host();
-            newHost.name = "scott-" + i + ".localdomain";
+            newHost.setName("scott-" + i + ".localdomain");
             newHost.parameters = firstHost.parameters;
             hosts.getHosts().add(newHost);
         }
@@ -92,7 +92,7 @@ public class PerformanceTest extends AbstractTest {
         checkHost = api.getHost(checkHostName);
         Parameter parameter = checkHost.getParameterValue("JENKINS_LABEL");
         Assert.assertNotNull(parameter);
-        assertEquals("Should be scott scott", "scott scott", parameter.value);
+        assertEquals("Should be scott scott", "scott scott", parameter.getValue());
 
     }
 }

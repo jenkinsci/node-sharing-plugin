@@ -48,7 +48,7 @@ public class UpdateTest extends AbstractTest {
         assertNotNull(checkHost.parameters);
         Parameter parameter = checkHost.getParameterValue("JENKINS_LABEL");
         assertNotNull(parameter);
-        assertEquals("Should be SCOTT2 TOM2", "SCOTT2 TOM2", parameter.value);
+        assertEquals("Should be SCOTT2 TOM2", "SCOTT2 TOM2", parameter.getValue());
 
     }
 
@@ -83,7 +83,7 @@ public class UpdateTest extends AbstractTest {
         assertNotNull(checkHost.parameters);
         Parameter parameter = checkHost.getParameterValue("RESERVED");
         assertNotNull(parameter);
-        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.value);
+        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
         List<String> hosts = new ArrayList<String>();
         hosts.add("host-to-release.localdomain");
@@ -100,7 +100,7 @@ public class UpdateTest extends AbstractTest {
         assertNotNull(checkHost.parameters);
         parameter = checkHost.getParameterValue("RESERVED");
         assertNotNull(parameter);
-        assertEquals("Should be 'false'", "false", parameter.value);
+        assertEquals("Should be 'false'", "false", parameter.getValue());
 
         updater.run();
 
@@ -108,7 +108,7 @@ public class UpdateTest extends AbstractTest {
         checkHost = api.getHost("host-to-release.localdomain");
         parameter = checkHost.getParameterValue("JENKINS_LABEL");
         assertNotNull(parameter);
-        assertEquals("Should be 'ABC'", "ABC", parameter.value);
+        assertEquals("Should be 'ABC'", "ABC", parameter.getValue());
     }
 }
 

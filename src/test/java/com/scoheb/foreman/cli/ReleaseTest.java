@@ -38,7 +38,7 @@ public class ReleaseTest extends AbstractTest {
         assertNotNull(checkHost.parameters);
         Parameter parameter = checkHost.getParameterValue("RESERVED");
         assertNotNull(parameter);
-        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.value);
+        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
         List<String> hosts = new ArrayList<String>();
         hosts.add("host-to-release.localdomain");
@@ -52,7 +52,7 @@ public class ReleaseTest extends AbstractTest {
 
         checkHost = api.getHost("host-to-release.localdomain");
         parameter = checkHost.getParameterValue("RESERVED");
-        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.value);
+        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
         release = new Release(hosts);
         release.server = url;
@@ -63,7 +63,7 @@ public class ReleaseTest extends AbstractTest {
 
         checkHost = api.getHost("host-to-release.localdomain");
         parameter = checkHost.getParameterValue("RESERVED");
-        assertEquals("Should be 'false'", "false", parameter.value);
+        assertEquals("Should be 'false'", "false", parameter.getValue());
 
         release = new Release(hosts);
         release.server = url;

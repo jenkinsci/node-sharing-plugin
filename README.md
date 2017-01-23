@@ -87,18 +87,46 @@ The **hosts** defines the hosts to be configured.
 * **name** is _mandatory_.
 * **labels** and **remoteFs** are *optional*
 
+### Variables
+
+You may also reference variablesthat can be specified by a properties file. For example, you can specify:
+
+```
+foreman-host-configurator ... --properties=<path to properties file>
+```
+
+For more details of the properties file, please see: [Properties File Format](https://docs.oracle.com/cd/E23095_01/Platform.93/ATGProgGuide/html/s0204propertiesfileformat01.html)
+
+Taking the above config file snippet, variable can be referenced as follows:
+
+```
+{
+      "name": "solaris-test-1${EXAMPLEDOMAIN}",
+      "labels": "${SOLARISLABEL} test",
+      "remoteFs": "${FSROOT}"
+}
+```
+
+with a corresponding properties file of:
+
+```
+EXAMPLEDOMAIN=.example.com
+SOLARISLABEL=solaris10
+FSROOT=/home/jenkins
+```
+
 ## Usage
 
 * **create**
 
 ```
-foreman-host-configurator create --server=http://localhost:3000/api --user=admin --password=changeme <path to config file>
+foreman-host-configurator create --server=http://localhost:3000/api --user=admin --password=changeme [--properties=<path to properties file>] <path to config file>
 ```
 
 * **update**
 
 ```
-foreman-host-configurator update --server=http://localhost:3000/api --user=admin --password=changeme <path to config file>
+foreman-host-configurator update --server=http://localhost:3000/api --user=admin --password=changeme [--properties=<path to properties file>] <path to config file>
 ```
 
 * **list**

@@ -38,7 +38,65 @@ public class CreateTest extends AbstractTest {
         assertNotNull(checkHost.parameters);
         Parameter parameter = checkHost.getParameterValue("JENKINS_LABEL");
         assertNotNull(parameter);
-        assertEquals("Should be SCOTT TOM", "SCOTT TOM", parameter.value);
+        assertEquals("Should be SCOTT TOM", "SCOTT TOM", parameter.getValue());
+    }
+
+    @Test
+    public void testCreateWithTokens() throws ForemanApiException {
+        String url = getUrl();
+        waitUntilForemanReady(url);
+
+        File createJson = getResourceAsFile("create-with-tokens.json");
+        List<String> files = new ArrayList<String>();
+        files.add(createJson.getAbsolutePath());
+
+        File props = getResourceAsFile("tokens1.properties");
+
+        CreateFromFile creator = new CreateFromFile(files);
+        creator.server = url;
+        creator.user = user;
+        creator.password = password;
+        creator.properties = props.getAbsolutePath();
+        creator.run();
+
+        Host checkHost = api.getHost("scott.localdomain");
+        assertNotNull(checkHost);
+        assertNotNull(checkHost.parameters);
+        Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
+        assertNotNull(parameter);
+        assertEquals("Should be /tmp/scott", "/tmp/scott", parameter.getValue());
+
+        checkHost = api.getHost("scott2.localdomain");
+        assertNotNull(checkHost);
+        assertNotNull(checkHost.parameters);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
+        assertNotNull(parameter);
+        assertEquals("Should be /tmp/scott2", "/tmp/scott2", parameter.getValue());
+    }
+
+    @Test
+    public void testMissingPropertiesFile() throws ForemanApiException {
+        String url = getUrl();
+        waitUntilForemanReady(url);
+
+        File createJson = getResourceAsFile("create-with-tokens.json");
+        List<String> files = new ArrayList<String>();
+        files.add(createJson.getAbsolutePath());
+
+        CreateFromFile creator = new CreateFromFile(files);
+        creator.server = url;
+        creator.user = user;
+        creator.password = password;
+        creator.properties = "/tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties";
+        creator.run();
+
+        Host checkHost = api.getHost("scott.localdomain");
+        assertNotNull(checkHost);
+        assertNotNull(checkHost.parameters);
+        Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
+        assertNotNull(parameter);
+        assertEquals("Should be ${FSROOT}", "${FSROOT}", parameter.getValue());
+        assertTrue(systemOutRule.getLog().indexOf("Could load properties from /tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties") >= 0);
     }
 
     @Test
@@ -63,7 +121,7 @@ public class CreateTest extends AbstractTest {
         Parameter p2 = checkHost2.getParameterValue("SCOTT");
         assertNotNull(p1);
         assertNotNull(p2);
-        assertEquals("Should be TOM", p1.value, p2.value);
+        assertEquals("Should be TOM", p1.getValue(), p2.getValue());
 
         ListHosts listHosts = new ListHosts();
         listHosts.server = url;

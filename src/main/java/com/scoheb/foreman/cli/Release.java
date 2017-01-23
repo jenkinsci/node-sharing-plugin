@@ -47,15 +47,15 @@ public class Release extends Command {
             }
             Reservation reservation = api.getHostReservation(hostObj);
             if (reservation instanceof Reservation.EmptyReservation) {
-                LOGGER.info("Host " + hostObj.name + " not reserved...");
+                LOGGER.info("Host " + hostObj.getName() + " not reserved...");
                 continue;
             }
             if (force) {
-                LOGGER.info("Host " + hostObj.name + " reserved by:" + reservation.reason);
+                LOGGER.info("Host " + hostObj.getName() + " reserved by:" + reservation.getReason());
                 LOGGER.info("Force is set...releasing!");
                 api.releaseHost(hostObj);
             } else {
-                LOGGER.info("Host " + hostObj.name + " already reserved by: " + reservation.reason);
+                LOGGER.info("Host " + hostObj.getName() + " already reserved by: " + reservation.getReason());
                 LOGGER.info("and --force not set. Will not release");
             }
         }

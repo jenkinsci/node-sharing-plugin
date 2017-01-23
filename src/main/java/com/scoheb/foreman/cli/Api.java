@@ -326,14 +326,14 @@ public class Api {
                            int envId,
                            String rootPass,
                            String macAddress) throws ForemanApiException {
-        Host host = getHost(name + "." + domain.name);
+        Host host = getHost(name + "." + domain.getName());
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
             return host;
         }
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("name", name + "." + domain.getName());
         innerObject.addProperty("ip", ip);
         innerObject.addProperty("environment_id", envId);
         innerObject.addProperty("domain_id", domain.id);
@@ -356,12 +356,12 @@ public class Api {
     public Host addHostParameter(Host host, Parameter parameter) throws ForemanApiException {
         JsonArray params = new JsonArray();
         JsonObject paramObject = new JsonObject();
-        paramObject.addProperty("name", parameter.name);
-        paramObject.addProperty("value", parameter.value);
+        paramObject.addProperty("name", parameter.getName());
+        paramObject.addProperty("value", parameter.getValue());
         params.add(paramObject);
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", host.name);
+        innerObject.addProperty("name", host.getName());
         innerObject.add("host_parameters_attributes", params);
 
         JsonObject jsonObject = new JsonObject();
@@ -384,21 +384,21 @@ public class Api {
 
     public Parameter updateHostParameter(Host host, Parameter parameter) throws ForemanApiException {
 
-        Parameter existing = getHostParameter(host, parameter.name);
+        Parameter existing = getHostParameter(host, parameter.getName());
         if (existing == null) {
             Host hostAddedParam = addHostParameter(host, parameter);
-            return hostAddedParam.getParameterValue(parameter.name);
+            return hostAddedParam.getParameterValue(parameter.getName());
         }
-        if (existing.value.equals(parameter.value)) {
-            LOGGER.info("Value for parameter " + parameter.name + " already set to " + parameter.value);
+        if (existing.getValue().equals(parameter.getValue())) {
+            LOGGER.info("Value for parameter " + parameter.getName() + " already set to " + parameter.getValue());
             return existing;
         }
         parameter.id = existing.id;
 
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", parameter.name);
-        innerObject.addProperty("value", parameter.value);
+        innerObject.addProperty("name", parameter.getName());
+        innerObject.addProperty("value", parameter.getValue());
 
         JsonObject jsonObject = new JsonObject();
         jsonObject.add("parameter", innerObject);
@@ -420,7 +420,7 @@ public class Api {
     }
 
     public Parameter getHostParameter(Host host, String parameterName) {
-        Response response = base.path(V2 + "/hosts/" + host.name)
+        Response response = base.path(V2 + "/hosts/" + host.getName())
                 .request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
         LOGGER.debug(responseAsString);
@@ -431,7 +431,7 @@ public class Api {
 
     public List<Host> getHosts(Hostgroup hostgroup) {
         Type listType = new TypeToken<ArrayList<Host>>(){}.getType();
-        Response response = base.path(V2 + "/hostgroups/" + hostgroup.name + "/hosts")
+        Response response = base.path(V2 + "/hostgroups/" + hostgroup.getName() + "/hosts")
                 .request(MediaType.APPLICATION_JSON).get();
         String result = getResultString(response, "hosts", false);
         Gson gson = new Gson();
@@ -440,7 +440,7 @@ public class Api {
 
     public List<Host> getHosts(Environment environment) {
         Type listType = new TypeToken<ArrayList<Host>>(){}.getType();
-        Response response = base.path(V2 + "/environments/" + environment.name + "/hosts")
+        Response response = base.path(V2 + "/environments/" + environment.getName() + "/hosts")
                 .request(MediaType.APPLICATION_JSON).get();
         String result = getResultString(response, "hosts", false);
         Gson gson = new Gson();
@@ -469,20 +469,20 @@ public class Api {
     public static String fixValue(Parameter param) {
         String val = "";
         if (param != null) {
-            val = param.value;
+            val = param.getValue();
         }
         return val;
     }
 
     public static Parameter fixParameterValue(Parameter param) {
-        if (param != null && param.value == null) {
-            param.value = "";
+        if (param != null && param.getValue() == null) {
+            param.setValue("");
         }
         return param;
     }
     public String releaseHost(Host h) {
         Response response = base.path("/hosts_release")
-                .queryParam("query", "name = " + h.name)
+                .queryParam("query", "name = " + h.getName())
                 .request(MediaType.APPLICATION_JSON).get();
         String responseAsString = response.readEntity(String.class);
         LOGGER.info(responseAsString);
@@ -502,7 +502,7 @@ public class Api {
         String reservation = fixValue(this.getHostParameter(h, "RESERVED"));
         if (reservation.equals("false")) {
             Response response = base.path("/hosts_reserve")
-                    .queryParam("query", "name = \"" + h.name + "\"")
+                    .queryParam("query", "name = \"" + h.getName() + "\"")
                     .queryParam("reason", reserveReason)
                     .request(MediaType.APPLICATION_JSON).get();
             String responseAsString = response.readEntity(String.class);
@@ -553,14 +553,14 @@ public class Api {
     }
 
     public Host createHost(String name, String ip, Domain domain, int archId, int osId, int envId) throws ForemanApiException {
-        Host host = getHost(name + "." + domain.name);
+        Host host = getHost(name + "." + domain.getName());
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
             return host;
         }
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("name", name + "." + domain.getName());
         innerObject.addProperty("ip", ip);
         innerObject.addProperty("environment_id", envId);
         innerObject.addProperty("domain_id", domain.id);
@@ -576,14 +576,14 @@ public class Api {
     }
 
     public Host createHost(String name, String ip, Domain domain, int hostgroup_id, int envId) throws ForemanApiException {
-        Host host = getHost(name + "." + domain.name);
+        Host host = getHost(name + "." + domain.getName());
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
             return host;
         }
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("name", name + "." + domain.getName());
         innerObject.addProperty("ip", ip);
         innerObject.addProperty("domain_id", domain.id);
         innerObject.addProperty("hostgroup_id", hostgroup_id);
@@ -598,14 +598,14 @@ public class Api {
     }
 
     public Host createHost(String name, String ip, Domain domain, int osId) throws ForemanApiException {
-        Host host = getHost(name + "." + domain.name);
+        Host host = getHost(name + "." + domain.getName());
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
             return host;
         }
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("name", name + "." + domain.getName());
         innerObject.addProperty("ip", ip);
         innerObject.addProperty("domain_id", domain.id);
         innerObject.addProperty("operatingsystem_id", osId);
@@ -619,14 +619,14 @@ public class Api {
     }
 
     public Host createHost(String name, String ip, Domain domain) throws ForemanApiException {
-        Host host = getHost(name + "." + domain.name);
+        Host host = getHost(name + "." + domain.getName());
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
             return host;
         }
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("name", name + "." + domain.getName());
         innerObject.addProperty("ip", ip);
         innerObject.addProperty("domain_id", domain.id);
         innerObject.addProperty("managed", false);
@@ -647,14 +647,14 @@ public class Api {
     }
 
     public Host createHost(String name, Domain domain) throws ForemanApiException {
-        Host host = getHost(name + "." + domain.name);
+        Host host = getHost(name + "." + domain.getName());
         if (host != null) {
             LOGGER.info("Host " + name + " already exists...");
             return host;
         }
 
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", name + "." + domain.name);
+        innerObject.addProperty("name", name + "." + domain.getName());
         innerObject.addProperty("domain_id", domain.id);
         innerObject.addProperty("managed", false);
 

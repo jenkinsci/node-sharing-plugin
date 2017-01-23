@@ -66,14 +66,14 @@ public class ApiTest extends AbstractTest {
 
         Parameter reservedTrueParam = new Parameter("RESERVED", "true");
         api.updateHostParameter(host, reservedTrueParam);
-        host = api.getHost(host.name);
-        LOGGER.info(host.getParameterValue("RESERVED").value);
+        host = api.getHost(host.getName());
+        LOGGER.info(host.getParameterValue("RESERVED").getValue());
         api.updateHostParameter(host, reservedParam);
-        host = api.getHost(host.name);
-        LOGGER.info(host.getParameterValue("RESERVED").value);
+        host = api.getHost(host.getName());
+        LOGGER.info(host.getParameterValue("RESERVED").getValue());
         api.updateHostParameter(host, reservedTrueParam);
-        host = api.getHost(host.name);
-        LOGGER.info(host.getParameterValue("RESERVED").value);
+        host = api.getHost(host.getName());
+        LOGGER.info(host.getParameterValue("RESERVED").getValue());
 
     }
 

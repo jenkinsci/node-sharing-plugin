@@ -26,26 +26,26 @@ public class CreateFromFile extends AbstractFileProcessor {
         Api api = new Api(server, user, password);
         for (Host host: hosts.getHosts()) {
             checkHostAttributes(host);
-            Host hostObj = api.getHost(host.name);
+            Host hostObj = api.getHost(host.getName());
             if (hostObj != null) {
-                throw new RuntimeException("Host " + host.name + " already exists");
+                throw new RuntimeException("Host " + host.getName() + " already exists");
             }
-            hostObj = api.createHost(host.name);
+            hostObj = api.createHost(host.getName());
             if (hostObj == null) {
-                throw new RuntimeException("Failed to create Host " + host.name);
+                throw new RuntimeException("Failed to create Host " + host.getName());
             }
-            LOGGER.info("Created " + hostObj.name);
+            LOGGER.info("Created " + hostObj.getName());
             //
             if (hosts.getDefaults().parameters != null && hosts.getDefaults().parameters.size() > 0) {
                 for (Parameter p: hosts.getDefaults().parameters) {
                     api.updateHostParameter(hostObj, p);
-                    LOGGER.info("Added/Updated Default parameter " + p.name);
+                    LOGGER.info("Added/Updated Default parameter " + p.getName());
                 }
             }
             if (host.parameters != null && host.parameters.size() > 0) {
                 for (Parameter p: host.parameters) {
                     api.updateHostParameter(hostObj, p);
-                    LOGGER.info("Added/Updated parameter " + p.name);
+                    LOGGER.info("Added/Updated parameter " + p.getName());
                 }
             }
         }

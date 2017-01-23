@@ -5,18 +5,18 @@ package com.scoheb.foreman.cli.model;
  */
 public class Parameter {
     public Parameter(String name, String value) {
-        this.name = name;
-        this.value = value;
+        this.setName(name);
+        this.setValue(value);
     }
 
-    public String name;
-    public String value;
+    private String name;
+    private String value;
 
     @Override
     public String toString() {
         return "Parameter{" +
-                "name='" + name + '\'' +
-                ", value=" + value +
+                "name='" + getName() + '\'' +
+                ", value=" + getValue() +
                 ", id=" + id +
                 '}';
     }
@@ -30,15 +30,31 @@ public class Parameter {
 
         Parameter parameter = (Parameter) o;
 
-        if (!name.equals(parameter.name)) return false;
-        return value.equals(parameter.value);
+        if (!getName().equals(parameter.getName())) return false;
+        return getValue().equals(parameter.getValue());
     }
 
     @Override
     public int hashCode() {
-        int result = name.hashCode();
-        result = 31 * result + value.hashCode();
+        int result = getName().hashCode();
+        result = 31 * result + getValue().hashCode();
         result = 31 * result + id;
         return result;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 }

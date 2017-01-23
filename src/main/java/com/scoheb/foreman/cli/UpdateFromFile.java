@@ -27,30 +27,30 @@ public class UpdateFromFile extends AbstractFileProcessor {
         Api api = new Api(server, user, password);
         for (Host h: hosts.getHosts()) {
             checkHostAttributes(h);
-            LOGGER.info("Updating " + h.name);
-            Host hostObj = api.getHost(h.name);
+            LOGGER.info("Updating " + h.getName());
+            Host hostObj = api.getHost(h.getName());
             if (hostObj == null) {
-                throw new RuntimeException("Host " + h.name + " DOES NOT EXIST");
+                throw new RuntimeException("Host " + h.getName() + " DOES NOT EXIST");
             }
             Reservation reservation = api.getHostReservation(hostObj);
             if (!(reservation instanceof Reservation.EmptyReservation)) {
-                LOGGER.info("Host " + hostObj.name + " is reserved (" + reservation.reason + "). Will update...");
+                LOGGER.info("Host " + hostObj.getName() + " is reserved (" + reservation.getReason() + "). Will update...");
                 updateHostParameters(api, h, hostObj);
             } else {
-                LOGGER.info("Host " + hostObj.name + " is NOT reserved. Will attempt to reserve before updating...");
+                LOGGER.info("Host " + hostObj.getName() + " is NOT reserved. Will attempt to reserve before updating...");
                 String reserveMsg = api.reserveHost(hostObj, "Reserved by Foreman Host Configurator to perform update.");
                 reservation = api.getHostReservation(hostObj);
                 if (reservation instanceof Reservation.EmptyReservation) {
-                    throw new ForemanApiException("Failed to reserve host: " + hostObj.name, reserveMsg);
+                    throw new ForemanApiException("Failed to reserve host: " + hostObj.getName(), reserveMsg);
                 }
-                LOGGER.info("Host " + hostObj.name + " is NOW reserved (" + reservation.reason + "). Will update...");
+                LOGGER.info("Host " + hostObj.getName() + " is NOW reserved (" + reservation.getReason() + "). Will update...");
                 updateHostParameters(api, h, hostObj);
                 String releaseMsg = api.releaseHost(hostObj);
                 reservation = api.getHostReservation(hostObj);
                 if (!(reservation instanceof Reservation.EmptyReservation)) {
-                    throw new ForemanApiException("Failed to release host: " + hostObj.name, releaseMsg);
+                    throw new ForemanApiException("Failed to release host: " + hostObj.getName(), releaseMsg);
                 }
-                LOGGER.info("Host " + hostObj.name + " has been released.");
+                LOGGER.info("Host " + hostObj.getName() + " has been released.");
             }
         }
     }
@@ -58,13 +58,13 @@ public class UpdateFromFile extends AbstractFileProcessor {
     private void updateHostParameters(Api api, Host h, Host hostObj) throws ForemanApiException {
         if (h.parameters != null && h.parameters.size() > 0) {
             for (Parameter p: h.parameters) {
-                if (p.name.equals("RESERVED")) {
+                if (p.getName().equals("RESERVED")) {
                     LOGGER.warn("The parameter RESERVED cannot be updated via this commmand." +
                             " You must use the 'release' command.");
                     continue;
                 }
                 api.updateHostParameter(hostObj, p);
-                LOGGER.info("Added/Updated parameter " + p.name + " to be '" + p.value + "'");
+                LOGGER.info("Added/Updated parameter " + p.getName() + " to be '" + p.getValue() + "'");
             }
         }
     }

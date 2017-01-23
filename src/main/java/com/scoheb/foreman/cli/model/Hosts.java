@@ -23,7 +23,7 @@ public class Hosts {
     public Parameter getParameterValue(String name) {
         if (getDefaults().parameters == null) getDefaults().parameters = new ArrayList<Parameter>();
         for (Parameter p: getDefaults().parameters) {
-            if (p.name.equals(name)) {
+            if (p.getName().equals(name)) {
                 return p;
             }
         }
@@ -31,7 +31,7 @@ public class Hosts {
     }
 
     public void addDefaultParameter(Parameter p) {
-        Parameter c = getParameterValue(p.name);
+        Parameter c = getParameterValue(p.getName());
         if (c == null) {
             getDefaults().parameters.add(p);
         } else {
