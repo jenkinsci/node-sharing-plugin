@@ -89,7 +89,7 @@ The **hosts** defines the hosts to be configured.
 
 ### Variables
 
-You may also reference variablesthat can be specified by a properties file. For example, you can specify:
+You may also reference variables that can be specified by a properties file. For example, you can specify:
 
 ```
 foreman-host-configurator ... --properties=<path to properties file>
