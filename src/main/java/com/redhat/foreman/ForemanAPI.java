@@ -1,14 +1,15 @@
 package com.redhat.foreman;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.apache.commons.lang.StringUtils;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.glassfish.jersey.jackson.JacksonFeature;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -17,17 +18,12 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
-import org.apache.commons.lang.StringUtils;
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.glassfish.jersey.jackson.JacksonFeature;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Foreman API.
@@ -466,8 +462,9 @@ public class ForemanAPI {
 
         LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
+        Response.Status status = Response.Status.fromStatusCode(response.getStatus());
 
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
+        if (status == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
             LOGGER.finer(responseAsString);
             try {
@@ -493,6 +490,11 @@ public class ForemanAPI {
                 LOGGER.log(Level.SEVERE, "Unhandled exception during performing search all reserved hosts: ", e);
             }
         } else {
+            // Ruby/Foreman's possible responses
+            // (See https://github.com/david-caro/foreman_reserve/blob/master/app/controllers/api/v2/reserves_controller.rb#L88)
+            if (status == Response.Status.NOT_FOUND) {
+                return hostsList;
+            }
             String err = "Unexpected failure during retrieving all reserved hosts, returned code: "
                     + response.getStatus();
             Exception e = new Exception(err);
