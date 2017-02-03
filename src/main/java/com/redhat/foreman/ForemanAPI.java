@@ -23,6 +23,7 @@ import org.apache.commons.lang.StringUtils;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
 
@@ -74,6 +75,10 @@ public class ForemanAPI {
         clientConfig.register(feature);
         clientConfig.register(JacksonFeature.class);
         Client client = ClientBuilder.newClient(clientConfig);
+
+        // Define a quite defensive timeouts
+        client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
+        client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
         base = client.target(url);
     }
 
