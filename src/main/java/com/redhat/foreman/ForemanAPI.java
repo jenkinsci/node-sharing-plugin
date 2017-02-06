@@ -78,6 +78,7 @@ public class ForemanAPI {
      *
      * @param hostname resource in Foreman.
      * @return host in json form.
+     * @throws Exception if occurs
      */
     @CheckForNull
     public JsonNode reserveHost(String hostname) throws Exception {
