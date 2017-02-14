@@ -25,7 +25,7 @@ public class ListTest extends AbstractTest {
     public void testQuery() throws ForemanApiException {
         String url = getUrl();
         waitUntilForemanReady(url);
-        createHosts();
+        createHosts(url);
 
         ListHosts listHosts = new ListHosts();
         listHosts.server = url;
@@ -66,15 +66,8 @@ public class ListTest extends AbstractTest {
         assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
     }
 
-    public void createHosts() throws ForemanApiException {
+    public void createHosts(String url) throws ForemanApiException {
 
-        String url = null;
-        try {
-            url = rule.get().getUrl().toString() + "/api";
-            Thread.currentThread().sleep(15000);
-        } catch (IOException e) {
-        } catch (InterruptedException e) {
-        }
         Api api = new Api(url, user, password);
 
         Domain domain = api.createDomain("scoheb.com");
@@ -105,15 +98,8 @@ public class ListTest extends AbstractTest {
         host2 = api.addHostParameter(host2, labelParam2);
     }
 
-    public void createHostsFull() throws ForemanApiException {
+    public void createHostsFull(String url) throws ForemanApiException {
 
-        String url = null;
-        try {
-            url = rule.get().getUrl().toString() + "/api";
-            Thread.currentThread().sleep(15000);
-        } catch (IOException e) {
-        } catch (InterruptedException e) {
-        }
         Api api = new Api(url, user, password);
 
         Domain domain = api.createDomain("scoheb.com");
