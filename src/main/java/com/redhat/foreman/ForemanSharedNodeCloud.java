@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -535,7 +536,15 @@ public class ForemanSharedNodeCloud extends Cloud {
 
             Map<String, String> testMap = getForemanAPI().getCompatibleHosts();
             if (testMap != null) {
-                hostsMap.set(testMap);
+                // Randomize nodes ordering
+                List<String> list = new ArrayList<String> (testMap.keySet());
+                Collections.shuffle(list);
+                Map<String, String> shuffleMap = new LinkedHashMap<String, String>();
+                for (String k : list) {
+                    shuffleMap.put(k, testMap.get(k));
+                }
+
+                hostsMap.set(shuffleMap);
                 return;
             }
         } catch (Exception e) {
