@@ -28,27 +28,11 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import hudson.Launcher;
 import hudson.Util;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
-import hudson.model.Descriptor;
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
 import hudson.model.Job;
-import hudson.model.Node;
 import hudson.model.Run;
-import hudson.remoting.VirtualChannel;
-import hudson.tasks.Builder;
-import hudson.util.OneShotEvent;
-import org.jvnet.hudson.test.TestExtension;
-
-import static org.junit.Assert.assertTrue;
 
 /**
  * A utility class for test.
@@ -63,7 +47,10 @@ public final class TestUtils {
      */
     public static final int DEFAULT_WAIT_BUILD_MS = 3 * 60 * 1000;
 
-    private static final int SLEEP_DURATION = 1000;
+    /**
+     * Default sleep duration time in ms.
+     */
+    public static final int SLEEP_DURATION = 1000;
 
     /**
      * Utility constructor.
@@ -72,60 +59,6 @@ public final class TestUtils {
 
     }
 
-    /**
-     * Start a project with an infinite build step and wait until signal to finish
-     *
-     * @param project {@link FreeStyleProject} to start
-     * @param finish {@link OneShotEvent} to signal to finish a build
-     * @return A {@link Future} object represents the started build
-     * @throws Exception if somethink wrong happened
-     */
-    public static Future<FreeStyleBuild> startBlockingAndFinishingBuild(FreeStyleProject project, OneShotEvent finish) throws Exception {
-        final OneShotEvent block = new OneShotEvent();
-
-        project.getBuildersList().add(new BlockingAndFinishingBuilder(block, finish));
-
-        Future<FreeStyleBuild> r = project.scheduleBuild2(0);
-        block.block();  // wait until we are safe to interrupt
-        assertTrue(project.getLastBuild().isBuilding());
-
-        return r;
-    }
-
-    private static final class BlockingAndFinishingBuilder extends Builder {
-        private final OneShotEvent block;
-        private final OneShotEvent finish;
-
-        private BlockingAndFinishingBuilder(OneShotEvent block, OneShotEvent finish) {
-            this.block = block;
-            this.finish = finish;
-        }
-
-        @Override
-        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-            VirtualChannel channel = launcher.getChannel();
-            Node node = build.getBuiltOn();
-
-            block.signal(); // we are safe to be interrupted
-            for (;;) {
-                // Go out if we should finish
-                if (finish.isSignaled())
-                    break;
-
-                // Keep using the channel
-                channel.call(node.getClockDifferenceCallable());
-                Thread.sleep(100);
-            }
-            return true;
-        }
-        @TestExtension("disconnectCause")
-        public static class DescriptorImpl extends Descriptor<Builder> {
-            @Override
-            public String getDisplayName() {
-                return "";
-            }
-        }
-    }
     /**
      * Waits until the build is started, or the default timeout has expired.
      *
