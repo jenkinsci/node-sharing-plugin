@@ -278,18 +278,13 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                         String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
                         String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
-                        String hostIP = getForemanAPI().getIPForHost(reservedHostName);
-                        String hostForConnection = reservedHostName;
-                        if (hostIP != null) {
-                            hostForConnection = hostIP;
-                        }
 
                         if (launcherFactory == null) {
-                            launcherFactory = new ForemanSSHComputerLauncherFactory(hostForConnection,
+                            launcherFactory = new ForemanSSHComputerLauncherFactory(reservedHostName,
                                     SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                         } else {
                             if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hostForConnection,
+                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(reservedHostName,
                                         SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                             }
                         }
@@ -298,10 +293,10 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                         List<? extends NodeProperty<?>> properties = Collections.emptyList();
 
-                        LOGGER.finer("Returning a ForemanSharedNode for " + hostForConnection);
+                        LOGGER.finer("Returning a ForemanSharedNode for " + reservedHostName);
                         return new ForemanSharedNode(this.cloudName,
                                 reservedHostName,
-                                hostForConnection,
+                                reservedHostName,
                                 labelsForHost,
                                 remoteFS,
                                 launcherFactory.getForemanComputerLauncher(),
