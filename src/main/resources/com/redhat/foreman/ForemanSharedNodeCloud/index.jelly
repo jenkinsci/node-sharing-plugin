@@ -33,7 +33,7 @@ THE SOFTWARE.
                 <tr>
                     <th>Name</th><th>Labels</th>
                 </tr>
-                <j:forEach var="host" items="${it.hostsMapData.entrySet()}">
+                <j:forEach var="host" items="${it.allHosts}">
                     <tr>
                         <td>${host.key}</td>
                         <td>${host.value}</td>
