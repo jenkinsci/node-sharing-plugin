@@ -1,6 +1,7 @@
 .classpath
 .project
 target
+work
 /eclipse-classes/
 .idea
 *.iml
