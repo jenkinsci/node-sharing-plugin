@@ -103,10 +103,12 @@ public class ForemanAPI {
             LOGGER.finer(responseAsString);
             // It seems that response to reservation request is the old value in incompatible structure so we need a new request
             HostInfo reservedHost = getHostInfo(hostname);
-            if (reserveReason.equals(reservedHost.getReservedFor())) {
-                // Host reserved for this instance
-                return reservedHost;
-            }
+            // Host disappeared
+            if (reservedHost == null) return null;
+
+            // Host reserved for this instance successfully
+            if (reserveReason.equals(reservedHost.getReservedFor())) return reservedHost;
+
             LOGGER.info("Unable to reserve " + hostname + ". " + reservedHost.getReservedFor());
             return null;
         } else {
