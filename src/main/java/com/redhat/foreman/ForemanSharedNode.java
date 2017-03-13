@@ -60,8 +60,8 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
         super(name, description, remoteFS, NUM_EXECUTORS,
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
-        LOGGER.info("Instancing a new ForemanSharedNode: name='" + name + "', label='"
-                + (label == null ? "<NULL>" : label.toString()) + "'");
+        LOGGER.info("Instantiating a new ForemanSharedNode: name='" + name + "', label='"
+                + (label == null ? "<NULL>" : label) + "'");
         this.cloudName = cloudName;
     }
 
@@ -115,5 +115,4 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
             return false;
         }
     }
-
 }

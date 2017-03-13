@@ -234,7 +234,6 @@ public class ForemanAPI {
         Response.Status status = Response.Status.fromStatusCode(response.getStatus());
         if (status == Response.Status.OK) {
             LOGGER.finer(responseAsString);
-System.out.println(responseAsString);
             try {
                 return new ObjectMapper().readerFor(HostInfo.class).readValue(responseAsString);
             } catch (IOException e) {
@@ -257,7 +256,7 @@ System.out.println(responseAsString);
      * @throws Exception if occurs.
      */
     @Nonnull
-    private Map<String, HostInfo> getHostForQuery(String query) throws Exception {
+    private Map<String, HostInfo> getHostsForQuery(String query) throws Exception {
         Map<String, HostInfo> hostsMap = new HashMap<String, HostInfo>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH)
                 .queryParam(FOREMAN_SEARCH_PARAM,
@@ -301,7 +300,7 @@ System.out.println(responseAsString);
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
                 + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
                 + " and has " + FOREMAN_REMOTEFS_ROOT;
-        return getHostForQuery(query);
+        return getHostsForQuery(query);
     }
 
     /**
@@ -336,7 +335,7 @@ System.out.println(responseAsString);
                                 if (hostParam.get("name").textValue().compareTo("RESERVED") == 0
                                         && hostParam.get("value").asText().compareTo(getReserveReason()) == 0) {
                                     hostsList.add(host.get("name").asText());
-                                    break; //N ot necessary to profcess further 'host_parameters' for this host
+                                    break; // Not necessary to process further 'host_parameters' for this host
                                 }
                             }
                         }
