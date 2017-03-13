@@ -32,6 +32,7 @@ import hudson.model.labels.LabelAtom;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -98,8 +99,8 @@ public class HostInfo {
     /**
      * Determine whether this host matches label expression.
      *
-     * This reverse the semantics of Label#matches() for convenience of provisioning clients as they have to deal with the
-     * null in place of label (no restrictions).
+     * This reverse the semantics of {@link Label#matches(Collection)} for convenience of provisioning clients as they
+     * have to deal with the <tt>label == null</tt>.
      */
     public boolean satisfies(@CheckForNull Label label) {
         return label != null && label.matches(getLabelSet());

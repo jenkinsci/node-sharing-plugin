@@ -586,7 +586,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                 url1 = StringUtils.strip(StringUtils.stripToNull(url1), "/");
                 String version = new ForemanAPI(url1, user, password).getVersion();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
-            // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared tp throw the supertype.
+            // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
             //} catch (LoginException e) {
             //    return FormValidation.error(Messages.AuthFailure());
             } catch (Exception e) {
@@ -597,7 +597,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Extension to update
+     * Update the inventory periodically.
      */
     @Extension
     public static class ForemanSharedNodeWorker extends AsyncPeriodicWork {
