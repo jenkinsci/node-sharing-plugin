@@ -44,8 +44,7 @@ public class ForemanAPI {
     /*package*/ static final String JENKINS_LABEL = "JENKINS_LABEL";
     private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
     /*package*/ static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
-    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params."
-            + FOREMAN_SEARCH_RESERVEDPARAMNAME;
+    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params." + FOREMAN_SEARCH_RESERVEDPARAMNAME;
     /*package*/ static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
     private static final String FOREMAN_REMOTEFS_ROOT = "params." + JENKINS_SLAVE_REMOTEFS_ROOT;
 
@@ -267,8 +266,8 @@ System.out.println(responseAsString);
         LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
 
+        String responseAsString = response.readEntity(String.class);
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
             LOGGER.finer(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
@@ -285,6 +284,8 @@ System.out.println(responseAsString);
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception getting compatible hosts: ", e);
             }
+        } else {
+            LOGGER.log(Level.SEVERE, "Unable to get compatible hosts. HTTP status: " + response.getStatus() + "\n" + responseAsString);
         }
         return Collections.unmodifiableMap(hostsMap);
     }
