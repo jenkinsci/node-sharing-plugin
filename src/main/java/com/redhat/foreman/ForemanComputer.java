@@ -11,6 +11,8 @@ import hudson.model.Node;
 import hudson.model.Queue.Task;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -23,10 +25,12 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Foreman Cloud Computer.
  */
-public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
+public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> implements TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(ForemanComputer.class.getName());
+
     private final Object pendingDeleteLock = new Object();
+    private final ProvisioningActivity.Id id;
 
     @Override
     public void taskCompleted(Executor executor, Task task, long durationMS) {
@@ -104,6 +108,12 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> {
      */
     public ForemanComputer(ForemanSharedNode slave) {
         super(slave);
+        id = slave.getId();
+    }
+
+    @Override
+    public ProvisioningActivity.Id getId() {
+        return id;
     }
 
     // Hide /configure view inherited from Computer
