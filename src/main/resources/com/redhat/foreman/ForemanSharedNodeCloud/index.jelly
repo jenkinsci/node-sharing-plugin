@@ -29,14 +29,16 @@ THE SOFTWARE.
         <l:main-panel>
             <h1>${it.displayName}</h1>
             <h2>${%All hosts in the pool}</h2>
+            <p>This page is for information purposes only. Data presented here might be outdated compared to Foreman.</p>
             <table class="pane sortable bigtable">
                 <tr>
-                    <th>Name</th><th>Labels</th>
+                    <th>Name</th><th>Labels</th><th>Owner</th>
                 </tr>
-                <j:forEach var="host" items="${it.hostsMapData.entrySet()}">
+                <j:forEach var="host" items="${it.allHosts}">
                     <tr>
-                        <td>${host.key}</td>
-                        <td>${host.value}</td>
+                        <td>${host.name}</td>
+                        <td>${host.labels}</td>
+                        <td>${host.reservedFor}</td>
                     </tr>
                 </j:forEach>
             </table>
