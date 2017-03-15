@@ -1,6 +1,9 @@
 package com.redhat.foreman.launcher;
 
+import com.redhat.foreman.HostInfo;
 import hudson.slaves.ComputerLauncher;
+
+import javax.annotation.Nonnull;
 
 /**
  * Interface for Foreman Computer Launcher.
@@ -13,6 +16,6 @@ public abstract class ForemanComputerLauncherFactory {
      * @return a ComputerLauncher
      * @throws Exception if occurs.
      */
-    public abstract ComputerLauncher getForemanComputerLauncher() throws Exception;
+    public abstract ComputerLauncher getForemanComputerLauncher(@Nonnull HostInfo host) throws Exception;
 
 }
