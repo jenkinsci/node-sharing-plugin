@@ -223,7 +223,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                             throw (AbortException) new AbortException().initCause(e);
                         }
                         if (node == null) {
-                            throw new AbortException("Foreman plugin failed to provision the node");
+                            throw new AbortException("No Foreman resources available");
                         }
                         return node;
                     }
