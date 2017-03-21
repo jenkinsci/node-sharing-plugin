@@ -2,6 +2,7 @@ package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
+import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.AsyncPeriodicWork;
@@ -10,6 +11,7 @@ import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.model.labels.LabelAtom;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudRetentionStrategy;
 import hudson.slaves.NodeProperty;
@@ -23,23 +25,21 @@ import hudson.util.Secret;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
+import java.io.ObjectStreamException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.security.auth.login.LoginException;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
@@ -63,7 +63,6 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.redhat.foreman.launcher.ForemanComputerLauncherFactory;
 import com.redhat.foreman.launcher.ForemanSSHComputerLauncherFactory;
 
@@ -102,11 +101,18 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     private transient ForemanAPI api = null;
     private transient ForemanComputerLauncherFactory launcherFactory = null;
-    private transient AtomicReference<Map<String, String>> hostsMap
-            = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
+
+    /** All available hosts structured as an immutable map, indexed by their label atoms for performance reasons */
+    @CopyOnWrite
+    private transient volatile @Nonnull Map<Set<LabelAtom>, HostInfo> hostsMap = Collections.emptyMap();
 
     private transient OneShotEvent startOperations = null;
     private transient Object startLock = null;
+
+    private Object readResolve() throws ObjectStreamException {
+        hostsMap = Collections.emptyMap();
+        return this;
+    }
 
     /**
      * Constructor with name.
@@ -178,13 +184,11 @@ public class ForemanSharedNodeCloud extends Cloud {
     public boolean canProvision(Label label) {
         LOGGER.finer("canProvision() asked for label '" + label + "'");
         long time = System.currentTimeMillis();
-        Map<String, String> mapData = getHostsMapData();
 
-        Set<Map.Entry<String, String>> hosts = mapData.entrySet();
-        for (Map.Entry<String, String> host : hosts) {
+        for (Map.Entry<Set<LabelAtom>, HostInfo> host: hostsMap.entrySet()) {
+
             try {
-                if ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
-                        || (label != null && label.matches(Label.parse(mapData.get(host.getKey()))))) {
+                if (label.matches(host.getKey())) {
                     LOGGER.finer("canProvision returns True in "
                             + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     return true;
@@ -201,7 +205,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-    public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
+    public Collection<PlannedNode> provision(final @CheckForNull Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
         if (excessWorkload > 0
                 && !Jenkins.getInstance().isQuietingDown()
@@ -242,52 +246,30 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @throws Exception if occurs.
      */
     @CheckForNull
-    private ForemanSharedNode provision(Label label, ProvisioningActivity.Id id) throws Exception {
-        String labelName = "";
-        if (label != null) {
-            labelName = label.toString();
-        }
-        LOGGER.finer("Trying to provision Foreman Shared Node for '" + labelName + "'");
-
+    private ForemanSharedNode provision(@CheckForNull Label label, ProvisioningActivity.Id id) throws Exception {
+        LOGGER.finer("Trying to provision Foreman Shared Node for '" + label + "'");
+        ForemanAPI foreman = getForemanAPI();
         try {
-            for (String reservedHostName : getFreeHostsToReserve(label)) {
-                final JsonNode host = getForemanAPI().reserveHost(reservedHostName);
+            for (HostInfo hi : getHostsToReserve(label)) {
+
+                final HostInfo host = foreman.reserveHost(hi);
                 if (host != null) {
                     try {
-                        String certName = null;
-                        if (host.elements().hasNext()) {
-                            JsonNode h = host.elements().next();
-                            if (h.has("host")) {
-                                certName = h.get("host").get("certname").asText();
-                            } else {
-                                if (h.has("certname")) {
-                                    certName = h.get("certname").asText();
-                                } else {
-                                    throw new Exception("Reserve plugin did not return correct data?");
-                                }
-                            }
-                        }
-
-                        if (!reservedHostName.equals(certName)) {
-                            throw new Exception("Reserved host is not what we asked to reserve?");
-                        }
-
-                        String labelsForHost = Util.fixEmptyAndTrim(getForemanAPI().getLabelsForHost(reservedHostName));
-                        String remoteFS = getForemanAPI().getRemoteFSForSlave(reservedHostName);
+                        String labelsForHost = hi.getLabels();
+                        String remoteFS = hi.getRemoteFs();
 
                         if (launcherFactory == null) {
-                            launcherFactory = new ForemanSSHComputerLauncherFactory(reservedHostName,
-                                    SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
+                            launcherFactory = new ForemanSSHComputerLauncherFactory(hi.getName(), SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                         } else {
                             if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(reservedHostName,
+                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hi.getName(),
                                         SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                             }
                         }
 
-                        LOGGER.finer("Returning a ForemanSharedNode for " + reservedHostName);
+                        LOGGER.finer("Returning a ForemanSharedNode for " + host.getName());
                         return new ForemanSharedNode(
-                                id.named(reservedHostName),
+                                id.named(host.getName()),
                                 labelsForHost,
                                 remoteFS,
                                 launcherFactory.getForemanComputerLauncher(),
@@ -296,7 +278,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                     } catch (Error e) {
                         throw e;
                     } catch (Throwable e) {
-                        addDisposableEvent(cloudName, reservedHostName);
+                        addDisposableEvent(cloudName, hi.getName());
                     }
                 }
             }
@@ -312,67 +294,31 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Get host to Reserve for the label. Host must be free.
+     * Get the list of hosts available for reservation for the label.
+     *
+     * Since we are working with outdated data, client needs to check if hosts are free before allocating them.
      *
      * @param label Label to reserve for.
-     * @return name of host that was reserved.
-     */
-    @CheckForNull
-    private String getHostToReserve(Label label) {
-        try {
-            Map<String, String> mapData = getHostsMapData();
-            final List<String> freeHostsList = getForemanAPI().getAllFreeHosts();
-
-            Set<Map.Entry<String, String>> hosts = mapData.entrySet();
-            for (Map.Entry<String, String> host : hosts) {
-                try {
-                    if (freeHostsList.contains(host.getKey())
-                            && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
-                                || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
-                        return host.getKey();
-                    }
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
-                    continue;
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Unhandled exception in getHostToReserve(): ", e);
-        }
-
-        return null;
-    }
-
-    /**
-     * Get the list of hosts available for reservation for the label. Each host must be free.
-     *
-     * @param label Label to reserve for.
-     * @return list of the names of host that are free for reservation.
+     * @return list of hosts that may be free for reservation.
      */
     @Nonnull
-    private List<String> getFreeHostsToReserve(Label label) {
-        final List<String> hostsList = new ArrayList<String>();
-        try {
-            final List<String> freeHostsList = getForemanAPI().getAllFreeHosts();
-            Map<String, String> mapData = getHostsMapData();
-
-            Set<Map.Entry<String, String>> hosts = mapData.entrySet();
-            for (Map.Entry<String, String> host : hosts) {
-                try {
-                    if (freeHostsList.contains(host.getKey())
-                            && ((label == null && Label.parse(mapData.get(host.getKey())).isEmpty())
-                                || (label != null && label.matches(Label.parse(mapData.get(host.getKey())))))) {
-                        hostsList.add(host.getKey());
-                    }
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Unhandled exception in getFreeHostsToReserve(): ", e);
-                    continue;
+    private List<HostInfo> getHostsToReserve(@CheckForNull Label label) {
+        ArrayList<HostInfo> free = new ArrayList<HostInfo>();
+        ArrayList<HostInfo> used = new ArrayList<HostInfo>();
+        for (Map.Entry<Set<LabelAtom>, HostInfo> h : hostsMap.entrySet()) {
+            if (h.getValue().satisfies(label)) {
+                HostInfo host = h.getValue();
+                if (host.isReserved()) {
+                    used.add(host);
+                } else {
+                    free.add(host);
                 }
             }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Unhandled exception in getFreeHostsToReserve(): ", e);
         }
-        return hostsList;
+
+        // Get free hosts first, reserved last. We should not remove them altogether as they might not be reserved any longer.
+        free.addAll(used);
+        return free;
     }
 
     /**
@@ -509,41 +455,32 @@ public class ForemanSharedNodeCloud extends Cloud {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
-                LOGGER.severe("Sleeping interupted! Returning...");
+                LOGGER.severe("Sleeping interrupted! Returning...");
                 return;
             }
         }
 
         try {
-            if (hostsMap == null) {
-                hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
+
+            Map<String, HostInfo> hosts = getForemanAPI().getCompatibleHosts();
+            // Randomize nodes ordering
+            List<HostInfo> list = new ArrayList<HostInfo>(hosts.values());
+            Collections.shuffle(list);
+            LinkedHashMap<Set<LabelAtom>, HostInfo> shuffleMap = new LinkedHashMap<Set<LabelAtom>, HostInfo>();
+            for (HostInfo k : list) {
+                shuffleMap.put(Label.parse(k.getLabels()), k);
             }
 
-            Map<String, String> testMap = getForemanAPI().getCompatibleHosts();
-            if (testMap != null) {
-                // Randomize nodes ordering
-                List<String> list = new ArrayList<String> (testMap.keySet());
-                Collections.shuffle(list);
-                Map<String, String> shuffleMap = new LinkedHashMap<String, String>();
-                for (String k : list) {
-                    shuffleMap.put(k, testMap.get(k));
-                }
-
-                hostsMap.set(shuffleMap);
-                return;
-            }
+            hostsMap = Collections.unmodifiableMap(shuffleMap);
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Unexpected exception occurred in updateHostData: ", e);
+            hostsMap = Collections.emptyMap(); // Erase if we can not get the data
         }
-        hostsMap.set(new HashMap<String, String>());
     }
 
     @Restricted(DoNotUse.class) // index.jelly
-    public Map<String, String> getHostsMapData() {
-        if (hostsMap == null) {
-            hostsMap = new AtomicReference<Map<String, String>>(new HashMap<String, String>());
-        }
-        return hostsMap.get();
+    public Collection<HostInfo> getAllHosts() {
+        return hostsMap.values();
     }
 
     private synchronized Object getStartLock() {
@@ -627,62 +564,29 @@ public class ForemanSharedNodeCloud extends Cloud {
                                                @QueryParameter("user") String user,
                                                @QueryParameter("password") Secret password) throws ServletException {
             url = StringUtils.strip(StringUtils.stripToNull(url), "/");
-            if (url != null && isValidURL(url)) {
-                try {
-                    String version = testConnection(url, user, password);
-                    if (version != null) {
-                        return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
-                    } else {
-                        return FormValidation.error(Messages.TestConnectionFailure());
-                    }
-                } catch (LoginException e) {
-                    return FormValidation.error(Messages.AuthFailure());
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Unhandled exception in doTestConnection: ", e);
-                    return FormValidation.error(Messages.Error() + ": " + e);
-                }
-            }
-            return FormValidation.error(Messages.InvalidURI());
-        }
-
-        /**
-         * Call API to test connection.
-         *
-         * @param url      url.
-         * @param user     user.
-         * @param password password.
-         * @return Foreman version.
-         * @throws Exception if occurs.
-         */
-        @CheckForNull
-        private String testConnection(String url, String user, Secret password) throws Exception {
-            url = StringUtils.strip(StringUtils.stripToNull(url), "/");
-            if (url != null && isValidURL(url)) {
-                ForemanAPI testApi = new ForemanAPI(url, user, password);
-                return testApi.getVersion();
-            }
-            return null;
-        }
-
-        /**
-         * Check if URL is valid.
-         *
-         * @param url url.
-         * @return true if valid.
-         */
-        private static boolean isValidURL(String url) {
             try {
                 new URI(url);
             } catch (URISyntaxException e) {
-                LOGGER.severe("URISyntaxException, returning false.");
-                return false;
+                return FormValidation.error(Messages.InvalidURI(), e);
             }
-            return true;
+
+            try {
+                String url1 = url;
+                url1 = StringUtils.strip(StringUtils.stripToNull(url1), "/");
+                String version = new ForemanAPI(url1, user, password).getVersion();
+                return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
+            // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
+            //} catch (LoginException e) {
+            //    return FormValidation.error(Messages.AuthFailure());
+            } catch (Exception e) {
+                e.printStackTrace();
+                return FormValidation.error(e.getMessage(), e);
+            }
         }
     }
 
     /**
-     * Extension to update
+     * Update the inventory periodically.
      */
     @Extension
     public static class ForemanSharedNodeWorker extends AsyncPeriodicWork {

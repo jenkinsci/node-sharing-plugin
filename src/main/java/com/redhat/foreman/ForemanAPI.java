@@ -6,7 +6,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -18,19 +17,15 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
-import org.glassfish.jersey.jackson.JacksonFeature;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Foreman API.
@@ -40,25 +35,23 @@ public class ForemanAPI {
 
     private static final Logger LOGGER = Logger.getLogger(ForemanAPI.class.getName());;
 
-    private static final String JENKINS_LABEL = "JENKINS_LABEL";
     private static final String FOREMAN_HOSTS_PATH = "v2/hosts";
     private static final String FOREMAN_RESERVE_PATH = "hosts_reserve";
     private static final String FOREMAN_RELEASE_PATH = "hosts_release";
     private static final String FOREMAN_SHOW_RESERVED_PATH = "show_reserved";
-
     private static final String FOREMAN_SEARCH_PARAM         = "search";
+
+    /*package*/ static final String JENKINS_LABEL = "JENKINS_LABEL";
     private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
-    private static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
-    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params."
-            + FOREMAN_SEARCH_RESERVEDPARAMNAME;
+    /*package*/ static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
+    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params." + FOREMAN_SEARCH_RESERVEDPARAMNAME;
+    /*package*/ static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
+    private static final String FOREMAN_REMOTEFS_ROOT = "params." + JENKINS_SLAVE_REMOTEFS_ROOT;
 
     private static final String FOREMAN_QUERY_PARAM = "query";
     private static final String FOREMAN_QUERY_NAME = "name ~ ";
 
     private static final String FOREMAN_RESERVE_REASON = "reason";
-
-    private static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
-    private static final String FOREMAN_REMOTEFS_ROOT = "params." + JENKINS_SLAVE_REMOTEFS_ROOT;
 
     private static final String FOREMAN_STATUS_PATH = "v2/status";
 
@@ -87,26 +80,19 @@ public class ForemanAPI {
     /**
      * Reserve host outright.
      *
-     * @param hostname resource in Foreman.
-     * @return host in json form.
-     * @throws Exception if occurs
+     * @return Updated HostInfo representing reserved host.
      */
     @CheckForNull
-    public JsonNode reserveHost(String hostname) throws Exception {
-        try {
-            if (!isHostFree(hostname)) {
-                LOGGER.info("Attempt to reserve already reserved host '" + hostname + "'!");
-                return null;
-            }
-        } catch (Exception e) {
-            LOGGER.severe("Unexpected exception occurred while detecting the reservation status for host '"
-                    + hostname + "'");
-            return null;
-        }
+    public HostInfo reserveHost(HostInfo host) throws Exception {
+        String hostname = host.getName();
+        host = getHostInfo(hostname); // Get fresh reserved status.
+        if (host == null || host.isReserved()) return null;
+
         LOGGER.info("Reserving host " + hostname);
+        String reserveReason = getReserveReason();
         WebTarget target = base.path(FOREMAN_RESERVE_PATH)
                 .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
-                .queryParam(FOREMAN_RESERVE_REASON, getReserveReason());
+                .queryParam(FOREMAN_RESERVE_REASON, reserveReason);
         LOGGER.fine(target.toString());
 
         Response response = getForemanResponse(target);
@@ -115,12 +101,16 @@ public class ForemanAPI {
         if (status == Response.Status.OK) {
             String responseAsString = response.readEntity(String.class);
             LOGGER.finer(responseAsString);
-            try {
-                return new ObjectMapper().readValue(responseAsString, JsonNode.class);
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception reserving " + hostname + ".", e);
-                throw e;
-            }
+            // It seems that response to reservation request is the old value in incompatible structure so we need a new request
+            HostInfo reservedHost = getHostInfo(hostname);
+            // Host disappeared
+            if (reservedHost == null) return null;
+
+            // Host reserved for this instance successfully
+            if (reserveReason.equals(reservedHost.getReservedFor())) return reservedHost;
+
+            LOGGER.info("Unable to reserve " + hostname + ". " + reservedHost.getReservedFor());
+            return null;
         } else {
             String msg = "Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".";
             LOGGER.severe(msg);
@@ -140,7 +130,7 @@ public class ForemanAPI {
      * @return string to be used for reserving.
      */
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-    private String getReserveReason() {
+    /*package for testing*/ static String getReserveReason() {
         String url = Jenkins.getInstance().getRootUrl();
         return "Reserved for " + url;
     }
@@ -149,35 +139,36 @@ public class ForemanAPI {
      * Release host from Foreman.
      *
      * @param hostName name of host to release.
-     * @throws Exception if occurs.
      */
-    public void release(String hostName) throws Exception {
-        // Get RESERVED value first to make sure we are not releasing someone
-        // else's lock...
-        if (isHostFree(hostName)) {
-            LOGGER.info("Host " + hostName + " not reserved. Not releasing.");
+    public void release(@Nonnull String hostName) throws ActionFailed {
+        HostInfo hostInfo = getHostInfo(hostName);
+        // Host is gone - nothing to release
+        if (hostInfo == null) {
+            LOGGER.info("Unable to release host " + hostName + ".  Does not seem to be in Foreman any longer.");
             return;
         }
 
-        if (isHostReservedByUs(hostName)) {
-            LOGGER.info("Attempting to Release host " + hostName);
-            WebTarget target = base.path(FOREMAN_RELEASE_PATH)
-                    .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostName);
-            LOGGER.finer(target.toString());
-            Response response = getForemanResponse(target);
-
-            if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
-                String responseAsString = response.readEntity(String.class);
-                LOGGER.finer(responseAsString);
-                String msg = "Attempt to release " + hostName + " returned code " + response.getStatus() + ".";
-                LOGGER.severe(msg);
-                throw new Exception(msg);
-            } else {
-                LOGGER.info("Host " + hostName + " successfully released.");
-            }
-        } else {
-            LOGGER.info("Host " + hostName + " not reserved by us! Not releasing.");
+        // We do not own the host - noop
+        if (!getReserveReason().equals(hostInfo.getReservedFor())) {
+            LOGGER.info("Unable to release host " + hostName + ".  Reserved for " + hostInfo.getReservedFor());
+            return;
         }
+
+        LOGGER.info("Attempting to Release host " + hostName);
+        WebTarget target = base.path(FOREMAN_RELEASE_PATH)
+                .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostName);
+        LOGGER.finer(target.toString());
+        Response response = getForemanResponse(target);
+
+        if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
+            String responseAsString = response.readEntity(String.class);
+            LOGGER.finer(responseAsString);
+            throw new CommunicationError(
+                    "Attempt to release " + hostName + " returned code " + response.getStatus() + ":" + responseAsString
+            );
+        }
+
+        LOGGER.info("Host " + hostName + " successfully released.");
     }
 
     /**
@@ -202,123 +193,61 @@ public class ForemanAPI {
     /**
      * Get Foreman version.
      *
-     * @return version.
-     * @throws Exception if occurs.
+     * @return version string.
      */
-    @CheckForNull
-    public String getVersion() throws Exception {
+    @Nonnull
+    public String getVersion() throws ActionFailed {
         WebTarget target = base.path(FOREMAN_STATUS_PATH);
         Response response = getForemanResponse(target);
 
+        String responseAsString = response.readEntity(String.class);
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
             LOGGER.finer(responseAsString);
             ObjectMapper mapper = new ObjectMapper();
-            JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-            LOGGER.finer(param.toString());
-            if ((param.get("version") != null)) {
-                return param.get("version").asText();
-            }
-        }
-        return null;
-    }
-
-    /**
-     * General utility method to get parameter value for host.
-     *
-     * @param hostname name of host.
-     * @param parameterName name of param.
-     * @return value.
-     * @throws Exception if occurs.
-     */
-    @CheckForNull
-    public String getHostParameterValue(String hostname, String parameterName) throws Exception {
-        String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname + "/parameters/" + parameterName;
-        WebTarget target = base.path(hostParamPath);
-        LOGGER.finer(target.toString());
-        Response response = getForemanResponse(target);
-
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
-            LOGGER.finer(responseAsString);
             try {
-                ObjectMapper mapper = new ObjectMapper();
                 JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
                 LOGGER.finer(param.toString());
-                if ((param.get("name") != null && param.get("name").textValue().equals(parameterName))) {
-                    LOGGER.finer("Returning host parameter "
-                            + parameterName + "=" + param.get("value") + " for " + hostname);
-                    return param.get("value").asText();
-                } else {
-                    return null;
+                if ((param.get("version") != null)) {
+                    String version = Util.fixEmptyAndTrim(param.get("version").asText());
+                    if (version != null) return version;
                 }
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception getting " + parameterName + " for " + hostname + ".", e);
-                throw e;
+            } catch (IOException e) {
+                throw new ProtocolMismatch("Unable to extract version from: " + responseAsString, e);
             }
+            throw new ProtocolMismatch("Unable to extract version from: " + responseAsString);
         } else {
-            String err = "Retrieving " + parameterName + " for " + hostname
-                    + " returned code " + response.getStatus() + ".";
-            Exception e = new Exception(err);
-            LOGGER.log(Level.SEVERE, err, e);
-            throw e;
+            throw new CommunicationError("Request failed with " + response.getStatus() + ": " + responseAsString);
         }
     }
 
     /**
-     * Get Jenkins Slave Remote FS root.
+     * Get host info.
      *
-     * @param hostname name of host.
-     * @return value of slave remote FS root.
-     * @throws Exception if occurs.
+     * @return HostInfo of or null in case foreman does no longer have this host configured.
      */
     @CheckForNull
-    public String getRemoteFSForSlave(String hostname) throws Exception {
-        return getHostParameterValue(hostname, JENKINS_SLAVE_REMOTEFS_ROOT);
-    }
-
-    /**
-     * Get value for host attribute.
-     *
-     * @param hostname name of host.
-     * @param attribute attrib to look for.
-     * @return value of attrib.
-     */
-    @CheckForNull
-    public String getHostAttributeValue(String hostname, String attribute) {
+    public HostInfo getHostInfo(@Nonnull String hostname) throws ActionFailed {
         String hostParamPath = FOREMAN_HOSTS_PATH + "/" + hostname;
         WebTarget target = base.path(hostParamPath);
         LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
 
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
+        String responseAsString = response.readEntity(String.class);
+        Response.Status status = Response.Status.fromStatusCode(response.getStatus());
+        if (status == Response.Status.OK) {
             LOGGER.finer(responseAsString);
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode param = mapper.readValue(responseAsString, JsonNode.class);
-                LOGGER.finer(param.toString());
-                LOGGER.finer(param.get(attribute).toString());
-                LOGGER.info("Retrieving " + attribute + "=" + param.get(attribute) + " for " + hostname);
-                return param.get(attribute).asText();
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception getting " + attribute + " for " + hostname + ".", e);
+                return new ObjectMapper().readerFor(HostInfo.class).readValue(responseAsString);
+            } catch (IOException e) {
+                throw new ProtocolMismatch(responseAsString, e);
             }
-        } else {
-            LOGGER.severe("Retrieving " + attribute + " for " + hostname
-                    + " returned code " + response.getStatus() + ".");
         }
-        return null;
-    }
 
-    /** Get IP for Host.
-     *
-     * @param hostname name of host.
-     * @return IP.
-     */
-    @CheckForNull
-    public String getIPForHost(String hostname) {
-        return getHostAttributeValue(hostname, "ip");
+        if (status == Response.Status.NOT_FOUND) return null;
+
+        throw new CommunicationError(
+                "Retrieving host info for " + hostname + " returned code " + response.getStatus() + ":" + responseAsString
+        );
     }
 
     /**
@@ -329,9 +258,8 @@ public class ForemanAPI {
      * @throws Exception if occurs.
      */
     @Nonnull
-    private Map<String, String> getHostForQuery(String query) throws Exception {
-        Map<String, String> hostsMap = new HashMap<String, String>();
-        List<String> hostsList = new ArrayList<String>();
+    private Map<String, HostInfo> getHostsForQuery(String query) throws Exception {
+        Map<String, HostInfo> hostsMap = new HashMap<String, HostInfo>();
         WebTarget target = base.path(FOREMAN_HOSTS_PATH)
                 .queryParam(FOREMAN_SEARCH_PARAM,
                   query);
@@ -339,8 +267,8 @@ public class ForemanAPI {
         LOGGER.finer(target.toString());
         Response response = getForemanResponse(target);
 
+        String responseAsString = response.readEntity(String.class);
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
             LOGGER.finer(responseAsString);
             try {
                 ObjectMapper mapper = new ObjectMapper();
@@ -348,20 +276,19 @@ public class ForemanAPI {
                 JsonNode hosts = json.get("results");
                 if (hosts != null && hosts.isArray()) {
                     for (JsonNode host : hosts) {
-                        hostsList.add(host.get("name").asText());
+                        String name = host.get("name").asText();
+                        HostInfo info = getHostInfo(name);
+                        if (info == null) throw new CommunicationError("Unable to fetch details for found host: " + name);
+                        hostsMap.put(info.getName(), info);
                     }
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception getting compatible hosts: ", e);
             }
-            for (String host: hostsList) {
-                String labelsAsString = getHostParameterValue(host, JENKINS_LABEL);
-                if (labelsAsString != null) {
-                    hostsMap.put(host, labelsAsString);
-                }
-            }
+        } else {
+            LOGGER.log(Level.SEVERE, "Unable to get compatible hosts. HTTP status: " + response.getStatus() + "\n" + responseAsString);
         }
-        return hostsMap;
+        return Collections.unmodifiableMap(hostsMap);
     }
 
     /**
@@ -371,93 +298,11 @@ public class ForemanAPI {
      * @throws Exception if occurs.
      */
     @Nonnull
-    Map<String, String> getCompatibleHosts() throws Exception {
+    Map<String, HostInfo> getCompatibleHosts() throws Exception {
         String query = "has " + FOREMAN_SEARCH_LABELPARAM
                 + " and has " + FOREMAN_SEARCH_RESERVEDPARAM
                 + " and has " + FOREMAN_REMOTEFS_ROOT;
-        return getHostForQuery(query);
-    }
-
-    /**
-     * Get Host's Jenkins labels.
-     *
-     * @param hostName name of host.
-     * @return value of label parameter.
-     * @throws Exception if occurs.
-     */
-    @CheckForNull
-    public String getLabelsForHost(String hostName) throws Exception {
-        return getHostParameterValue(hostName, JENKINS_LABEL);
-    }
-
-    /**
-     * Determine if a host is reserved.
-     *
-     * @param hostName name of host in Foreman.
-     * @return true if not reserved.
-     * @throws Exception if occurs.
-     */
-    public boolean isHostFree(String hostName) throws Exception {
-        String free = getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME);
-        return !StringUtils.isEmpty(free) && free.equalsIgnoreCase("false");
-    }
-
-    /**
-     * Determine if a host is reserved for current Jenkins instance.
-     *
-     * @param hostName name of the host in Foreman.
-     * @return true if reserved for us.
-     * @throws Exception if occurs.
-     */
-    public boolean isHostReservedByUs(final String hostName) throws Exception {
-        final String result = getHostParameterValue(hostName, FOREMAN_SEARCH_RESERVEDPARAMNAME);
-
-        if (result == null) {
-            return false;
-        } else {
-            return result.equals(getReserveReason());
-        }
-    }
-
-    /**
-     * Get the list of all free hosts from Foremam.
-     *
-     * @return list of all free hosts.
-     * @throws Exception if occurs.
-     */
-    @Nonnull
-    public List<String> getAllFreeHosts() throws Exception {
-        final List<String> hostsList = new ArrayList<String>();
-
-        WebTarget target = base.path(FOREMAN_HOSTS_PATH)
-                .queryParam(FOREMAN_SEARCH_PARAM, FOREMAN_SEARCH_RESERVEDPARAM+"=false");
-
-        LOGGER.finer(target.toString());
-        Response response = getForemanResponse(target);
-
-        if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
-            LOGGER.finer(responseAsString);
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode json = mapper.readValue(responseAsString, JsonNode.class);
-                JsonNode hosts = json.get("results");
-                if (hosts != null && hosts.isArray()) {
-                    for (JsonNode host : hosts) {
-                        hostsList.add(host.get("name").asText());
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception during performing search all free hosts: ", e);
-            }
-        } else {
-            String err = "Unexpected failure during retrieving all free hosts, returned code: " + response.getStatus();
-            Exception e = new Exception(err);
-            LOGGER.log(Level.SEVERE, err, e);
-            throw e;
-        }
-
-        return hostsList;
+        return getHostsForQuery(query);
     }
 
     /**
@@ -492,7 +337,7 @@ public class ForemanAPI {
                                 if (hostParam.get("name").textValue().compareTo("RESERVED") == 0
                                         && hostParam.get("value").asText().compareTo(getReserveReason()) == 0) {
                                     hostsList.add(host.get("name").asText());
-                                    break; //N ot necessary to profcess further 'host_parameters' for this host
+                                    break; // Not necessary to process further 'host_parameters' for this host
                                 }
                             }
                         }
@@ -515,5 +360,62 @@ public class ForemanAPI {
         }
 
         return hostsList;
+    }
+
+    /**
+     * Action or query performed by the library has failed.
+     *
+     * Dedicated subclasses should be thrown.
+     */
+    public static abstract class ActionFailed extends RuntimeException {
+        public ActionFailed(String message) {
+            super(message);
+        }
+
+        public ActionFailed(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public ActionFailed(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    /**
+     * Problem while talking to Foreman.
+     *
+     * Network problem, service malfunction or failure performing an action.
+     */
+    public static class CommunicationError extends ActionFailed {
+        public CommunicationError(String message) {
+            super(message);
+        }
+
+        public CommunicationError(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public CommunicationError(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    /**
+     * Library does not comprehend Foreman reply.
+     *
+     * The response format and the library are not compatible.
+     */
+    public static class ProtocolMismatch extends ActionFailed {
+        public ProtocolMismatch(String message) {
+            super(message);
+        }
+
+        public ProtocolMismatch(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public ProtocolMismatch(Throwable cause) {
+            super(cause);
+        }
     }
 }

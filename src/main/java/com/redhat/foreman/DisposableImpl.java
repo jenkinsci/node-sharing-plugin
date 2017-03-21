@@ -32,6 +32,8 @@ public class DisposableImpl implements Disposable {
                 // According Foreman Docs, 404 code means host doesn't exist or isn't reserved now
                 // We can destroy the Disposable item in that case
                 if (!e.getMessage().contains("returned code 404")) {
+                    // TODO: target particular type
+                    e.printStackTrace();
                     throw e;
                 }
             }

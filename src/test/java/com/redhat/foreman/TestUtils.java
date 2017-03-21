@@ -126,14 +126,19 @@ public final class TestUtils {
     /**
      * Utility method for reading files.
      * @param path path to file.
-     * @param encoding Encoding.
      * @return contents of file.
-     * @throws IOException if occurs.
-     * @throws URISyntaxException if occurs.
      */
-    public static String readFile(String path, Charset encoding)
-            throws IOException, URISyntaxException {
-        return Util.loadFile(new File(ForemanSharedNodeCloudTest.class.getResource(path).toURI()), encoding);
+    public static String readFile(String path) {
+        try {
+            return Util.loadFile(
+                    new File(ForemanSharedNodeCloudTest.class.getResource(path).toURI()),
+                    Charset.forName("UTF-8")
+            );
+        } catch (IOException e) {
+            throw new Error(e);
+        } catch (URISyntaxException e) {
+            throw new Error(e);
+        }
     }
 
 }
