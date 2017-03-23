@@ -30,8 +30,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.redhat.foreman.TestUtils.readFile;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyIterableOf;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -45,8 +43,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 
 import javax.servlet.ServletException;
 
@@ -59,12 +55,12 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
+import hudson.model.Label;
 import hudson.model.Node;
-import hudson.model.queue.MappingWorksheet;
-import hudson.util.OneShotEvent;
+import hudson.plugins.sshslaves.SSHLauncher;
+import hudson.slaves.AbstractCloudSlave;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -94,17 +90,10 @@ public class ForemanSharedNodeCloudTest {
     private static final String PASSWORD = "changeme";
     private static final String SUT_HOSTNAME = "localhost.localdomain";
 
-    /**
-     * Rule for Jenkins.
-     */
-    @Rule
-    public final ForemanTestRule j = new ForemanTestRule();
+    @Rule public final ForemanTestRule j = new ForemanTestRule();
+    @Rule public final WireMockRule wireMockRule = new WireMockRule(SERVICE_PORT);
 
-    /**
-     * Rule for wiremock.
-     */
-    @Rule
-    public final WireMockRule wireMockRule = new WireMockRule(SERVICE_PORT);
+    private String hostInfoResponseFile = "host-info.txt";
 
     // Use per-test instance rather than the static helper methods as they are talking to thread local instance so we
     // can not configure stubs from different threads.
@@ -235,6 +224,7 @@ public class ForemanSharedNodeCloudTest {
         FreeStyleBuild build = job.scheduleBuild2(0, new UserIdCause()).get();
         Node node = build.getBuiltOn();
         assertEquals(SUT_HOSTNAME, node.getNodeName());
+
         j.waitUntilNoActivity(); // Despite the build being completed, I have observed node not yet idle for removal
         assertTrue(node.toComputer().isTemporarilyOffline());
 
@@ -261,6 +251,20 @@ public class ForemanSharedNodeCloudTest {
         assertTrue(initialComputerSet == finalComputerSet);
 
         assertEquals(null, cloud.getForemanAPI().getHostInfo(SUT_HOSTNAME).getReservedFor());
+    }
+
+    @Test
+    public void customJavaPath() throws Exception {
+        hostInfoResponseFile = "host-info-custom-java-path.txt";
+        stubSearchInventory();
+        stubReserveScenario();
+
+        ForemanSharedNodeCloud cloud = j.addForemanCloud("mycloud", URL, USER, PASSWORD);
+        // Do not use the test specific one so we actually test the value propagation to SSHLauncher
+        cloud.setLauncherFactory(null);
+        AbstractCloudSlave node = (AbstractCloudSlave) cloud.provision(Label.get("label1"), 1).iterator().next().future.get();
+        SSHLauncher launcher = (SSHLauncher) node.createComputer().getLauncher();
+        assertEquals("/custom/java/path", launcher.getJavaPath());
     }
 
     private List<AsyncResourceDisposer.WorkItem> getDisposables() {
@@ -327,7 +331,7 @@ public class ForemanSharedNodeCloudTest {
 
     @Test
     public void reserveHost() throws Exception {
-        HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(readFile("host-info-idle.txt"));
+        HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(String.format(readFile(hostInfoResponseFile), "false"));
 
         ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL, USER, PASSWORD);
         ForemanAPI api = orig.getForemanAPI();
@@ -366,7 +370,7 @@ public class ForemanSharedNodeCloudTest {
     private void stubReserveScenario() {
         stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
                 .inScenario("reserveHost")
-                .willReturn(ok("host-info-idle.txt")));
+                .willReturn(ok(hostInfoResponseFile, "false")));
         stubFor(get(urlMatching("/api/hosts_reserve.+"))
                 .inScenario("reserveHost")
                 .willSetStateTo("reserved")
@@ -374,13 +378,13 @@ public class ForemanSharedNodeCloudTest {
         stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
                 .inScenario("reserveHost")
                 .whenScenarioStateIs("reserved")
-                .willReturn(ok("host-info-reserved-for-me.txt", ForemanAPI.getReserveReason())));
+                .willReturn(ok(hostInfoResponseFile, ForemanAPI.getReserveReason())));
     }
 
     private void stubReleaseScenario(String reserveReason) {
         stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
                 .inScenario("releaseHost")
-                .willReturn(ok("host-info-reserved-for-me.txt", reserveReason)));
+                .willReturn(ok(hostInfoResponseFile, reserveReason)));
         stubFor(get(urlEqualTo("/api/hosts_release?query=name+~+localhost.localdomain"))
                 .inScenario("releaseHost")
                 .willSetStateTo("released")
@@ -388,7 +392,7 @@ public class ForemanSharedNodeCloudTest {
         stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
                 .inScenario("releaseHost")
                 .whenScenarioStateIs("released")
-                .willReturn(ok("host-info-idle.txt")));
+                .willReturn(ok(hostInfoResponseFile, "false")));
     }
 
     private void stubServiceStatus() {
@@ -397,12 +401,12 @@ public class ForemanSharedNodeCloudTest {
 
     private String stubHostInfoReservedForMe() throws IOException, URISyntaxException {
         String reserveReason = ForemanAPI.getReserveReason();
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain")).willReturn(ok("host-info-reserved-for-me.txt", reserveReason)));
+        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain")).willReturn(ok(hostInfoResponseFile, reserveReason)));
         return reserveReason;
     }
 
     private void stubHostInfoIdle() throws IOException, URISyntaxException {
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain")).willReturn(ok("host-info-idle.txt")));
+        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain")).willReturn(ok(hostInfoResponseFile, "false")));
     }
 
     private void stubSearchInventory() {

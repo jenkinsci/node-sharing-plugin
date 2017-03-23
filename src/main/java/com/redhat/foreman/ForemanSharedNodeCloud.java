@@ -165,7 +165,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      *
      * @param launcherFactory launcherFactory to use.
      */
-    public void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
+    /*package for testing*/ void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
         this.launcherFactory = launcherFactory;
     }
 
@@ -265,12 +265,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                         String remoteFS = hi.getRemoteFs();
 
                         if (launcherFactory == null) {
-                            launcherFactory = new ForemanSSHComputerLauncherFactory(hi.getName(), SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-                        } else {
-                            if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hi.getName(),
-                                        SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-                            }
+                            launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                         }
 
                         RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
@@ -283,7 +278,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                                 hi.getName(),
                                 labelsForHost,
                                 remoteFS,
-                                launcherFactory.getForemanComputerLauncher(),
+                                launcherFactory.getForemanComputerLauncher(hi),
                                 strategy,
                                 properties);
                     } catch (Error e) {
