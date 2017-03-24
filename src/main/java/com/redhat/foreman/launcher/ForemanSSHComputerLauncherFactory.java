@@ -1,58 +1,46 @@
 package com.redhat.foreman.launcher;
 
+import com.redhat.foreman.HostInfo;
 import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.ComputerLauncher;
 
+import javax.annotation.Nonnull;
+
 /**
  * SSH Launcher Factory.
- *
  */
 public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFactory {
 
-    private String hostName;
-    private int port;
-    private String credentialsId;
-    private Integer timeoutInSecs;
+    private final int port;
+    private final String credentialsId;
+    private final Integer timeoutInSecs;
 
     /**
-     * Default Constructor.
-     * @param host name or ip of host to launch.
+     * Populate factory with host agnostic configuration.
+     *
      * @param p port to launch on.
      * @param credId Credentials to use.
      * @param timeOut timeout for SSH connection in secs.
      */
-    public ForemanSSHComputerLauncherFactory(String host, int p, String credId, Integer timeOut) {
+    public ForemanSSHComputerLauncherFactory(int p, String credId, Integer timeOut) {
         super();
-        this.hostName = host;
         this.port = p;
         this.credentialsId = credId;
         this.timeoutInSecs = timeOut;
     }
 
     /**
-     * Configure launcher once created.
-     * @param host name or ip of host to launch.
-     * @param p port to launch on.
-     * @param credId Credentials to use.
-     * @param timeOut timeout for SSH connection in secs.
+     * Create launcher tailored for particular host.
      */
-    public void configure(String host, int p, String credId, Integer timeOut) {
-        this.hostName = host;
-        this.port = p;
-        this.credentialsId = credId;
-        this.timeoutInSecs = timeOut;
-    }
-
     @Override
-    public ComputerLauncher getForemanComputerLauncher() throws Exception {
-        return new SSHLauncher(hostName,
+    public ComputerLauncher getForemanComputerLauncher(@Nonnull HostInfo host) {
+        return new SSHLauncher(host.getName(),
                 port,
                 credentialsId,
                 null,
-                null,
+                host.getJavaPath(),
                 null,
                 null,
                 timeoutInSecs);
     }
-
 }

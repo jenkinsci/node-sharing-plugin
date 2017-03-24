@@ -42,10 +42,12 @@ public class ForemanAPI {
     private static final String FOREMAN_SEARCH_PARAM         = "search";
 
     /*package*/ static final String JENKINS_LABEL = "JENKINS_LABEL";
-    private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
-    /*package*/ static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
-    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params." + FOREMAN_SEARCH_RESERVEDPARAMNAME;
     /*package*/ static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
+    /*package*/ static final String JENKINS_SLAVE_JAVA_PATH = "JENKINS_SLAVE_JAVA_PATH";
+    /*package*/ static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
+
+    private static final String FOREMAN_SEARCH_LABELPARAM    = "params." + JENKINS_LABEL;
+    private static final String FOREMAN_SEARCH_RESERVEDPARAM = "params." + FOREMAN_SEARCH_RESERVEDPARAMNAME;
     private static final String FOREMAN_REMOTEFS_ROOT = "params." + JENKINS_SLAVE_REMOTEFS_ROOT;
 
     private static final String FOREMAN_QUERY_PARAM = "query";

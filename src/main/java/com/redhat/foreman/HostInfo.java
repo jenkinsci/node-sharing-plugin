@@ -48,6 +48,7 @@ public class HostInfo {
     private final String name;
     private final String labels;
     private final String remoteFs;
+    private final @CheckForNull String javaPath; // Optional
     // null if free, identifier otherwise
     private final @CheckForNull String reserved;
 
@@ -61,6 +62,7 @@ public class HostInfo {
         }
         labels = Util.fixEmptyAndTrim(params.get(ForemanAPI.JENKINS_LABEL));
         remoteFs = Util.fixEmptyAndTrim(params.get(ForemanAPI.JENKINS_SLAVE_REMOTEFS_ROOT));
+        javaPath = Util.fixEmptyAndTrim(params.get(ForemanAPI.JENKINS_SLAVE_JAVA_PATH));
         String r = Util.fixEmptyAndTrim(params.get(ForemanAPI.FOREMAN_SEARCH_RESERVEDPARAMNAME));
         reserved = "false".equals(r) ? null : r;
     }
@@ -111,6 +113,15 @@ public class HostInfo {
      */
     public String getRemoteFs() {
         return remoteFs;
+    }
+
+    /**
+     * Path to executable to be launched on node side to start the agent.
+     *
+     * @return Absolute path or null when default should be used.
+     */
+    public @CheckForNull String getJavaPath() {
+        return javaPath;
     }
 
     /**

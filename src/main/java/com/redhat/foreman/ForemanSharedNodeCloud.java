@@ -164,7 +164,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      *
      * @param launcherFactory launcherFactory to use.
      */
-    public void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
+    /*package for testing*/ void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
         this.launcherFactory = launcherFactory;
     }
 
@@ -252,27 +252,22 @@ public class ForemanSharedNodeCloud extends Cloud {
         try {
             for (HostInfo hi : getHostsToReserve(label)) {
 
-                final HostInfo host = foreman.reserveHost(hi);
-                if (host != null) {
+                hi = foreman.reserveHost(hi);
+                if (hi != null) {
                     try {
                         String labelsForHost = hi.getLabels();
                         String remoteFS = hi.getRemoteFs();
 
                         if (launcherFactory == null) {
-                            launcherFactory = new ForemanSSHComputerLauncherFactory(hi.getName(), SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-                        } else {
-                            if (launcherFactory instanceof ForemanSSHComputerLauncherFactory) {
-                                ((ForemanSSHComputerLauncherFactory) launcherFactory).configure(hi.getName(),
-                                        SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-                            }
+                            launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                         }
 
-                        LOGGER.finer("Returning a ForemanSharedNode for " + host.getName());
+                        LOGGER.finer("Returning a ForemanSharedNode for " + hi.getName());
                         return new ForemanSharedNode(
-                                id.named(host.getName()),
+                                id.named(hi.getName()),
                                 labelsForHost,
                                 remoteFS,
-                                launcherFactory.getForemanComputerLauncher(),
+                                launcherFactory.getForemanComputerLauncher(hi),
                                 new CloudRetentionStrategy(1),
                                 Collections.<NodeProperty<?>>emptyList());
                     } catch (Error e) {
