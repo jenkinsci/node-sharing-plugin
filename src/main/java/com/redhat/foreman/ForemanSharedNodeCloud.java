@@ -12,13 +12,11 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
-import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.Cloud;
 import hudson.slaves.CloudRetentionStrategy;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.slaves.RetentionStrategy;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.OneShotEvent;
@@ -42,7 +40,6 @@ import java.util.concurrent.Future;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.security.auth.login.LoginException;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
@@ -52,6 +49,8 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -213,11 +212,12 @@ public class ForemanSharedNodeCloud extends Cloud {
                 && !Jenkins.getInstance().isTerminating()
                 && canProvision(label)) {
             try {
+                final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null);
                 Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     public Node call() throws Exception {
                         Node node = null;
                         try {
-                            node = provision(label);
+                            node = provision(label, id);
                         } catch (Exception e) {
                             LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
                             throw (AbortException) new AbortException().initCause(e);
@@ -228,14 +228,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                         return node;
                     }
                 });
-                String name = "ForemanNode";
-                if (label != null) {
-                    name = Util.fixNull(Util.fixEmptyAndTrim(label.toString()));
-                }
-                result.add(new NodeProvisioner.PlannedNode(
-                        name,
-                        futurePlannedNode,
-                        1));
+                result.add(new TrackedPlannedNode(id, 1, futurePlannedNode));
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
             }
@@ -248,18 +241,19 @@ public class ForemanSharedNodeCloud extends Cloud {
      * a host for this requesting master.
      *
      * @param label linked Jenkins Label.
+     * @param id
      * @return a Foreman Slave.
      * @throws Exception if occurs.
      */
     @CheckForNull
-    private ForemanSharedNode provision(@CheckForNull Label label) throws Exception {
+    private ForemanSharedNode provision(@CheckForNull Label label, ProvisioningActivity.Id id) throws Exception {
         LOGGER.finer("Trying to provision Foreman Shared Node for '" + label + "'");
         ForemanAPI foreman = getForemanAPI();
         try {
             for (HostInfo hi : getHostsToReserve(label)) {
 
-                final HostInfo host = foreman.reserveHost(hi);
-                if (host != null) {
+                hi = foreman.reserveHost(hi);
+                if (hi != null) {
                     try {
                         String labelsForHost = hi.getLabels();
                         String remoteFS = hi.getRemoteFs();
@@ -268,19 +262,14 @@ public class ForemanSharedNodeCloud extends Cloud {
                             launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
                         }
 
-                        RetentionStrategy<AbstractCloudComputer> strategy = new CloudRetentionStrategy(1);
-
-                        List<? extends NodeProperty<?>> properties = Collections.emptyList();
-
-                        LOGGER.finer("Returning a ForemanSharedNode for " + host);
-                        return new ForemanSharedNode(this.cloudName,
-                                hi.getName(),
-                                hi.getName(),
+                        LOGGER.finer("Returning a ForemanSharedNode for " + hi.getName());
+                        return new ForemanSharedNode(
+                                id.named(hi.getName()),
                                 labelsForHost,
                                 remoteFS,
                                 launcherFactory.getForemanComputerLauncher(hi),
-                                strategy,
-                                properties);
+                                new CloudRetentionStrategy(1),
+                                Collections.<NodeProperty<?>>emptyList());
                     } catch (Error e) {
                         throw e;
                     } catch (Throwable e) {

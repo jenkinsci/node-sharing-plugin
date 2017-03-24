@@ -13,6 +13,8 @@ import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -24,45 +26,43 @@ import java.util.logging.Logger;
 /**
  * Foreman Shared Node.
  */
-public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNode {
+public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class.getName());
     private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
 
+    @Deprecated // Use id instead,
     private String cloudName;
+    private ProvisioningActivity.Id id;
 
     /**
      * Foreman Shared Node.
      *
-     * @param cloudName      name of cloud.
-     * @param name           name or IP of host.
-     * @param description    same.
+     * @param id             id of the provisioning attempt.
      * @param label          Jenkins label requested.
      * @param remoteFS       Remote FS root.
      * @param launcher       Slave launcher.
      * @param strategy       Retention Strategy.
      * @param nodeProperties node props.
      * @throws FormException if occurs.
-     * @throws IOException   if occurs.
      */
     public ForemanSharedNode(
-            String cloudName,
-            String name,
-            String description,
+            ProvisioningActivity.Id id,
             String label,
             String remoteFS,
             ComputerLauncher launcher,
             RetentionStrategy<AbstractCloudComputer> strategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
         //CS IGNORE check FOR NEXT 4 LINES. REASON: necessary inline conditional in super().
-        super(name, description, remoteFS, NUM_EXECUTORS,
+        super(id.getNodeName(), "", remoteFS, NUM_EXECUTORS,
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
-        LOGGER.info("Instantiating a new ForemanSharedNode: name='" + name + "', label='"
+        LOGGER.info("Instancing a new ForemanSharedNode: name='" + name + "', label='"
                 + (label == null ? "<NULL>" : label) + "'");
-        this.cloudName = cloudName;
+        this.id = id;
+        this.cloudName = id.getCloudName();
     }
 
     @Override
@@ -85,13 +85,18 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        LOGGER.info("Terminating the ForenamSharedNode: name='" + name + "'");
+        LOGGER.info("Terminating the ForemanSharedNode: name='" + name + "'");
         ForemanSharedNodeCloud.addDisposableEvent(cloudName, name);
     }
 
     @CheckForNull
     public String getCloudName() {
         return cloudName;
+    }
+
+    @Override
+    public ProvisioningActivity.Id getId() {
+        return id;
     }
 
     @Nonnull
