@@ -182,7 +182,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        LOGGER.finer("canProvision() asked for label '" + label + "'");
+        LOGGER.finer("canProvision() asked for label '" + (label == null ? "" : label) + "'");
         long time = System.currentTimeMillis();
 
         for (Map.Entry<Set<LabelAtom>, HostInfo> host: hostsMap.entrySet()) {
@@ -210,7 +210,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         final long start_time = System.currentTimeMillis();
 
-        LOGGER.info("Request to provion label: '" + (label == null ? "" : label.toString()) + "'");
+        LOGGER.info("Request to provion label: '" + (label == null ? "" : label) + "'");
 
         if (excessWorkload > 0
                 && !Jenkins.getInstance().isQuietingDown()
@@ -218,7 +218,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                 && canProvision(label)) {
             try {
 
-                LOGGER.info("Try to provion label: '" + (label == null ? "" : label.toString()) + "' in " +
+                LOGGER.info("Try to provion label: '" + (label == null ? "" : label) + "' in " +
                         Util.getTimeSpanString(System.currentTimeMillis() - start_time));
 
                 final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null);
