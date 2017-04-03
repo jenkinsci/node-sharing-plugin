@@ -188,7 +188,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         for (Map.Entry<Set<LabelAtom>, HostInfo> host: hostsMap.entrySet()) {
 
             try {
-                if (label.matches(host.getKey())) {
+                if (label == null || label.matches(host.getKey())) {
                     LOGGER.info("canProvision returns True in "
                             + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     return true;
@@ -210,15 +210,29 @@ public class ForemanSharedNodeCloud extends Cloud {
 
         final long start_time = System.currentTimeMillis();
 
+        LOGGER.info("Request to provion label: '" + (label == null ? "" : label.toString()) + "'");
+
         if (excessWorkload > 0
                 && !Jenkins.getInstance().isQuietingDown()
                 && !Jenkins.getInstance().isTerminating()
                 && canProvision(label)) {
             try {
+
+                LOGGER.info("Try to provion label: '" + (label == null ? "" : label.toString()) + "' in " +
+                        Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
                 final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null);
 
                 for (final HostInfo hi : getHostsToReserve(label)) {
+
+                    LOGGER.info("Try to provision host '" + hi.getName() + "' in " +
+                            Util.getTimeSpanString(System.currentTimeMillis() - start_time));;
+
                     try {
+
+                        LOGGER.info("Try to reserve host '" + hi.getName() + "' in " +
+                                Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
                         final HostInfo host = getForemanAPI().reserveHost(hi);
                         if (host != null) {
 
