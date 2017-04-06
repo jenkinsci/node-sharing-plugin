@@ -286,6 +286,11 @@ public class ForemanSharedNodeCloud extends Cloud {
                                     Util.getTimeSpanString(System.currentTimeMillis() - start_time));
 
                             return result;
+                        } else {
+
+                            LOGGER.info("Trying to reserve host '" + hi.getName() + "' FAILED in " +
+                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
                         }
                     } catch (Error e) {
                         throw e;
