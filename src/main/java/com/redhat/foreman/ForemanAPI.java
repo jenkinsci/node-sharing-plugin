@@ -82,7 +82,9 @@ public class ForemanAPI {
     /**
      * Reserve host outright.
      *
+     * @param host HostInfo to be reserved.
      * @return Updated HostInfo representing reserved host.
+     * @throws Exception if occurs.
      */
     @CheckForNull
     public HostInfo reserveHost(HostInfo host) throws Exception {
@@ -226,6 +228,7 @@ public class ForemanAPI {
      * Get host info.
      *
      * @return HostInfo of or null in case foreman does no longer have this host configured.
+     * @throws ActionFailed if an issue occurs.
      */
     @CheckForNull
     public HostInfo getHostInfo(@Nonnull String hostname) throws ActionFailed {

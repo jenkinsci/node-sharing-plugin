@@ -47,6 +47,7 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
      * @param strategy       Retention Strategy.
      * @param nodeProperties node props.
      * @throws FormException if occurs.
+     * @throws IOException   if occurs.
      */
     public ForemanSharedNode(
             ProvisioningActivity.Id id,
