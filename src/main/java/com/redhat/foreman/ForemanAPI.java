@@ -228,7 +228,7 @@ public class ForemanAPI {
      * Get host info.
      *
      * @return HostInfo of or null in case foreman does no longer have this host configured.
-     * @throws ActionFailed if an issue occurs.
+     * @throws ActionFailed If it was not able to reserve the host.
      */
     @CheckForNull
     public HostInfo getHostInfo(@Nonnull String hostname) throws ActionFailed {
