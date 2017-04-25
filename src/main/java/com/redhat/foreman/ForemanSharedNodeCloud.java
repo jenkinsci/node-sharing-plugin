@@ -104,7 +104,7 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     /** All available hosts structured as an immutable map, indexed by their label atoms for performance reasons */
     @CopyOnWrite
-    private transient volatile @Nonnull Map<Set<LabelAtom>, HostInfo> hostsMap = Collections.emptyMap();
+    private transient volatile @Nonnull Map<String, HostInfo> hostsMap = Collections.emptyMap();
 
     private transient OneShotEvent startOperations = null;
     private transient Object startLock = null;
@@ -182,14 +182,14 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        LOGGER.finer("canProvision() asked for label '" + label + "'");
+        LOGGER.finer("canProvision() asked for label '" + (label == null ? "" : label) + "'");
         long time = System.currentTimeMillis();
 
-        for (Map.Entry<Set<LabelAtom>, HostInfo> host: hostsMap.entrySet()) {
+        for (Map.Entry<String, HostInfo> host: hostsMap.entrySet()) {
 
             try {
-                if (label.matches(host.getKey())) {
-                    LOGGER.finer("canProvision returns True in "
+                if (label == null || label.matches(host.getValue().getLabelSet())) {
+                    LOGGER.info("canProvision returns True in "
                             + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     return true;
                 }
@@ -300,7 +300,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     private List<HostInfo> getHostsToReserve(@CheckForNull Label label) {
         ArrayList<HostInfo> free = new ArrayList<HostInfo>();
         ArrayList<HostInfo> used = new ArrayList<HostInfo>();
-        for (Map.Entry<Set<LabelAtom>, HostInfo> h : hostsMap.entrySet()) {
+        for (Map.Entry<String, HostInfo> h : hostsMap.entrySet()) {
             if (h.getValue().satisfies(label)) {
                 HostInfo host = h.getValue();
                 if (host.isReserved()) {
@@ -461,9 +461,9 @@ public class ForemanSharedNodeCloud extends Cloud {
             // Randomize nodes ordering
             List<HostInfo> list = new ArrayList<HostInfo>(hosts.values());
             Collections.shuffle(list);
-            LinkedHashMap<Set<LabelAtom>, HostInfo> shuffleMap = new LinkedHashMap<Set<LabelAtom>, HostInfo>();
+            LinkedHashMap<String, HostInfo> shuffleMap = new LinkedHashMap<String, HostInfo>();
             for (HostInfo k : list) {
-                shuffleMap.put(Label.parse(k.getLabels()), k);
+                shuffleMap.put(k.getName(), k);
             }
 
             hostsMap = Collections.unmodifiableMap(shuffleMap);
