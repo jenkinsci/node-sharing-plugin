@@ -82,6 +82,8 @@ public class HostInfo {
 
     /**
      * Name of the host. It also serves the purpose of hostname/IP address.
+     *
+     * @return Name of the host.
      */
     public String getName() {
         return name;
@@ -89,6 +91,8 @@ public class HostInfo {
 
     /**
      * String of label tokens.
+     *
+     * @return String of label tokens.
      */
     public String getLabels() {
         return labels;
@@ -103,6 +107,9 @@ public class HostInfo {
      *
      * This reverse the semantics of {@link Label#matches(Collection)} for convenience of provisioning clients as they
      * have to deal with the <tt>label == null</tt>.
+     *
+     * @param label Label for matching.
+     * @return True if matches, False otherwise.
      */
     public boolean satisfies(@CheckForNull Label label) {
         return label != null && label.matches(getLabelSet());
@@ -110,6 +117,8 @@ public class HostInfo {
 
     /**
      * Path to remote Jenkins FS.
+     *
+     * @return Path to remote Jenkins FS.
      */
     public String getRemoteFs() {
         return remoteFs;
@@ -126,6 +135,8 @@ public class HostInfo {
 
     /**
      * Identification of the current owner of the machine.
+     *
+     * @return True if it is reserved, False otherwise.
      */
     public @CheckForNull String getReservedFor() {
         return reserved;
