@@ -311,58 +311,6 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Perform the provisioning. This uses the Foreman hosts_reserve plugin to "lock"
-     * a host for this requesting master.
-     *
-     * @param label linked Jenkins Label.
-     * @param id
-     * @return a Foreman Slave.
-     * @throws Exception if occurs.
-     */
-//    @CheckForNull
-//    private ForemanSharedNode provision(@CheckForNull Label label, ProvisioningActivity.Id id) throws Exception {
-//        LOGGER.finer("Trying to provision Foreman Shared Node for '" + label + "'");
-//        ForemanAPI foreman = getForemanAPI();
-//        try {
-//            for (HostInfo hi : getHostsToReserve(label)) {
-//
-//                hi = foreman.reserveHost(hi);
-//                if (hi != null) {
-//                    try {
-//                        String labelsForHost = hi.getLabels();
-//                        String remoteFS = hi.getRemoteFs();
-//
-//                        if (launcherFactory == null) {
-//                            launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
-//                        }
-//
-//                        LOGGER.finer("Returning a ForemanSharedNode for " + hi.getName());
-//                        return new ForemanSharedNode(
-//                                id.named(hi.getName()),
-//                                labelsForHost,
-//                                remoteFS,
-//                                launcherFactory.getForemanComputerLauncher(hi),
-//                                new CloudRetentionStrategy(1),
-//                                Collections.<NodeProperty<?>>emptyList());
-//                    } catch (Error e) {
-//                        throw e;
-//                    } catch (Throwable e) {
-//                        addDisposableEvent(cloudName, hi.getName());
-//                    }
-//                }
-//            }
-//        } catch (Error e) {
-//            throw e;
-//        } catch (Throwable e) {
-//            LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
-//        }
-//
-//        // Something has changed and there are now no resources available...
-//        LOGGER.finer("No Foreman resources available...");
-//        return null;
-//    }
-
-    /**
      * Get the list of hosts available for reservation for the label.
      *
      * Since we are working with outdated data, client needs to check if hosts are free before allocating them.
