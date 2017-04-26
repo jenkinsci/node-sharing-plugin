@@ -13,6 +13,7 @@ import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 
@@ -86,6 +87,12 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         LOGGER.info("Terminating the ForemanSharedNode: name='" + name + "'");
+
+        ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
+        if (activity != null) {
+            activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
+        }
+
         ForemanSharedNodeCloud.addDisposableEvent(cloudName, name);
     }
 
