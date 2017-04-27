@@ -198,7 +198,7 @@ public class ForemanSharedNodeCloud extends Cloud {
                 continue;
             }
         }
-        LOGGER.finer("canProvision returns False in "
+        LOGGER.info("canProvision returns False in "
                 + Util.getTimeSpanString(System.currentTimeMillis() - time));
         return false;
     }
@@ -207,85 +207,104 @@ public class ForemanSharedNodeCloud extends Cloud {
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public Collection<PlannedNode> provision(final @CheckForNull Label label, int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
+
+        final long start_time = System.currentTimeMillis();
+
+        LOGGER.info("Request to provion label: '" + (label == null ? "" : label) + "'");
+
         if (excessWorkload > 0
                 && !Jenkins.getInstance().isQuietingDown()
                 && !Jenkins.getInstance().isTerminating()
                 && canProvision(label)) {
             try {
+
+                LOGGER.info("Try to provion label: '" + (label == null ? "" : label) + "' in " +
+                        Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
                 final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null);
-                Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-                    public Node call() throws Exception {
-                        Node node = null;
-                        try {
-                            node = provision(label, id);
-                        } catch (Exception e) {
-                            LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
-                            throw (AbortException) new AbortException().initCause(e);
-                        }
-                        if (node == null) {
-                            throw new AbortException("No Foreman resources available");
-                        }
-                        return node;
-                    }
-                });
-                result.add(new TrackedPlannedNode(id, 1, futurePlannedNode));
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
-            }
-        }
-        return result;
-    }
 
-    /**
-     * Perform the provisioning. This uses the Foreman hosts_reserve plugin to "lock"
-     * a host for this requesting master.
-     *
-     * @param label linked Jenkins Label.
-     * @param id
-     * @return a Foreman Slave.
-     * @throws Exception if occurs.
-     */
-    @CheckForNull
-    private ForemanSharedNode provision(@CheckForNull Label label, ProvisioningActivity.Id id) throws Exception {
-        LOGGER.finer("Trying to provision Foreman Shared Node for '" + label + "'");
-        ForemanAPI foreman = getForemanAPI();
-        try {
-            for (HostInfo hi : getHostsToReserve(label)) {
+                for (final HostInfo hi : getHostsToReserve(label)) {
 
-                hi = foreman.reserveHost(hi);
-                if (hi != null) {
                     try {
-                        String labelsForHost = hi.getLabels();
-                        String remoteFS = hi.getRemoteFs();
 
-                        if (launcherFactory == null) {
-                            launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT, credentialsId, sshConnectionTimeOut);
+                        LOGGER.info("Try to reserve host '" + hi.getName() + "' in " +
+                                Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
+                        final HostInfo host = getForemanAPI().reserveHost(hi);
+                        if (host != null) {
+
+                            LOGGER.info("Reserved host '" + host.getName() + "' in " +
+                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
+                            Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                                public Node call() throws Exception {
+
+                                    LOGGER.info("Trying to provision Foreman Shared Node '" + host.getName() + "' in " +
+                                            Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
+                                    Node node = null;
+                                    try {
+                                        String labelsForHost = host.getLabels();
+                                        String remoteFS = host.getRemoteFs();
+
+                                        if (launcherFactory == null) {
+                                            launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT,
+                                                    credentialsId, sshConnectionTimeOut);
+                                        }
+
+                                        node = new ForemanSharedNode(
+                                                id.named(host.getName()),
+                                                labelsForHost,
+                                                remoteFS,
+                                                launcherFactory.getForemanComputerLauncher(host),
+                                                new CloudRetentionStrategy(1),
+                                                Collections.<NodeProperty<?>>emptyList());
+                                    } catch (Exception e) {
+                                        LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
+                                        addDisposableEvent(cloudName, host.getName());
+                                        throw (AbortException) new AbortException().initCause(e);
+                                    } catch (Error e) {
+                                        addDisposableEvent(cloudName, host.getName());
+                                        throw e;
+                                    } catch (Throwable e) {
+                                        LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
+                                        addDisposableEvent(cloudName, host.getName());
+                                    }
+
+                                    LOGGER.info("Provisioned Foreman Shared Node '" + host.getName() + "' in " +
+                                            Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
+                                    return node;
+                                }
+                            });
+                            result.add(new TrackedPlannedNode(id, 1, futurePlannedNode));
+
+                            LOGGER.info("Return node collection with one element in " +
+                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
+                            return result;
+                        } else {
+
+                            LOGGER.info("Trying to reserve host '" + hi.getName() + "' FAILED in " +
+                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
                         }
-
-                        LOGGER.finer("Returning a ForemanSharedNode for " + hi.getName());
-                        return new ForemanSharedNode(
-                                id.named(hi.getName()),
-                                labelsForHost,
-                                remoteFS,
-                                launcherFactory.getForemanComputerLauncher(hi),
-                                new CloudRetentionStrategy(1),
-                                Collections.<NodeProperty<?>>emptyList());
                     } catch (Error e) {
                         throw e;
                     } catch (Throwable e) {
                         addDisposableEvent(cloudName, hi.getName());
+                        LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
                     }
                 }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
             }
-        } catch (Error e) {
-            throw e;
-        } catch (Throwable e) {
-            LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
         }
 
-        // Something has changed and there are now no resources available...
-        LOGGER.finer("No Foreman resources available...");
-        return null;
+        LOGGER.info("Returned empty node collection in " +
+                Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+
+        return result;
     }
 
     /**

@@ -45,7 +45,7 @@ public final class ForemanCleanupThread extends AsyncPeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return MIN;
+        return MIN / 4;
     }
 
     @Override
