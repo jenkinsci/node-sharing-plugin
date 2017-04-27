@@ -188,7 +188,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         for (Map.Entry<String, HostInfo> host: hostsMap.entrySet()) {
 
             try {
-                if (label == null || label.matches(host.getValue().getLabelSet())) {
+                if (host.getValue().satisfies(label)) {
                     LOGGER.info("canProvision returns True in "
                             + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     return true;
