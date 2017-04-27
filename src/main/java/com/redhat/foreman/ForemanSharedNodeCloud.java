@@ -225,9 +225,6 @@ public class ForemanSharedNodeCloud extends Cloud {
 
                 for (final HostInfo hi : getHostsToReserve(label)) {
 
-                    LOGGER.info("Try to provision host '" + hi.getName() + "' in " +
-                            Util.getTimeSpanString(System.currentTimeMillis() - start_time));;
-
                     try {
 
                         LOGGER.info("Try to reserve host '" + hi.getName() + "' in " +
