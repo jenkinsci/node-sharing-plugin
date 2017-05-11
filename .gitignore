@@ -1,8 +1,4 @@
-.classpath
-.project
-target
-work
-/eclipse-classes/
-.idea
+.idea/*
+/target/*
 *.iml
-
+dependency-reduced-pom.xml

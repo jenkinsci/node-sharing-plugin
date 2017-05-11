@@ -1,0 +1,26 @@
+#!/bin/bash
+
+JAVACMD=$(which java 2> /dev/null)
+if [ $? -ne 0 ] ; then
+    echo "JAVA is required to run foreman-host-configurator"
+    exit 1
+fi
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+if [ ! -e "${SCRIPT_DIR}/target/foreman-host-configurator.jar" ] ; then
+    MVNCMD=$(which mvn 2> /dev/null)
+    if [ $? -ne 0 ] ; then
+      echo "Maven is required to build foreman-host-configurator"
+      exit 1
+    fi
+    echo "Building foreman-host-configurator..."
+    mvn clean package -DskipTests 1> /dev/null 2> /dev/null
+    if [ $? -ne 0 ] ; then
+	echo "Failed to build foreman-host-configurator! Try to build using 'mvn clean package -DskipTests and check output."
+	exit 1
+    fi
+fi
+
+$JAVACMD -jar "${SCRIPT_DIR}/target/foreman-host-configurator.jar" "$*"
+exit $?
