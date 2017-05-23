@@ -1,0 +1,27 @@
+{
+  "defaults": {
+    "parameters": [
+      {
+        "name": "RESERVED",
+        "value": "Reserved by Scott :)"
+      }
+    ]
+  },
+  "hosts": [
+    {
+      "name": "host-to-release.localdomain",
+      "labels": "SCOTT TOM",
+      "remoteFs": "/tmp/scott"
+    },
+    {
+      "name": "host-to-release-2.localdomain",
+      "labels": "SCOTT TOM",
+      "remoteFs": "/tmp/scott"
+    },
+    {
+      "name": "host-to-release-3.localdomain",
+      "labels": "SCOTT TOM",
+      "remoteFs": "/tmp/scott"
+    }
+  ]
+}

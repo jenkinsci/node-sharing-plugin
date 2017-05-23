@@ -1,0 +1,14 @@
+{
+  "hosts": [
+    {
+      "name": "scott.localdomain",
+      "labels": "SCOTT2 TOM2",
+      "remoteFs": "/tmp/scott3"
+    },
+    {
+      "name": "scott2.localdomain",
+      "labels": "DAVE2 TERRY2",
+      "remoteFs": "/tmp/scott3"
+    }
+  ]
+}
