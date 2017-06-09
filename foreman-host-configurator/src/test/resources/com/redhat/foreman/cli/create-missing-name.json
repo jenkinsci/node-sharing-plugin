@@ -1,8 +1,0 @@
-{
-  "hosts": [
-    {
-      "labels": "SCOTT TOM",
-      "remoteFs": "/tmp/scott"
-    }
-  ]
-}
