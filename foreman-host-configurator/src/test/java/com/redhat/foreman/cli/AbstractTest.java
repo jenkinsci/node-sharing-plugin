@@ -52,9 +52,7 @@ public abstract class AbstractTest {
         String url = null;
         try {
             url = rule.get().getUrl().toString() + "/api";
-        } catch (IOException e) {
-            fail(e.getMessage());
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             fail(e.getMessage());
         }
         return url;
@@ -75,13 +73,11 @@ public abstract class AbstractTest {
             catch (Exception e) {
             }
             try {
-                Thread.currentThread().sleep(1000);
+                Thread.sleep(1000);
                 i++;
             } catch (InterruptedException e) {
             }
         }
         fail("Foreman failed to start in " + maxChecks + " seconds at " + url);
     }
-
-
 }
