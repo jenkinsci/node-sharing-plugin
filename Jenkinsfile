@@ -13,7 +13,7 @@ timestamps {
         String containerArgs = '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/var/maven/.m2'
 
         stage('Build/Test Host Configurator') {
-            dir('foreman-host-configurator') {
+            dir('configurator') {
 
                 docker.image('maven:3.3-jdk-8').inside(containerArgs) {
 
@@ -22,12 +22,6 @@ timestamps {
                     // let foreman-host-configurator build jar
                     sh 'rm -f target/foreman-host-configurator.jar'
                     def r = sh script: './foreman-host-configurator --help', returnStatus: true
-                    if (r != 2) {
-                        error('failed to run foreman-host-configurator --help')
-                    }
-                    // now let it use artifact
-                    sh 'mv target/foreman-host-configurator.jar foreman-host-configurator.jar'
-                    r = sh script: './foreman-host-configurator --help', returnStatus: true
                     if (r != 2) {
                         error('failed to run foreman-host-configurator --help')
                     }
@@ -47,7 +41,7 @@ timestamps {
         }
 
         stage('Test Plugin') {
-            dir('foreman-node-sharing-plugin') {
+            dir('plugin') {
                 docker.image('jenkins/ath').inside(containerArgs) {
                     sh '''
                     eval $(./vnc.sh 2> /dev/null)
