@@ -12,22 +12,6 @@ timestamps {
         /* Share docker socket to run sibling container and maven local repo */
         String containerArgs = '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/var/maven/.m2'
 
-        stage('Build/Test Foreman Container') {
-            dir('foreman-container') {
-                def buildArgs = "."
-                docker.build('jenkins/foreman', buildArgs)
-                String foremanContainerArgs = '-p 3000:3000'
-                docker.image('jenkins/foreman').withRun(foremanContainerArgs) {
-                    timeout(5) {
-                        waitUntil {
-                            def r = sh script: 'wget -q http://localhost:3000 -O /dev/null', returnStatus: true
-                            return r == 0
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Build/Test Host Configurator') {
 
             docker.image('maven:3.3-jdk-8').inside(containerArgs) {
