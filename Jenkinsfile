@@ -21,7 +21,7 @@ timestamps {
 
         stage('Build the plugin') {
             athContainer.inside(containerArgs) {
-                sh 'mvn -B -U -e -Dmaven.test.failure.ignore=true clean validate'
+                sh 'mvn -B -U -Dmaven.test.failure.ignore=true clean install'
             }
 
             junit '**/target/surefire-reports/*.xml'
