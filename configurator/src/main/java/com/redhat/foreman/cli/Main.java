@@ -8,6 +8,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,14 +26,14 @@ public class Main {
     @Parameter(names = "--help", help = true)
     private boolean help = false;
 
+    @SuppressFBWarnings("DM_EXIT")
     public static void main(String... args) {
-        new Main(args);
+        System.exit(new Main().run(System.out, System.err, args));
     }
 
-    @SuppressFBWarnings("DM_EXIT")
-    public Main(String[] args) {
+    public int run(PrintStream out, PrintStream err, String... args) {
         JCommander jc = new JCommander(this);
-        Map<String, Command> commands = new HashMap<String, Command>();
+        Map<String, Command> commands = new HashMap<>();
         jc.setProgramName("foreman-host-configurator");
 
         ListHosts listHosts = new ListHosts();
@@ -51,22 +52,23 @@ public class Main {
         jc.addCommand("release", release);
         commands.put("release", release);
 
+        StringBuilder sb = new StringBuilder();
         try {
             jc.parse(args);
-        }
-        catch (ParameterException pe) {
+        } catch (ParameterException pe) {
             LOGGER.error(pe.getMessage());
-            jc.usage();
-            System.exit(3);
+            jc.usage(sb);
+            out.print(sb.toString()); // TODO STDERR
+            return 3;
         }
         if (help) {
-            jc.usage();
-            System.exit(2);
-            return;
+            jc.usage(sb);
+            out.print(sb.toString());
+            return 2;
         }
         if (debug) {
             LOGGER.getRootLogger().setLevel(Level.ALL);
-            LOGGER.debug("Debug logging enabled.");
+            out.println("Debug logging enabled."); // TODO STDERR
         }
         try {
             String commandToRun = jc.getParsedCommand();
@@ -74,19 +76,17 @@ public class Main {
                 throw new RuntimeException("No command specified. Run with --help to see usage.");
             }
             commands.get(commandToRun).run();
-        }
-        catch (Exception pe) {
+        } catch (Exception pe) {
             if (debug) {
-                LOGGER.error(pe.getMessage(), pe);
+                pe.printStackTrace(out); // TODO STDERR
             } else {
-                LOGGER.error(pe.getMessage());
+                out.println(pe.getMessage()); // TODO STDERR
             }
             if (pe instanceof ForemanApiException) {
-                LOGGER.error(((ForemanApiException) pe).getDebugMessage());
+                LOGGER.error(((ForemanApiException) pe).getDebugMessage()); // TODO STDERR
             }
-            System.exit(1);
+            return 1;
         }
-        System.exit(0);
-
+        return 0;
     }
 }

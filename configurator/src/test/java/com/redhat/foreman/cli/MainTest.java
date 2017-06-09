@@ -1,94 +1,143 @@
 package com.redhat.foreman.cli;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.contrib.java.lang.system.Assertion;
-import org.junit.contrib.java.lang.system.ExpectedSystemExit;
-import org.junit.contrib.java.lang.system.SystemOutRule;
+import org.junit.experimental.theories.DataPoints;
+import org.junit.experimental.theories.Theories;
+import org.junit.experimental.theories.Theory;
+import org.junit.runner.RunWith;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
-/**
- * Created by shebert on 11/01/17.
- */
+@RunWith(Theories.class)
 public class MainTest {
 
-    @Rule
-    public final ExpectedSystemExit exit = ExpectedSystemExit.none();
+    @DataPoints
+    public static final Invoker[] INVOKERS = new Invoker[] {
+            new MainInvoker(), // Invoke main class programmatically
+            new WrapperInvoker() // Invoke the tool through shell wrapper
+    };
 
-    @Rule
-    public final SystemOutRule systemOutRule = new SystemOutRule().enableLog();
-
-    @Before
-    public void clearLog() {
-        systemOutRule.clearLog();
+    @Theory
+    public void testHelp(Invoker inv) {
+        assertEquals(2, inv.run("--help"));
+        assertThat(inv.out(), containsString("Usage: "));
+        assertThat(inv.out(),
+                containsString("Usage: create [options] <Files to process>"));
+        assertThat(inv.out(),
+                containsString("Usage: release [options] <the list of hosts to release>"));
+        //Usage: list [options]
+        assertThat(inv.out(), containsString("Usage: list [options]"));
+        assertThat(inv.out(), containsString("Usage: update [options] <Files to process>"));
     }
 
-    @Test
-    public void testHelp() {
-        exit.expectSystemExitWithStatus(2);
-        exit.checkAssertionAfterwards(new Assertion() {
-            public void checkAssertion() {
-                assertThat(systemOutRule.getLog(), containsString("Usage: "));
-                //
-                assertThat(systemOutRule.getLog(),
-                        containsString("Usage: create [options] <Files to process>"));
-                //
-                assertThat(systemOutRule.getLog(),
-                        containsString("Usage: release [options] <the list of hosts to release>"));
-                //Usage: list [options]
-                assertThat(systemOutRule.getLog(), containsString("Usage: list [options]"));
-                assertThat(systemOutRule.getLog(), containsString("Usage: update [options] <Files to process>"));
-            }
-        });
-        Main.main("--help");
+    @Theory
+    public void testUnknownCommand(Invoker inv) {
+        assertEquals(3, inv.run("dummyCommand"));
+        assertThat(inv.out(), containsString("Usage: "));
     }
 
-    @Test
-    public void testUnknownCommand() {
-        exit.expectSystemExitWithStatus(3);
-        exit.checkAssertionAfterwards(new Assertion() {
-            public void checkAssertion() {
-                assertThat(systemOutRule.getLog(), containsString("Usage: "));
-            }
-        });
-        Main.main("dummyCommand");
+    @Theory
+    public void testNoCommand(Invoker inv) {
+        assertEquals(1, inv.run(""));
+        assertThat(inv.out(), containsString("No command specified"));
     }
 
-    @Test
-    public void testNoCommand() {
-        exit.expectSystemExitWithStatus(1);
-        exit.checkAssertionAfterwards(new Assertion() {
-            public void checkAssertion() {
-                assertThat(systemOutRule.getLog(), containsString("No command specified"));
-            }
-        });
-        Main.main("");
+    @Theory
+    public void testUnknownServer(Invoker inv) {
+        assertEquals(1, inv.run("list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme"));
+        assertThat(inv.out(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
     }
 
-    @Test
-    public void testUnknownServer() {
-        exit.expectSystemExitWithStatus(1);
-        exit.checkAssertionAfterwards(new Assertion() {
-            public void checkAssertion() {
-                assertThat(systemOutRule.getLog(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
-            }
-        });
-        Main.main("list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme");
+    @Theory
+    public void testDebugLogging(Invoker inv) {
+        assertEquals(1, inv.run("--debug", "list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme"));
+        assertThat(inv.out(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
+        assertThat(inv.out(), containsString("Debug logging enabled."));
     }
 
-    @Test
-    public void testDebugLogging() {
-        exit.expectSystemExitWithStatus(1);
-        exit.checkAssertionAfterwards(new Assertion() {
-            public void checkAssertion() {
-                assertThat(systemOutRule.getLog(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
-                assertThat(systemOutRule.getLog(), containsString("Debug logging enabled."));
+    private static abstract class Invoker {
+
+        private ByteArrayOutputStream _out;
+        private ByteArrayOutputStream _err;
+        protected PrintStream out;
+        protected PrintStream err;
+
+        public final int run(String... args) {
+            _out = new ByteArrayOutputStream();
+            _err = new ByteArrayOutputStream();
+            out = new PrintStream(_out);
+            err = new PrintStream(_err);
+            return _run(args);
+        }
+
+        protected abstract int _run(String... args);
+
+        public String out() {
+            return _out.toString();
+        }
+    }
+
+    private static final class WrapperInvoker extends Invoker {
+        @Override public int _run(String... args) {
+            try {
+                String wrapper = new File("foreman-host-configurator").getCanonicalPath();
+                ProcessBuilder processBuilder = new ProcessBuilder();
+                List<String> command = processBuilder.command();
+                command.add(wrapper);
+                command.addAll(Arrays.asList(args));
+                final Process proc = processBuilder.start();
+
+                Thread outStreamReader = new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            String line;
+                            BufferedReader in = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+                            while ((line = in.readLine()) != null) {
+                                out.append(line);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                outStreamReader.start();
+
+                // Thread that reads process error output
+                Thread errStreamReader = new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            String line;
+                            BufferedReader inErr = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+                            while ((line = inErr.readLine()) != null) {
+                                err.append(line);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                errStreamReader.start();
+
+                return proc.waitFor();
+            } catch (IOException | InterruptedException e) {
+                throw new Error(e);
             }
-        });
-        Main.main("--debug", "list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme");
+        }
+    }
+
+    private static final class MainInvoker extends Invoker {
+        @Override public int _run(String... args) {
+            return new Main().run(out, err, args);
+        }
     }
 }

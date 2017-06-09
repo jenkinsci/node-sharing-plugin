@@ -44,12 +44,5 @@ timestamps {
 //            junit 'target/surefire-reports/*.xml'
 //            archive 'target/diagnostics/**/*'
         }
-// TODO create junit tests
-//                 // let foreman-host-configurator build jar
-//                sh 'rm -f target/foreman-host-configurator.jar'
-//                def r = sh script: './foreman-host-configurator --help', returnStatus: true
-//                if (r != 2) {
-//                    error('failed to run foreman-host-configurator --help')
-//                }
     }
 }
