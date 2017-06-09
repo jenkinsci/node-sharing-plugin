@@ -17,11 +17,12 @@ if [ ! -e "${JAR_FILE}" ] ; then
           exit 1
         fi
         echo "Building foreman-host-configurator..."
-        mvn package -DskipTests 1> /dev/null 2> /dev/null
+        mvn package -DskipTests -q
         if [ $? -ne 0 ] ; then
-            echo "Failed to build foreman-host-configurator! Try to build using 'mvn clean package -DskipTests and check output."
+            echo "Failed to build foreman-host-configurator!"
             exit 1
         fi
+        echo "Done"
     fi
     JAR_FILE=${SCRIPT_DIR}/target/foreman-host-configurator.jar
 fi
