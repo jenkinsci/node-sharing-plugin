@@ -12,47 +12,32 @@ timestamps {
         /* Share docker socket to run sibling container and maven local repo */
         String containerArgs = '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/var/maven/.m2'
 
-        stage('Build/Test Host Configurator') {
-            dir('configurator') {
-
-                docker.image('maven:3.3-jdk-8').inside(containerArgs) {
-
-                    sh 'mvn -B -U -e -Duser.home=/var/maven -Dmaven.test.failure.ignore=true clean install -DskipTests'
-
-                    // let foreman-host-configurator build jar
-                    sh 'rm -f target/foreman-host-configurator.jar'
-                    def r = sh script: './foreman-host-configurator --help', returnStatus: true
-                    if (r != 2) {
-                        error('failed to run foreman-host-configurator --help')
-                    }
-                }
-                def uid = sh(script: 'id -u', returnStdout: true).trim()
-                def gid = sh(script: 'id -g', returnStdout: true).trim()
-                String buildArgs = "--build-arg=uid=${uid} --build-arg=gid=${gid} src/test/resources/ath-container"
-                docker.build('jenkins/ath', buildArgs)
-                docker.image('jenkins/ath').inside(containerArgs) {
-                    sh 'mvn clean test -Dmaven.test.failure.ignore=true -Duser.home=/var/maven -B'
-                }
-
-                junit 'target/surefire-reports/*.xml'
-                archive 'foreman-host-configurator'
-                archive 'foreman-host-configurator.jar'
-            }
+        stage("Build ATH container") {
+            def uid = sh(script: 'id -u', returnStdout: true).trim()
+            def gid = sh(script: 'id -g', returnStdout: true).trim()
+            String buildArgs = "--build-arg=uid=${uid} --build-arg=gid=${gid} src/test/resources/ath-container"
+            athContainer = docker.build('jenkins/ath', buildArgs)
         }
 
-        stage('Test Plugin') {
-            dir('plugin') {
-                docker.image('jenkins/ath').inside(containerArgs) {
-                    sh '''
-                    eval $(./vnc.sh 2> /dev/null)
-                    mvn test -Dmaven.test.failure.ignore=true -Duser.home=/var/maven -DforkCount=1 -B
-                    '''
-                }
-
-                junit 'target/surefire-reports/*.xml'
-                archive 'target/**/foreman-*.hpi'
-                archive 'target/diagnostics/**'
+        stage('Build the plugin') {
+            athContainer.inside(containerArgs) {
+                sh 'mvn -B -U -e -Dmaven.test.failure.ignore=true clean validate'
             }
+
+            junit '**/target/surefire-reports/*.xml'
+            archive '**/target/**/*.hpi'
+            archive '**/target/**/*.jar'
         }
+
+        stage('Run ATH tests') {
+            // TODO
+        }
+// TODO create junit tests
+//                 // let foreman-host-configurator build jar
+//                sh 'rm -f target/foreman-host-configurator.jar'
+//                def r = sh script: './foreman-host-configurator --help', returnStatus: true
+//                if (r != 2) {
+//                    error('failed to run foreman-host-configurator --help')
+//                }
     }
 }
