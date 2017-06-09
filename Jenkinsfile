@@ -9,10 +9,9 @@ timestamps {
         /* Make sure our directory is there, if Docker creates it, it gets owned by 'root' */
         sh 'mkdir -p $HOME/.m2'
 
-        def uid = sh(script: 'id -u', returnStdout: true).trim()
-        def gid = sh(script: 'id -g', returnStdout: true).trim()
-
+        /* Share docker socket to run sibling container and maven local repo */
         String containerArgs = '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/var/maven/.m2'
+
         stage('Build/Test Foreman Container') {
             dir('foreman-container') {
                 def buildArgs = "."
@@ -30,7 +29,6 @@ timestamps {
         }
 
         stage('Build/Test Host Configurator') {
-            /* Performing some clever trickery to map our ~/.m2 into the container */
 
             docker.image('maven:3.3-jdk-8').inside(containerArgs) {
 
@@ -49,7 +47,9 @@ timestamps {
                     error('failed to run foreman-host-configurator --help')
                 }
             }
-            def buildArgs = "--build-arg=uid=${uid} --build-arg=gid=${gid} foreman-node-sharing-plugin/src/test/resources/ath-container"
+            def uid = sh(script: 'id -u', returnStdout: true).trim()
+            def gid = sh(script: 'id -g', returnStdout: true).trim()
+            String buildArgs = "--build-arg=uid=${uid} --build-arg=gid=${gid} foreman-node-sharing-plugin/src/test/resources/ath-container"
             docker.build('jenkins/ath', buildArgs)
             docker.image('jenkins/ath').inside(containerArgs) {
                 sh '''
