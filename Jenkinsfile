@@ -13,8 +13,8 @@ timestamps {
         def gid = sh(script: 'id -g', returnStdout: true).trim()
 
         String containerArgs = '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/var/maven/.m2'
-        dir('foreman-container') {
-            stage('Build/Test Foreman Container') {
+        stage('Build/Test Foreman Container') {
+            dir('foreman-container') {
                 def buildArgs = "."
                 docker.build('jenkins/foreman', buildArgs)
                 String foremanContainerArgs = '-p 3000:3000'
@@ -22,13 +22,12 @@ timestamps {
                     timeout(5) {
                         waitUntil {
                             def r = sh script: 'wget -q http://localhost:3000 -O /dev/null', returnStatus: true
-                            return (r == 0);
+                            return r == 0
                         }
                     }
                 }
             }
         }
-
 
         stage('Build/Test Host Configurator') {
             /* Performing some clever trickery to map our ~/.m2 into the container */
@@ -65,19 +64,8 @@ timestamps {
             }
         }
 
-        dir('foreman-node-sharing-plugin') {
-            stage('Build Plugin') {
-                /* Performing some clever trickery to map our ~/.m2 into the container */
-
-                /* Make sure our directory is there, if Docker creates it, it gets owned by 'root' */
-                sh 'mkdir -p $HOME/.m2'
-
-                docker.image('maven:3.3-jdk-8').inside(containerArgs) {
-                    sh 'mvn -B -U -e -Dmaven.test.failure.ignore=true -Duser.home=/var/maven clean install -DskipTests'
-                }
-            }
-
-            stage('Test Plugin') {
+        stage('Test Plugin') {
+            dir('foreman-node-sharing-plugin') {
                 docker.image('jenkins/ath').inside(containerArgs) {
                     sh '''
                     eval $(./vnc.sh 2> /dev/null)
