@@ -12,6 +12,8 @@ timestamps {
         /* Share docker socket to run sibling container and maven local repo */
         String containerArgs = '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/var/maven/.m2'
 
+        String MVN = 'mvn -B -U -Dmaven.test.failure.ignore=true -Duser.home=/var/maven'
+
         stage("Build ATH container") {
             def uid = sh(script: 'id -u', returnStdout: true).trim()
             def gid = sh(script: 'id -g', returnStdout: true).trim()
@@ -21,16 +23,25 @@ timestamps {
 
         stage('Build the plugin') {
             athContainer.inside(containerArgs) {
-                sh 'mvn -B -U -Dmaven.test.failure.ignore=true clean install'
+                sh "${MVN} clean install"
             }
 
             junit '**/target/surefire-reports/*.xml'
-            archive '**/target/**/*.hpi'
-            archive '**/target/**/*.jar'
+            archive '**/target/*.hpi'
+            archive '**/target/*.jar'
         }
 
         stage('Run ATH tests') {
-            // TODO
+            git url: 'git@github.com:jenkinsci/acceptance-test-harness.git'
+            dir("acceptance-test-harness") {
+                athContainer.inside(containerArgs) {
+                    def env = 'JENKINS_VERSION=1.609.3 foreman-node-sharing-plugin.jpi=../plugin/target/foreman-node-sharing.hpi'
+                    sh "env ${env} ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest"
+                }
+            }
+
+            junit 'target/surefire-reports/*.xml'
+            archive 'target/diagnostics/**/*'
         }
 // TODO create junit tests
 //                 // let foreman-host-configurator build jar
