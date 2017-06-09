@@ -234,7 +234,13 @@ public class ForemanSharedNodeCloudTest {
         List<AsyncResourceDisposer.WorkItem> disposables = getDisposables();
         assertThat(disposables, not(emptyIterableOf(AsyncResourceDisposer.WorkItem.class)));
         for (AsyncResourceDisposer.WorkItem disposable : disposables) {
-            assertThat(disposable.getLastState(), instanceOf(Disposable.State.Thrown.class));
+            Disposable.State state;
+            do {
+                Thread.sleep(100);
+                state = disposable.getLastState();
+            } while (state instanceof Disposable.State.ToDispose);
+
+            assertThat(state, instanceOf(Disposable.State.Thrown.class));
         }
 
         wireMock.resetMappings(); // Remove broken mapping
