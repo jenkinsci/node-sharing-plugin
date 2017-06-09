@@ -25,7 +25,7 @@ public class Main {
     @Parameter(names = "--help", help = true)
     private boolean help = false;
 
-    public static void main(String[] args) {
+    public static void main(String... args) {
         new Main(args);
     }
 

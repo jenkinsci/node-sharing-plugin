@@ -44,7 +44,7 @@ public class MainTest {
                 assertThat(systemOutRule.getLog(), containsString("Usage: update [options] <Files to process>"));
             }
         });
-        Main.main(new String[] {"--help"});
+        Main.main("--help");
     }
 
     @Test
@@ -55,7 +55,7 @@ public class MainTest {
                 assertThat(systemOutRule.getLog(), containsString("Usage: "));
             }
         });
-        Main.main(new String[] {"dummyCommand"});
+        Main.main("dummyCommand");
     }
 
     @Test
@@ -66,7 +66,7 @@ public class MainTest {
                 assertThat(systemOutRule.getLog(), containsString("No command specified"));
             }
         });
-        Main.main(new String[] {""});
+        Main.main("");
     }
 
     @Test
@@ -77,8 +77,7 @@ public class MainTest {
                 assertThat(systemOutRule.getLog(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
             }
         });
-        Main.main(new String[] {"list", "--server=http://127.0.0.1:9999",
-                "--user=admin", "--password=changeme"});
+        Main.main("list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme");
     }
 
     @Test
@@ -90,7 +89,6 @@ public class MainTest {
                 assertThat(systemOutRule.getLog(), containsString("Debug logging enabled."));
             }
         });
-        Main.main(new String[] {"--debug", "list", "--server=http://127.0.0.1:9999",
-                "--user=admin", "--password=changeme"});
+        Main.main("--debug", "list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme");
     }
 }
