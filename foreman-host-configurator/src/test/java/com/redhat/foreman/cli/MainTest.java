@@ -7,6 +7,8 @@ import org.junit.contrib.java.lang.system.Assertion;
 import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 import org.junit.contrib.java.lang.system.SystemOutRule;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -30,19 +32,16 @@ public class MainTest {
         exit.expectSystemExitWithStatus(2);
         exit.checkAssertionAfterwards(new Assertion() {
             public void checkAssertion() {
-                System.out.println(systemOutRule.getLog());
-                assertTrue(systemOutRule.getLog().indexOf("Usage: ") >= 0);
+                assertThat(systemOutRule.getLog(), containsString("Usage: "));
                 //
-                assertTrue(systemOutRule.getLog()
-                        .indexOf("Usage: create [options] <Files to process>") >= 0);
+                assertThat(systemOutRule.getLog(),
+                        containsString("Usage: create [options] <Files to process>"));
                 //
-                assertTrue(systemOutRule.getLog()
-                        .indexOf("Usage: release [options] <the list of hosts to release>") >= 0);
+                assertThat(systemOutRule.getLog(),
+                        containsString("Usage: release [options] <the list of hosts to release>"));
                 //Usage: list [options]
-                assertTrue(systemOutRule.getLog()
-                        .indexOf("Usage: list [options]") >= 0);
-                assertTrue(systemOutRule.getLog()
-                        .indexOf("Usage: update [options] <Files to process>") >= 0);
+                assertThat(systemOutRule.getLog(), containsString("Usage: list [options]"));
+                assertThat(systemOutRule.getLog(), containsString("Usage: update [options] <Files to process>"));
             }
         });
         Main.main(new String[] {"--help"});
@@ -53,7 +52,7 @@ public class MainTest {
         exit.expectSystemExitWithStatus(3);
         exit.checkAssertionAfterwards(new Assertion() {
             public void checkAssertion() {
-                assertTrue(systemOutRule.getLog().indexOf("Usage: ") >= 0);
+                assertThat(systemOutRule.getLog(), containsString("Usage: "));
             }
         });
         Main.main(new String[] {"dummyCommand"});
@@ -64,7 +63,7 @@ public class MainTest {
         exit.expectSystemExitWithStatus(1);
         exit.checkAssertionAfterwards(new Assertion() {
             public void checkAssertion() {
-                assertTrue(systemOutRule.getLog().indexOf("No command specified") >= 0);
+                assertThat(systemOutRule.getLog(), containsString("No command specified"));
             }
         });
         Main.main(new String[] {""});
@@ -75,7 +74,7 @@ public class MainTest {
         exit.expectSystemExitWithStatus(1);
         exit.checkAssertionAfterwards(new Assertion() {
             public void checkAssertion() {
-                assertTrue(systemOutRule.getLog().indexOf("java.net.ConnectException: Connection refused (Connection refused)") >= 0);
+                assertThat(systemOutRule.getLog(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
             }
         });
         Main.main(new String[] {"list", "--server=http://127.0.0.1:9999",
@@ -87,8 +86,8 @@ public class MainTest {
         exit.expectSystemExitWithStatus(1);
         exit.checkAssertionAfterwards(new Assertion() {
             public void checkAssertion() {
-                assertTrue(systemOutRule.getLog().indexOf("java.net.ConnectException: Connection refused (Connection refused)") >= 0);
-                assertTrue(systemOutRule.getLog().indexOf("Debug logging enabled.") >= 0);
+                assertThat(systemOutRule.getLog(), containsString("java.net.ConnectException: Connection refused (Connection refused)"));
+                assertThat(systemOutRule.getLog(), containsString("Debug logging enabled."));
             }
         });
         Main.main(new String[] {"--debug", "list", "--server=http://127.0.0.1:9999",

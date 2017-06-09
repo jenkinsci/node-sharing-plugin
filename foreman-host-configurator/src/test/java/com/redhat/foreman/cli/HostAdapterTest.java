@@ -77,7 +77,5 @@ public class HostAdapterTest {
 
         String hostsJson = gson.toJson(hosts);
         assertNotNull(hostsJson);
-        System.out.println(hostsJson);
     }
-
 }

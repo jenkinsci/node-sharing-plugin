@@ -276,7 +276,6 @@ public class ForemanSharedNodeCloudTest {
     private List<AsyncResourceDisposer.WorkItem> getDisposables() {
         List<AsyncResourceDisposer.WorkItem> out = new ArrayList<AsyncResourceDisposer.WorkItem>();
         for (AsyncResourceDisposer.WorkItem item : AsyncResourceDisposer.get().getBacklog()) {
-            System.out.println(item);
             if (item.getDisposable() instanceof DisposableImpl) {
                 out.add(item);
             }
