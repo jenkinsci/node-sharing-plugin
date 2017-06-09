@@ -15,7 +15,7 @@ timestamps {
         stage("Build ATH container") {
             def uid = sh(script: 'id -u', returnStdout: true).trim()
             def gid = sh(script: 'id -g', returnStdout: true).trim()
-            String buildArgs = "--build-arg=uid=${uid} --build-arg=gid=${gid} src/test/resources/ath-container"
+            String buildArgs = "--build-arg=uid=${uid} --build-arg=gid=${gid} configurator/src/test/resources/ath-container"
             athContainer = docker.build('jenkins/ath', buildArgs)
         }
 
