@@ -21,7 +21,6 @@ public class CreateTest extends AbstractTest {
     @Test
     public void testCreate2Hosts() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create.json");
         List<String> files = new ArrayList<String>();
@@ -44,7 +43,6 @@ public class CreateTest extends AbstractTest {
     @Test
     public void testCreateWithTokens() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create-with-tokens.json");
         List<String> files = new ArrayList<String>();
@@ -77,7 +75,6 @@ public class CreateTest extends AbstractTest {
     @Test
     public void testMissingPropertiesFile() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create-with-tokens.json");
         List<String> files = new ArrayList<String>();
@@ -102,7 +99,6 @@ public class CreateTest extends AbstractTest {
     @Test
     public void testCreateAndAddParam() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create.json");
         List<String> files = new ArrayList<String>();
@@ -135,7 +131,6 @@ public class CreateTest extends AbstractTest {
     @Test
     public void testCreateDuplicateNames() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create-same-name.json");
         List<String> files = new ArrayList<String>();
@@ -153,7 +148,6 @@ public class CreateTest extends AbstractTest {
     @Test
     public void testCreateMissingInfo() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create-missing-name.json");
         ArrayList<String> files = new ArrayList<String>();
@@ -165,6 +159,5 @@ public class CreateTest extends AbstractTest {
         creator.password = password;
         exception.expect(RuntimeException.class);
         creator.run();
-
     }
 }

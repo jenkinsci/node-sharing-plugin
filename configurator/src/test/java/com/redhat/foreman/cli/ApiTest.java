@@ -22,7 +22,6 @@ public class ApiTest extends AbstractTest {
     @Test
     public void testCompleteCreate() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         String user = "admin";
         String password = "changeme";
@@ -74,7 +73,5 @@ public class ApiTest extends AbstractTest {
         api.updateHostParameter(host, reservedTrueParam);
         host = api.getHost(host.getName());
         LOGGER.info(host.getParameterValue("RESERVED").getValue());
-
     }
-
 }

@@ -41,7 +41,6 @@ public class PerformanceTest extends AbstractTest {
     @Test
     public void testManyHosts() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         final GsonBuilder gsonBuilder = new GsonBuilder();
         gsonBuilder.registerTypeAdapter(Host.class, new HostTypeAdapter());
@@ -93,6 +92,5 @@ public class PerformanceTest extends AbstractTest {
         Parameter parameter = checkHost.getParameterValue("JENKINS_LABEL");
         Assert.assertNotNull(parameter);
         assertEquals("Should be scott scott", "scott scott", parameter.getValue());
-
     }
 }

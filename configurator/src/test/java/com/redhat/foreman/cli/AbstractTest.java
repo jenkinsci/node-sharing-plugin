@@ -55,10 +55,11 @@ public abstract class AbstractTest {
         } catch (IOException | InterruptedException e) {
             fail(e.getMessage());
         }
+        waitUntilForemanReady(url);
         return url;
     }
 
-    protected void waitUntilForemanReady(String url) {
+    private void waitUntilForemanReady(String url) {
         int maxChecks = 30;
         int i = 0;
         while (i < maxChecks) {

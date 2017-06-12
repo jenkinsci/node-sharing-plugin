@@ -21,7 +21,6 @@ public class UpdateTest extends AbstractTest {
     @Test
     public void testUpdate2Hosts() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("create.json");
         List<String> files = new ArrayList<String>();
@@ -55,7 +54,6 @@ public class UpdateTest extends AbstractTest {
     @Test
     public void testUpdateReservedHost() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("release.json");
         List<String> files = new ArrayList<String>();
@@ -77,7 +75,7 @@ public class UpdateTest extends AbstractTest {
         updater.password = password;
         updater.run();
 
-        assertTrue(systemOutRule.getLog().indexOf("Host host-to-release.localdomain is reserved (Reserved by Scott :)). Will update...") >= 0);
+        assertTrue(systemOutRule.getLog().contains("Host host-to-release.localdomain is reserved (Reserved by Scott :)). Will update..."));
         Host checkHost = api.getHost("host-to-release.localdomain");
         assertNotNull(checkHost);
         assertNotNull(checkHost.parameters);
@@ -104,11 +102,10 @@ public class UpdateTest extends AbstractTest {
 
         updater.run();
 
-        assertTrue(systemOutRule.getLog().indexOf("Added/Updated parameter JENKINS_LABEL to be 'ABC'") >= 0);
+        assertTrue(systemOutRule.getLog().contains("Added/Updated parameter JENKINS_LABEL to be 'ABC'"));
         checkHost = api.getHost("host-to-release.localdomain");
         parameter = checkHost.getParameterValue("JENKINS_LABEL");
         assertNotNull(parameter);
         assertEquals("Should be 'ABC'", "ABC", parameter.getValue());
     }
 }
-

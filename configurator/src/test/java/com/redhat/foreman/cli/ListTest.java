@@ -22,7 +22,6 @@ public class ListTest extends AbstractTest {
     @Test
     public void testQuery() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
         createHosts(url);
 
         ListHosts listHosts = new ListHosts();

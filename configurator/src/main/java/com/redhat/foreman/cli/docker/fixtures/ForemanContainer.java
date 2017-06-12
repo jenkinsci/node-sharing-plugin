@@ -13,7 +13,6 @@ import java.net.URL;
 //CS IGNORE MagicNumber FOR NEXT 2 LINES. REASON: Mock object.
 @DockerFixture(id = "foreman" , ports = 32768)
 public class ForemanContainer extends DockerContainer {
-
     /**
      * URL of Foreman.
      * @return URL.

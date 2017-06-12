@@ -21,7 +21,6 @@ public class ReleaseTest extends AbstractTest {
     @Test
     public void testRelease() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         File createJson = getResourceAsFile("release.json");
         List<String> files = new ArrayList<String>();
@@ -78,7 +77,6 @@ public class ReleaseTest extends AbstractTest {
     @Test
     public void testReleaseUnknownHost() throws ForemanApiException {
         String url = getUrl();
-        waitUntilForemanReady(url);
 
         List<String> hosts = new ArrayList<String>();
         hosts.add("unknownhost-to-release.localdomain");
