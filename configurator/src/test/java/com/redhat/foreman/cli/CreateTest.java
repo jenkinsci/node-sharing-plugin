@@ -9,9 +9,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Created by shebert on 17/01/17.
@@ -23,7 +24,7 @@ public class CreateTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("create.json");
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);
@@ -45,7 +46,7 @@ public class CreateTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("create-with-tokens.json");
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         File props = getResourceAsFile("tokens1.properties");
@@ -77,7 +78,7 @@ public class CreateTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("create-with-tokens.json");
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);
@@ -93,7 +94,7 @@ public class CreateTest extends AbstractTest {
         Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
         assertNotNull(parameter);
         assertEquals("Should be ${FSROOT}", "${FSROOT}", parameter.getValue());
-        assertTrue(systemOutRule.getLog().indexOf("Could load properties from /tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties") >= 0);
+        assertThat(systemOutRule.getLog(), containsString("Could load properties from /tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties"));
     }
 
     @Test
@@ -101,7 +102,7 @@ public class CreateTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("create.json");
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);
@@ -124,7 +125,7 @@ public class CreateTest extends AbstractTest {
         listHosts.user = user;
         listHosts.password = password;
         listHosts.run();
-        assertTrue(systemOutRule.getLog().indexOf("Found 2 host") >= 0);
+        assertThat(systemOutRule.getLog(), containsString("Found 2 host"));
 
     }
 
@@ -133,7 +134,7 @@ public class CreateTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("create-same-name.json");
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);
@@ -150,7 +151,7 @@ public class CreateTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("create-missing-name.json");
-        ArrayList<String> files = new ArrayList<String>();
+        ArrayList<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);

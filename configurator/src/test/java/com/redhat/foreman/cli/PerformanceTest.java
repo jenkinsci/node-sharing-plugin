@@ -69,7 +69,7 @@ public class PerformanceTest extends AbstractTest {
         } catch (IOException e) {
             fail(e.getCause().getMessage());
         }
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(configFile.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);

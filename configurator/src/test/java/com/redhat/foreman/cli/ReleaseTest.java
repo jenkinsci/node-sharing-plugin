@@ -9,9 +9,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Created by shebert on 17/01/17.
@@ -23,7 +24,7 @@ public class ReleaseTest extends AbstractTest {
         String url = getUrl();
 
         File createJson = getResourceAsFile("release.json");
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         files.add(createJson.getAbsolutePath());
 
         CreateFromFile creator = new CreateFromFile(files);
@@ -39,7 +40,7 @@ public class ReleaseTest extends AbstractTest {
         assertNotNull(parameter);
         assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
-        List<String> hosts = new ArrayList<String>();
+        List<String> hosts = new ArrayList<>();
         hosts.add("host-to-release.localdomain");
 
         Release release = new Release(hosts);
@@ -70,15 +71,14 @@ public class ReleaseTest extends AbstractTest {
         release.password = password;
         release.setForce(true);
         release.run();
-        assertTrue(systemOutRule.getLog()
-                ,systemOutRule.getLog().indexOf("Host host-to-release.localdomain not reserved...") >= 0);
+        assertThat(systemOutRule.getLog(), containsString("Host host-to-release.localdomain not reserved..."));
     }
 
     @Test
     public void testReleaseUnknownHost() throws ForemanApiException {
         String url = getUrl();
 
-        List<String> hosts = new ArrayList<String>();
+        List<String> hosts = new ArrayList<>();
         hosts.add("unknownhost-to-release.localdomain");
 
         Release release = new Release(hosts);

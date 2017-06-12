@@ -25,8 +25,8 @@ public abstract class AbstractTest {
 
     protected Api api;
 
-    protected String user = "admin";
-    protected String password = "changeme";
+    protected final String user = "admin";
+    protected final String password = "changeme";
 
     @Rule
     public final SystemOutRule systemOutRule = new SystemOutRule().enableLog();
