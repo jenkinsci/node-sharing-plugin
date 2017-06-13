@@ -37,10 +37,10 @@ timestamps {
                 athContainer.inside(containerArgs) {
 
                     def env = 'JENKINS_VERSION=1.609.3 foreman-node-sharing-plugin.jpi=../plugin/target/foreman-node-sharing.hpi'
-                    sh '''
-                        eval $(./vnc.sh)
+                    sh """
+                        eval \$(./vnc.sh)
                         env ${env} ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest
-                    '''
+                    """
                 }
             }
 
