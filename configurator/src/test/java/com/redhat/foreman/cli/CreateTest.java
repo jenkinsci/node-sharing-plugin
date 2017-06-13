@@ -21,17 +21,7 @@ public class CreateTest extends AbstractTest {
 
     @Test
     public void testCreate2Hosts() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create.json");
-        List<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.run();
+        createFromFile("create.json");
 
         Host checkHost = api.getHost("scott.localdomain");
         assertNotNull(checkHost);
@@ -43,20 +33,7 @@ public class CreateTest extends AbstractTest {
 
     @Test
     public void testCreateWithTokens() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create-with-tokens.json");
-        List<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        File props = getResourceAsFile("tokens1.properties");
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.properties = props.getAbsolutePath();
-        creator.run();
+        createFromFile("create-with-tokens.json", getResourceAsFile("tokens1.properties").getAbsolutePath());
 
         Host checkHost = api.getHost("scott.localdomain");
         assertNotNull(checkHost);
@@ -75,18 +52,7 @@ public class CreateTest extends AbstractTest {
 
     @Test
     public void testMissingPropertiesFile() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create-with-tokens.json");
-        List<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.properties = "/tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties";
-        creator.run();
+        createFromFile("create-with-tokens.json", "/tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties");
 
         Host checkHost = api.getHost("scott.localdomain");
         assertNotNull(checkHost);
@@ -99,17 +65,7 @@ public class CreateTest extends AbstractTest {
 
     @Test
     public void testCreateAndAddParam() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create.json");
-        List<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.run();
+        createFromFile("create-with-tokens.json");
 
         Host checkHost = api.getHost("scott.localdomain");
         api.updateHostParameter(checkHost, new Parameter("SCOTT", "TOM"));
@@ -121,44 +77,23 @@ public class CreateTest extends AbstractTest {
         assertEquals("Should be TOM", p1.getValue(), p2.getValue());
 
         ListHosts listHosts = new ListHosts();
-        listHosts.server = url;
+        listHosts.server = getUrl();
         listHosts.user = user;
         listHosts.password = password;
         listHosts.run();
         assertThat(systemOutRule.getLog(), containsString("Found 2 host"));
-
     }
 
     @Test
     public void testCreateDuplicateNames() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create-same-name.json");
-        List<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
         exception.expect(RuntimeException.class);
         exception.expectMessage("Host scott.localdomain already exists");
-        creator.run();
+        createFromFile("create-same-name.json");
     }
 
     @Test
     public void testCreateMissingInfo() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create-missing-name.json");
-        ArrayList<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
         exception.expect(RuntimeException.class);
-        creator.run();
+        createFromFile("create-missing-name.json");
     }
 }

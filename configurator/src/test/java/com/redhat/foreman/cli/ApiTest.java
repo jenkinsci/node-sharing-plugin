@@ -23,9 +23,6 @@ public class ApiTest extends AbstractTest {
     public void testCompleteCreate() throws ForemanApiException {
         String url = getUrl();
 
-        String user = "admin";
-        String password = "changeme";
-
         Api api = new Api(url, user, password);
 
         Domain domain = api.createDomain("scoheb.com");

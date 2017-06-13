@@ -1,6 +1,7 @@
 package com.redhat.foreman.cli;
 
 import com.redhat.foreman.cli.docker.fixtures.ForemanContainer;
+import com.redhat.foreman.cli.exception.ForemanApiException;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
 import org.jenkinsci.test.acceptance.docker.Resource;
 import org.junit.Before;
@@ -11,6 +12,7 @@ import org.junit.rules.ExpectedException;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 
 import static junit.framework.TestCase.fail;
 
@@ -48,6 +50,7 @@ public abstract class AbstractTest {
 
     public AbstractTest() {
     }
+
     protected String getUrl() {
         String url = null;
         try {
@@ -80,5 +83,42 @@ public abstract class AbstractTest {
             }
         }
         fail("Foreman failed to start in " + maxChecks + " seconds at " + url);
+    }
+
+    public UpdateFromFile updateFromFile(String resource) throws ForemanApiException {
+        File createJson = getResourceAsFile(resource);
+
+        UpdateFromFile updater = new UpdateFromFile(Collections.singletonList(createJson.getAbsolutePath()));
+        updater.server = getUrl();
+        updater.user = user;
+        updater.password = password;
+        updater.run();
+        return updater;
+    }
+
+    public Release releaseHosts(String host, boolean force) throws ForemanApiException {
+        Release release = new Release(Collections.singletonList(host));
+        release.server = getUrl();
+        release.user = user;
+        release.password = password;
+        release.setForce(force);
+        release.run();
+        return release;
+    }
+
+    public CreateFromFile createFromFile(String resource) throws ForemanApiException {
+        return createFromFile(resource, null);
+    }
+
+    public CreateFromFile createFromFile(String resource, String properties) throws ForemanApiException {
+        File createJson = getResourceAsFile(resource);
+
+        CreateFromFile creator = new CreateFromFile(Collections.singletonList(createJson.getAbsolutePath()));
+        creator.server = getUrl();
+        creator.user = user;
+        creator.password = password;
+        creator.properties = properties;
+        creator.run();
+        return creator;
     }
 }

@@ -5,7 +5,6 @@ import com.redhat.foreman.cli.model.Host;
 import com.redhat.foreman.cli.model.Parameter;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,27 +19,8 @@ public class UpdateTest extends AbstractTest {
 
     @Test
     public void testUpdate2Hosts() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("create.json");
-        List<String> files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.run();
-
-        createJson = getResourceAsFile("create-parameters-updated.json");
-        files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        UpdateFromFile updater = new UpdateFromFile(files);
-        updater.server = url;
-        updater.user = user;
-        updater.password = password;
-        updater.run();
+        createFromFile("create.json");
+        updateFromFile("create-parameters-updated.json");
 
         Host checkHost = api.getHost("scott.localdomain");
         assertNotNull(checkHost);
@@ -53,27 +33,8 @@ public class UpdateTest extends AbstractTest {
 
     @Test
     public void testUpdateReservedHost() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("release.json");
-        List<String> files = new ArrayList<String>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.run();
-
-        File createJson2 = getResourceAsFile("release-with-update.json");
-        List<String> files2 = new ArrayList<String>();
-        files2.add(createJson2.getAbsolutePath());
-
-        UpdateFromFile updater = new UpdateFromFile(files2);
-        updater.server = url;
-        updater.user = user;
-        updater.password = password;
-        updater.run();
+        createFromFile("release.json");
+        UpdateFromFile updater = updateFromFile("release-with-update.json");
 
         assertTrue(systemOutRule.getLog().contains("Host host-to-release.localdomain is reserved (Reserved by Scott :)). Will update..."));
         Host checkHost = api.getHost("host-to-release.localdomain");
@@ -83,11 +44,11 @@ public class UpdateTest extends AbstractTest {
         assertNotNull(parameter);
         assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
-        List<String> hosts = new ArrayList<String>();
+        List<String> hosts = new ArrayList<>();
         hosts.add("host-to-release.localdomain");
 
         Release release = new Release(hosts);
-        release.server = url;
+        release.server = getUrl();
         release.user = user;
         release.password = password;
         release.setForce(true);

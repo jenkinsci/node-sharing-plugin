@@ -21,17 +21,7 @@ public class ReleaseTest extends AbstractTest {
 
     @Test
     public void testRelease() throws ForemanApiException {
-        String url = getUrl();
-
-        File createJson = getResourceAsFile("release.json");
-        List<String> files = new ArrayList<>();
-        files.add(createJson.getAbsolutePath());
-
-        CreateFromFile creator = new CreateFromFile(files);
-        creator.server = url;
-        creator.user = user;
-        creator.password = password;
-        creator.run();
+        createFromFile("release.json");
 
         Host checkHost = api.getHost("host-to-release.localdomain");
         assertNotNull(checkHost);
@@ -40,53 +30,25 @@ public class ReleaseTest extends AbstractTest {
         assertNotNull(parameter);
         assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
-        List<String> hosts = new ArrayList<>();
-        hosts.add("host-to-release.localdomain");
-
-        Release release = new Release(hosts);
-        release.server = url;
-        release.user = user;
-        release.password = password;
-        release.setForce(false);
-        release.run();
+        releaseHosts("host-to-release.localdomain", false);
 
         checkHost = api.getHost("host-to-release.localdomain");
         parameter = checkHost.getParameterValue("RESERVED");
         assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
 
-        release = new Release(hosts);
-        release.server = url;
-        release.user = user;
-        release.password = password;
-        release.setForce(true);
-        release.run();
+        releaseHosts("host-to-release.localdomain", true);
 
         checkHost = api.getHost("host-to-release.localdomain");
         parameter = checkHost.getParameterValue("RESERVED");
         assertEquals("Should be 'false'", "false", parameter.getValue());
 
-        release = new Release(hosts);
-        release.server = url;
-        release.user = user;
-        release.password = password;
-        release.setForce(true);
-        release.run();
+        releaseHosts("host-to-release.localdomain", true);
         assertThat(systemOutRule.getLog(), containsString("Host host-to-release.localdomain not reserved..."));
     }
 
     @Test
     public void testReleaseUnknownHost() throws ForemanApiException {
-        String url = getUrl();
-
-        List<String> hosts = new ArrayList<>();
-        hosts.add("unknownhost-to-release.localdomain");
-
-        Release release = new Release(hosts);
-        release.server = url;
-        release.user = user;
-        release.password = password;
-        release.setForce(false);
         exception.expect(RuntimeException.class);
-        release.run();
+        releaseHosts("unknownhost-to-release.localdomain", false);
     }
 }
