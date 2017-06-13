@@ -35,8 +35,12 @@ timestamps {
             dir("acceptance-test-harness") {
                git url: 'git@github.com:jenkinsci/acceptance-test-harness.git'
                 athContainer.inside(containerArgs) {
+
                     def env = 'JENKINS_VERSION=1.609.3 foreman-node-sharing-plugin.jpi=../plugin/target/foreman-node-sharing.hpi'
-                    sh "env ${env} ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest"
+                    sh '''
+                        eval $(./vnc.sh)
+                        env ${env} ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest
+                    '''
                 }
             }
 
