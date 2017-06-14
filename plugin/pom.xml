@@ -16,27 +16,13 @@
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
 
- <licenses>
-  <license>
-   <name>MIT License</name>
-   <url>http://opensource.org/licenses/MIT</url>
-  </license>
- </licenses>
-
- <developers>
-  <developer>
-   <id>scoheb</id>
-   <name>Scott Hebert</name>
-   <email>shebert@redhat.com</email>
-  </developer>
- </developers>
-
- <scm>
-  <connection>scm:git:git://github.com/jenkinsci/foreman-node-sharing-plugin.git</connection>
-  <developerConnection>scm:git:git@github.com:jenkinsci/foreman-node-sharing-plugin.git</developerConnection>
-  <url>https://github.com/jenkinsci/foreman-node-sharing-plugin</url>
-  <tag>HEAD</tag>
- </scm>
+ <properties>
+  <jenkins.version>1.609.3</jenkins.version>
+  <java.level>7</java.level>
+  <argLine />
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  <surefire.useFile>false</surefire.useFile>
+ </properties>
 
  <distributionManagement>
   <repository>
@@ -58,14 +44,6 @@
    <url>http://repo.jenkins-ci.org/public/</url>
   </pluginRepository>
  </pluginRepositories>
-
- <properties>
-  <jenkins.version>1.609.3</jenkins.version>
-  <java.level>7</java.level>
-  <argLine />
-  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  <surefire.useFile>false</surefire.useFile>
- </properties>
 
  <dependencies>
   <dependency>
@@ -122,7 +100,4 @@
    <scope>test</scope>
   </dependency>
  </dependencies>
-
- <build>
- </build>
 </project>

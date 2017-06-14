@@ -39,6 +39,27 @@
     </developer>
   </developers>
 
+  <distributionManagement>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>https://repo.jenkins-ci.org/releases</url>
+    </repository>
+  </distributionManagement>
+
+  <repositories>
+    <repository>
+      <id>repo.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/public/</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>repo.jenkins-ci.org</id>
+      <url>http://repo.jenkins-ci.org/public/</url>
+    </pluginRepository>
+  </pluginRepositories>
+
   <scm>
     <connection>scm:git:git://github.com/jenkinsci/foreman-node-sharing-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/foreman-node-sharing-plugin.git</developerConnection>
