@@ -33,13 +33,15 @@ timestamps {
 
         stage('Run ATH tests') {
             dir("acceptance-test-harness") {
-               git url: 'https://github.com/jenkinsci/acceptance-test-harness.git'
+                git url: 'https://github.com/jenkinsci/acceptance-test-harness.git'
                 athContainer.inside(containerArgs) {
 
                     def env = 'JENKINS_VERSION=1.609.3 foreman-node-sharing-plugin.jpi=../plugin/target/foreman-node-sharing.hpi'
                     sh """
                         eval \$(./vnc.sh)
-                        env ${env} ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest
+                        echo="WORKSPACE=\$WORKSPACE"
+                        # Hardcode WORKSPACE var ATH rely on for some reason
+                        env ${env} WORKSPACE=\$(pwd) ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest
                     """
                 }
             }
