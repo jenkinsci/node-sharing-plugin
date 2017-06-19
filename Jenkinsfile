@@ -35,7 +35,6 @@ timestamps {
             dir("acceptance-test-harness") {
                 git url: 'https://github.com/jenkinsci/acceptance-test-harness.git'
                 athContainer.inside(containerArgs) {
-
                     def env = 'JENKINS_VERSION=1.609.3 foreman-node-sharing-plugin.jpi=../plugin/target/foreman-node-sharing.hpi'
                     sh """
                         eval \$(./vnc.sh)
@@ -44,10 +43,9 @@ timestamps {
                         env ${env} WORKSPACE=\$(pwd) ${MVN} clean package -Dtest=ForemanNodeSharingPluginTest
                     """
                 }
+                junit 'target/surefire-reports/*.xml'
+                archive 'target/diagnostics/**/*'
             }
-
-            junit 'target/surefire-reports/*.xml'
-            archive 'target/diagnostics/**/*'
         }
     }
 }
