@@ -9,6 +9,7 @@
   <relativePath />
  </parent>
 
+ <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
  <artifactId>foreman-node-sharing</artifactId>
  <packaging>hpi</packaging>
  <name>Foreman Node Sharing Plugin</name>
