@@ -13,7 +13,7 @@
  <artifactId>foreman-node-sharing</artifactId>
  <packaging>hpi</packaging>
  <name>Foreman Node Sharing Plugin</name>
- <version>1.2.5-SNAPSHOT</version>
+ <version>1.2.6-SNAPSHOT</version>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
 
