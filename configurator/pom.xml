@@ -5,13 +5,17 @@
     <parent>
         <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
         <artifactId>parent</artifactId>
-        <version>1.2.7-SNAPSHOT</version>
+        <version>1.2.8-SNAPSHOT</version>
     </parent>
 
     <artifactId>configurator</artifactId>
-    <version>1.2.7-SNAPSHOT</version>
+    <version>1.2.8-SNAPSHOT</version>
     <name>Foreman Host Configurator</name>
     <description>Maintain the foreman pool definition for purposes of foreman-node-sharing Jenkins plugin.</description>
+
+    <properties>
+        <enforcer.skip>true</enforcer.skip> <!-- Bits will never be deployed to Jenkins JVM -->
+    </properties>
 
     <dependencies>
         <dependency>

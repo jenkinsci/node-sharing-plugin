@@ -3,17 +3,16 @@
  <modelVersion>4.0.0</modelVersion>
 
  <parent>
-  <groupId>org.jenkins-ci.plugins</groupId>
-  <artifactId>plugin</artifactId>
-  <version>2.30</version>
-  <relativePath />
+  <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+  <artifactId>parent</artifactId>
+  <version>1.2.8-SNAPSHOT</version>
  </parent>
 
  <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
  <artifactId>foreman-node-sharing</artifactId>
  <packaging>hpi</packaging>
  <name>Foreman Node Sharing Plugin</name>
- <version>1.2.7-SNAPSHOT</version>
+ <version>1.2.8-SNAPSHOT</version>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
 
@@ -24,27 +23,6 @@
   <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   <surefire.useFile>false</surefire.useFile>
  </properties>
-
- <distributionManagement>
-  <repository>
-   <id>repo.jenkins-ci.org</id>
-   <url>https://repo.jenkins-ci.org/releases</url>
-  </repository>
- </distributionManagement>
-
- <repositories>
-  <repository>
-   <id>repo.jenkins-ci.org</id>
-   <url>http://repo.jenkins-ci.org/public/</url>
-  </repository>
- </repositories>
-
- <pluginRepositories>
-  <pluginRepository>
-   <id>repo.jenkins-ci.org</id>
-   <url>http://repo.jenkins-ci.org/public/</url>
-  </pluginRepository>
- </pluginRepositories>
 
  <dependencies>
   <dependency>
