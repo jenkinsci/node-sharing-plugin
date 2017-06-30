@@ -5,14 +5,14 @@
  <parent>
   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
   <artifactId>parent</artifactId>
-  <version>1.2.8-SNAPSHOT</version>
+  <version>1.2.8</version>
  </parent>
 
  <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
  <artifactId>foreman-node-sharing</artifactId>
  <packaging>hpi</packaging>
  <name>Foreman Node Sharing Plugin</name>
- <version>1.2.8-SNAPSHOT</version>
+ <version>1.2.8</version>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
 
