@@ -3,7 +3,7 @@
 
   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
   <artifactId>parent</artifactId>
-  <version>1.2.6-SNAPSHOT</version>
+  <version>1.2.7-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Node sharing parent</name>
   <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
@@ -68,7 +68,7 @@
     <connection>scm:git:git://github.com/jenkinsci/foreman-node-sharing-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/foreman-node-sharing-plugin.git</developerConnection>
     <url>https://github.com/jenkinsci/foreman-node-sharing-plugin</url>
-    <tag>HEAD</tag>
+    <tag>parent-1.2.6</tag>
   </scm>
 
   <properties>
