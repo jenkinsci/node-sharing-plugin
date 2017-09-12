@@ -2,15 +2,14 @@ package com.redhat.foreman;
 
 import java.io.IOException;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import hudson.remoting.VirtualChannel;
 
 import hudson.model.Computer;
-import hudson.model.Executor;
 import hudson.model.Node;
-import hudson.model.Queue.Task;
 import hudson.slaves.AbstractCloudComputer;
-import hudson.slaves.OfflineCause;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
@@ -29,18 +28,7 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
 
     private static final Logger LOGGER = Logger.getLogger(ForemanComputer.class.getName());
 
-    private final Object pendingDeleteLock = new Object();
     private final ProvisioningActivity.Id id;
-
-    @Override
-    public void taskCompleted(Executor executor, Task task, long durationMS) {
-        eagerlyReturnNodeLater();
-    }
-
-    @Override
-    public void taskCompletedWithProblems(Executor executor, Task task, long durationMS, Throwable problems) {
-        eagerlyReturnNodeLater();
-    }
 
     @Override
     public ForemanSharedNode getNode() {
@@ -54,10 +42,9 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
      * @throws IOException if occurs.
      * @throws InterruptedException if occurs.
      */
-    private static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
+    public static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
         if (c instanceof ForemanComputer) {
             ForemanComputer fc = (ForemanComputer) c;
-            fc.setPendingDelete(true);
             Node node = fc.getNode();
             if (node != null) {
                 ForemanSharedNode sharedNode = (ForemanSharedNode) node;
@@ -74,17 +61,6 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
     }
 
     /**
-     * We want to eagerly return the node to Foreman in an asynchronous thread.
-     *
-     * @param computer The {@link Computer}.
-     */
-    public static void eagerlyReturnNodeLater(final Computer computer) {
-        if (computer != null && computer.getNode() instanceof ForemanSharedNode) {
-            ((ForemanComputer) computer).setPendingDelete(true);
-        }
-    }
-
-    /**
      * Delete the slave, terminate the instance
      *
      * @throws IOException if occurs
@@ -95,19 +71,13 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
     }
 
     /**
-     * We want to eagerly return current instance of {@link ForemanComputer} in an asynchronous thread.
-     */
-    public void eagerlyReturnNodeLater() {
-        eagerlyReturnNodeLater(this);
-    }
-
-    /**
      * Default constructor.
      *
      * @param slave Foreman slave {@link ForemanSharedNode}.
      */
     public ForemanComputer(ForemanSharedNode slave) {
         super(slave);
+        LOGGER.fine("Instancing a new ForemanComputer: name='" + slave.getNodeName() + "'");
         id = slave.getId();
     }
 
@@ -125,56 +95,14 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
     @Override
     @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
-        if (!isPendingDelete()) {
-            ForemanSharedNode node = getNode();
-            if (node == null) {
-                super.doDoDelete();
-            }
-            eagerlyReturnNodeLater();
+        ForemanSharedNode node = getNode();
+        if (node == null) {
+            super.doDoDelete();
+        }
+        try {
+            terminateForemanComputer(this);
+        } catch (Exception e) {
         }
         return new HttpRedirect("..");
-    }
-
-    /**
-     * Is slave pending termination.
-     *
-     * @return The current state
-     */
-    public boolean isPendingDelete() {
-        // No need  to synchronize reading as offlineCause is volatile
-        return offlineCause instanceof PendingTermination;
-    }
-
-    /**
-     * Flag the slave to be removed
-     *
-     * @param newStatus The new status
-     * @return Old value.
-     */
-    public boolean setPendingDelete(final boolean newStatus) {
-        synchronized (pendingDeleteLock) {
-            boolean oldStatus = isPendingDelete();
-            if (oldStatus == newStatus) {
-                return oldStatus;
-            }
-
-            LOGGER.info("Setting " + getName() + " pending delete status to " + newStatus);
-            if (newStatus) {
-                setTemporarilyOffline(true, PENDING_TERMINATION);
-            } else {
-                setTemporarilyOffline(false, null);
-            }
-            return oldStatus;
-        }
-    }
-
-    // Singleton
-    private static final PendingTermination PENDING_TERMINATION = new PendingTermination();
-
-    private static final class PendingTermination extends OfflineCause.SimpleOfflineCause {
-
-        protected PendingTermination() {
-            super(Messages._DeletedCause());
-        }
     }
 }
