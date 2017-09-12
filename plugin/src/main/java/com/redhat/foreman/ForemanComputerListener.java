@@ -24,6 +24,7 @@ public class ForemanComputerListener extends ComputerListener {
     private static final Logger LOGGER = Logger.getLogger(ForemanComputerListener.class.getName());
 
     @Override
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public void onLaunchFailure(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
         try {
             super.onLaunchFailure(c, taskListener);

@@ -1,23 +1,20 @@
 package com.redhat.foreman;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.AbortException;
 import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.AsyncPeriodicWork;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
 import hudson.slaves.Cloud;
-import hudson.slaves.CloudRetentionStrategy;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
+import hudson.util.Futures;
 import hudson.util.ListBoxModel;
 import hudson.util.OneShotEvent;
 import hudson.util.Secret;
@@ -34,9 +31,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -182,14 +176,15 @@ public class ForemanSharedNodeCloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        LOGGER.finer("canProvision() asked for label '" + (label == null ? "" : label) + "'");
         long time = System.currentTimeMillis();
+        LOGGER.finer("canProvision() asked for label '" + (label == null ? "" : label) + "'");
 
         for (Map.Entry<String, HostInfo> host: hostsMap.entrySet()) {
 
             try {
                 if (host.getValue().satisfies(label)) {
-                    LOGGER.info("canProvision returns True in "
+                    LOGGER.info("canProvision returns True for label '" +
+                            (label == null ? "" : label) + "' in "
                             + Util.getTimeSpanString(System.currentTimeMillis() - time));
                     return true;
                 }
@@ -198,7 +193,8 @@ public class ForemanSharedNodeCloud extends Cloud {
                 continue;
             }
         }
-        LOGGER.info("canProvision returns False in "
+        LOGGER.info("canProvision returns False for label '" +
+                (label == null ? "" : label) + "' in "
                 + Util.getTimeSpanString(System.currentTimeMillis() - time));
         return false;
     }
@@ -206,11 +202,11 @@ public class ForemanSharedNodeCloud extends Cloud {
     @Override
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public Collection<PlannedNode> provision(final @CheckForNull Label label, int excessWorkload) {
-        Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
-
         final long start_time = System.currentTimeMillis();
 
-        LOGGER.info("Request to provion label: '" + (label == null ? "" : label) + "'");
+        Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
+
+        LOGGER.info("Request to provision label: '" + (label == null ? "" : label) + "'");
 
         if (excessWorkload > 0
                 && !Jenkins.getInstance().isQuietingDown()
@@ -218,66 +214,44 @@ public class ForemanSharedNodeCloud extends Cloud {
                 && canProvision(label)) {
             try {
 
-                LOGGER.info("Try to provion label: '" + (label == null ? "" : label) + "' in " +
+                LOGGER.info("Try to provision label: '" + (label == null ? "" : label) + "' in " +
                         Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null);
 
                 for (final HostInfo hi : getHostsToReserve(label)) {
 
+                    HostInfo host = null;
                     try {
 
                         LOGGER.info("Try to reserve host '" + hi.getName() + "' in " +
                                 Util.getTimeSpanString(System.currentTimeMillis() - start_time));
 
-                        final HostInfo host = getForemanAPI().reserveHost(hi);
+                        host = getForemanAPI().reserveHost(hi);
                         if (host != null) {
-
                             LOGGER.info("Reserved host '" + host.getName() + "' in " +
                                     Util.getTimeSpanString(System.currentTimeMillis() - start_time));
 
-                            Future<Node> futurePlannedNode = Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-                                public Node call() throws Exception {
+                            final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null, host.getName());
 
-                                    LOGGER.info("Trying to provision Foreman Shared Node '" + host.getName() + "' in " +
-                                            Util.getTimeSpanString(System.currentTimeMillis() - start_time));
+                            if (launcherFactory == null) {
+                                launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT,
+                                        credentialsId, sshConnectionTimeOut);
+                            }
 
-                                    Node node = null;
-                                    try {
-                                        String labelsForHost = host.getLabels();
-                                        String remoteFS = host.getRemoteFs();
+                            LOGGER.info("Trying to create an instance Foreman Shared Node '" + host.getName() + "' in " +
+                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
 
-                                        if (launcherFactory == null) {
-                                            launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT,
-                                                    credentialsId, sshConnectionTimeOut);
-                                        }
+                            final Node node = new ForemanSharedNode(
+                                    id.named(host.getName()),
+                                    host.getLabels(),
+                                    host.getRemoteFs(),
+                                    launcherFactory.getForemanComputerLauncher(host),
+                                    new ForemanOnceRetentionStrategy(1),
+                                    Collections.<NodeProperty<?>>emptyList());
 
-                                        node = new ForemanSharedNode(
-                                                id.named(host.getName()),
-                                                labelsForHost,
-                                                remoteFS,
-                                                launcherFactory.getForemanComputerLauncher(host),
-                                                new CloudRetentionStrategy(1),
-                                                Collections.<NodeProperty<?>>emptyList());
-                                    } catch (Exception e) {
-                                        LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
-                                        addDisposableEvent(cloudName, host.getName());
-                                        throw (AbortException) new AbortException().initCause(e);
-                                    } catch (Error e) {
-                                        addDisposableEvent(cloudName, host.getName());
-                                        throw e;
-                                    } catch (Throwable e) {
-                                        LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
-                                        addDisposableEvent(cloudName, host.getName());
-                                    }
+                            LOGGER.info("Instanced Foreman Shared Node '" + host.getName() + "' in " +
+                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
 
-                                    LOGGER.info("Provisioned Foreman Shared Node '" + host.getName() + "' in " +
-                                            Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                                    return node;
-                                }
-                            });
-                            result.add(new TrackedPlannedNode(id, 1, futurePlannedNode));
+                            result.add(new TrackedPlannedNode(id, 1, Futures.precomputed(node)));
 
                             LOGGER.info("Return node collection with one element in " +
                                     Util.getTimeSpanString(System.currentTimeMillis() - start_time));
@@ -292,8 +266,9 @@ public class ForemanSharedNodeCloud extends Cloud {
                     } catch (Error e) {
                         throw e;
                     } catch (Throwable e) {
-                        addDisposableEvent(cloudName, hi.getName());
                         LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
+                        if(host != null)
+                            addDisposableEvent(cloudName, host.getName());
                     }
                 }
             } catch (Exception e) {
@@ -646,5 +621,4 @@ public class ForemanSharedNodeCloud extends Cloud {
             return "ForemanSharedNodeWorker.Updater";
         }
     }
-
 }
