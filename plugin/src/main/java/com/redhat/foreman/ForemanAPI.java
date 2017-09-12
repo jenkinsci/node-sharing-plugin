@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.glassfish.jersey.client.ClientProperties;
@@ -59,6 +60,8 @@ public class ForemanAPI {
 
     private WebTarget base = null;
 
+    private ConcurrentHashMap<String, String> foremanLockMap = null;
+
     /**
      * Foreman API Constructor.
      *
@@ -79,6 +82,13 @@ public class ForemanAPI {
         base = client.target(url);
     }
 
+    private ConcurrentHashMap<String, String> getForemanLockMap() {
+        if(foremanLockMap == null) {
+            foremanLockMap = new ConcurrentHashMap<String, String> ();
+        }
+        return foremanLockMap;
+    }
+
     /**
      * Reserve host outright.
      *
@@ -89,41 +99,53 @@ public class ForemanAPI {
     @CheckForNull
     public HostInfo reserveHost(HostInfo host) throws Exception {
         String hostname = host.getName();
-        host = getHostInfo(hostname); // Get fresh reserved status.
-        if (host == null || host.isReserved()) return null;
+        getForemanLockMap().putIfAbsent(hostname, hostname);
 
-        LOGGER.info("Reserving host " + hostname);
-        String reserveReason = getReserveReason();
-        WebTarget target = base.path(FOREMAN_RESERVE_PATH)
-                .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
-                .queryParam(FOREMAN_RESERVE_REASON, reserveReason);
-        LOGGER.fine(target.toString());
+        synchronized (getForemanLockMap().get(hostname)) {
+            host = getHostInfo(hostname); // Get fresh reserved status.
+            if (host == null || host.isReserved()) return null;
 
-        Response response = getForemanResponse(target);
+            LOGGER.info("Reserving host  " + hostname);
+            String reserveReason = getReserveReason();
+            WebTarget target = base.path(FOREMAN_RESERVE_PATH)
+                    .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostname)
+                    .queryParam(FOREMAN_RESERVE_REASON, reserveReason);
+            LOGGER.finer(target.toString());
 
-        Response.Status status = Response.Status.fromStatusCode(response.getStatus());
-        if (status == Response.Status.OK) {
+            Response response = getForemanResponse(target);
+
+            Response.Status status = Response.Status.fromStatusCode(response.getStatus());
             String responseAsString = response.readEntity(String.class);
-            LOGGER.finer(responseAsString);
-            // It seems that response to reservation request is the old value in incompatible structure so we need a new request
-            HostInfo reservedHost = getHostInfo(hostname);
-            // Host disappeared
-            if (reservedHost == null) return null;
 
-            // Host reserved for this instance successfully
-            if (reserveReason.equals(reservedHost.getReservedFor())) return reservedHost;
+            if (status == Response.Status.OK) {
+                LOGGER.finer(responseAsString);
+                // It seems that response to reservation request is the old value in incompatible structure so we need a new request
+                HostInfo reservedHost = getHostInfo(hostname);
+                // Host disappeared
+                if (reservedHost == null) {
+                    LOGGER.info("Host " + hostname + " couldn't be reserved!");
+                    return null;
+                }
 
-            LOGGER.info("Unable to reserve " + hostname + ". " + reservedHost.getReservedFor());
-            return null;
-        } else {
-            String msg = "Attempt to reserve " + hostname + " returned code " + response.getStatus() + ".";
-            LOGGER.severe(msg);
+                // Host reserved for this instance successfully
+                if (reserveReason.equals(reservedHost.getReservedFor())) {
+                    LOGGER.info("Host " + hostname + " successfully reserved.");
+                    return reservedHost;
+                }
 
-            // Ruby/Foreman's possible responses (JENKINS-39481)
-            if (status == Response.Status.NOT_FOUND || status == Response.Status.NOT_ACCEPTABLE) {
+                LOGGER.info("Unable to reserve " + hostname + ". " + reservedHost.getReservedFor());
                 return null;
             } else {
-                throw new Exception(msg);
+                String msg = "Attempt to reserve " + hostname + " returned code " + response.getStatus() + ": " + responseAsString;
+
+                // Ruby/Foreman's possible responses (JENKINS-39481)
+                if (status == Response.Status.NOT_FOUND || status == Response.Status.NOT_ACCEPTABLE) {
+                    LOGGER.info(msg);
+                    return null;
+                } else {
+                    LOGGER.severe(msg);
+                    throw new CommunicationError(msg);
+                }
             }
         }
     }
@@ -145,34 +167,38 @@ public class ForemanAPI {
      * @param hostName name of host to release.
      */
     public void release(@Nonnull String hostName) throws ActionFailed {
-        HostInfo hostInfo = getHostInfo(hostName);
-        // Host is gone - nothing to release
-        if (hostInfo == null) {
-            LOGGER.info("Unable to release host " + hostName + ".  Does not seem to be in Foreman any longer.");
-            return;
+        getForemanLockMap().putIfAbsent(hostName, hostName);
+
+        synchronized (getForemanLockMap().get(hostName)) {
+            HostInfo hostInfo = getHostInfo(hostName);
+            // Host is gone - nothing to release
+            if (hostInfo == null) {
+                LOGGER.info("Unable to release host " + hostName + ".  Does not seem to be in Foreman any longer.");
+                return;
+            }
+
+            // We do not own the host - noop
+            if (!getReserveReason().equals(hostInfo.getReservedFor())) {
+                LOGGER.info("Unable to release host " + hostName + ".  Reserved for " + hostInfo.getReservedFor());
+                return;
+            }
+
+            LOGGER.info("Attempting to Release host " + hostName);
+            WebTarget target = base.path(FOREMAN_RELEASE_PATH)
+                    .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostName);
+            LOGGER.finer(target.toString());
+            Response response = getForemanResponse(target);
+
+            if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
+                String responseAsString = response.readEntity(String.class);
+                LOGGER.finer(responseAsString);
+                throw new CommunicationError(
+                        "Attempt to release " + hostName + " returned code " + response.getStatus() + ": " + responseAsString
+                );
+            }
+
+            LOGGER.info("Host " + hostName + " successfully released.");
         }
-
-        // We do not own the host - noop
-        if (!getReserveReason().equals(hostInfo.getReservedFor())) {
-            LOGGER.info("Unable to release host " + hostName + ".  Reserved for " + hostInfo.getReservedFor());
-            return;
-        }
-
-        LOGGER.info("Attempting to Release host " + hostName);
-        WebTarget target = base.path(FOREMAN_RELEASE_PATH)
-                .queryParam(FOREMAN_QUERY_PARAM, FOREMAN_QUERY_NAME + hostName);
-        LOGGER.finer(target.toString());
-        Response response = getForemanResponse(target);
-
-        if (Response.Status.fromStatusCode(response.getStatus()) != Response.Status.OK) {
-            String responseAsString = response.readEntity(String.class);
-            LOGGER.finer(responseAsString);
-            throw new CommunicationError(
-                    "Attempt to release " + hostName + " returned code " + response.getStatus() + ":" + responseAsString
-            );
-        }
-
-        LOGGER.info("Host " + hostName + " successfully released.");
     }
 
     /**
