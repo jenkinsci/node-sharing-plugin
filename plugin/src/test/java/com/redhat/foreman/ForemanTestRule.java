@@ -4,13 +4,11 @@ import com.redhat.foreman.launcher.ForemanDummyComputerLauncherFactory;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AdministrativeMonitor;
-import hudson.model.AsyncPeriodicWork;
 import hudson.model.BuildListener;
 import hudson.model.Descriptor;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Node;
-import hudson.model.TaskListener;
 import hudson.remoting.VirtualChannel;
 import hudson.slaves.NodeProvisioner;
 import hudson.tasks.Builder;
@@ -48,13 +46,6 @@ public final class ForemanTestRule extends JenkinsRule {
                 jenkinsRuleStatement.evaluate();
             }
         };
-    }
-
-    /**
-     * Force idle slave cleanup now.
-     */
-    public void triggerCleanupThread() {
-        jenkins.getExtensionList(AsyncPeriodicWork.class).get(ForemanCleanupThread.class).execute(TaskListener.NULL);
     }
 
     /**
