@@ -37,7 +37,8 @@ public class ForemanComputerListener extends ComputerListener {
             CloudStatistics.get().attach(
                     CloudStatistics.get().getActivityFor(fc.getId()),
                     CloudStatistics.get().getActivityFor(fc.getId()).getCurrentPhase(),
-                    new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL, c.getLog()));
+                    new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL,
+                            "Launch failed with:\n" + c.getLog()));
             LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...:\n" + c.getLog());
             ((ForemanComputer) c).terminateForemanComputer(c);
         }
