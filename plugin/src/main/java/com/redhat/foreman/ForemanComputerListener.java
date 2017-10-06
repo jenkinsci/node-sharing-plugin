@@ -11,6 +11,9 @@ import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerListener;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 
 /**
  * Computer listener to cleanup after failed launches.
@@ -21,15 +24,23 @@ public class ForemanComputerListener extends ComputerListener {
     private static final Logger LOGGER = Logger.getLogger(ForemanComputerListener.class.getName());
 
     @Override
+    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public void onLaunchFailure(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
         try {
             super.onLaunchFailure(c, taskListener);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
+            LOGGER.log(Level.SEVERE,
+                    "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
         }
         if (c instanceof ForemanComputer) {
-            LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...");
-            ((ForemanComputer) c).eagerlyReturnNodeLater();
+            ForemanComputer fc = (ForemanComputer) c;
+            CloudStatistics.get().attach(
+                    CloudStatistics.get().getActivityFor(fc.getId()),
+                    CloudStatistics.get().getActivityFor(fc.getId()).getCurrentPhase(),
+                    new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL,
+                            "Launch failed with:\n" + c.getLog()));
+            LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...:\n" + c.getLog());
+            ((ForemanComputer) c).terminateForemanComputer(c);
         }
     }
 
@@ -39,7 +50,8 @@ public class ForemanComputerListener extends ComputerListener {
         try {
             super.preLaunch(c, taskListener);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
+            LOGGER.log(Level.SEVERE,
+                    "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
         }
         if (c instanceof ForemanComputer) {
             Node node = c.getNode();
@@ -53,4 +65,22 @@ public class ForemanComputerListener extends ComputerListener {
         }
     }
 
+    @Override
+    public void onTemporarilyOnline(Computer c) {
+        try {
+            super.onTemporarilyOnline(c);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE,
+                    "Uncaught unexpected exception occurred while calling super.onTemporarilyOnline(): ", e);
+        }
+        if (c instanceof ForemanComputer) {
+            if (c.isIdle()) {
+                try {
+                    ((ForemanComputer) c).terminateForemanComputer(c);
+                } catch (InterruptedException e) {
+                } catch (IOException e) {
+                }
+            }
+        }
+    }
 }

@@ -57,14 +57,14 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
             ComputerLauncher launcher,
             RetentionStrategy<AbstractCloudComputer> strategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
-        //CS IGNORE check FOR NEXT 4 LINES. REASON: necessary inline conditional in super().
+        //CS IGNORE check FOR NEXT 3 LINES. REASON: necessary inline conditional in super().
         super(id.getNodeName(), "", remoteFS, NUM_EXECUTORS,
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
-        LOGGER.info("Instancing a new ForemanSharedNode: name='" + name + "', label='"
-                + (label == null ? "<NULL>" : label) + "'");
         this.id = id;
         this.cloudName = id.getCloudName();
+        LOGGER.info("Instancing a new ForemanSharedNode: name='" + name + "', label='"
+                + (label == null ? "<NULL>" : label) + "'");
     }
 
     @Override

@@ -189,7 +189,6 @@ public class ForemanSharedNodeCloudTest {
 
         TestUtils.waitForBuilds(job, 1);
 
-        j.triggerCleanupThread();
         j.waitForEmptyAsyncResourceDisposer();
 
         Computer[] computersAfter = j.jenkins.getComputers();
@@ -226,9 +225,6 @@ public class ForemanSharedNodeCloudTest {
         assertEquals(SUT_HOSTNAME, node.getNodeName());
 
         j.waitUntilNoActivity(); // Despite the build being completed, I have observed node not yet idle for removal
-        assertTrue(node.toComputer().isTemporarilyOffline());
-
-        j.triggerCleanupThread();
         AsyncResourceDisposer.get().reschedule();
 
         List<AsyncResourceDisposer.WorkItem> disposables = getDisposables();
