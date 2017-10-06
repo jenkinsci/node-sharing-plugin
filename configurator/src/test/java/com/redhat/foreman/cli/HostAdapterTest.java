@@ -18,7 +18,7 @@ public class HostAdapterTest {
     String json = "{\n" +
             "      \'name\': \'solaris-test-1\',\n" +
             "      \'labels\': \'solaris10\',\n" +
-            "      \'remoteFs\': \'/home/jenkins\'\n" +
+            "      \'remoteFs\': \'/home/jenkins\',\n" +
             "      \'javaPath\': \'/hudson/script.sh\'\n" +
             "}";
     String jsonList = "{\n" +
@@ -26,13 +26,13 @@ public class HostAdapterTest {
             "    {\n" +
             "      \"name\": \"scott1.localdomain\",\n" +
             "      \"labels\": \"scott scott\",\n" +
-            "      \"remoteFs\": \"/tmp/scott\"\n" +
+            "      \"remoteFs\": \"/tmp/scott\",\n" +
             "      \'javaPath\': \'/hudson/script.sh\'\n" +
             "    },\n" +
             "    {\n" +
             "      \"name\": \"scott2.localdomain\",\n" +
             "      \"labels\": \"scott scott\",\n" +
-            "      \"remoteFs\": \"/tmp/scott\"\n" +
+            "      \"remoteFs\": \"/tmp/scott\",\n" +
             "      \'javaPath\': \'/hudson/script.sh\'\n" +
             "    }\n" +
             "  ]\n" +
