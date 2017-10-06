@@ -38,14 +38,14 @@ public class CreateTest extends AbstractTest {
         Host checkHost = api.getHost("scott.localdomain");
         assertNotNull(checkHost);
         assertNotNull(checkHost.parameters);
-        Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
+        Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT");
         assertNotNull(parameter);
         assertEquals("Should be /tmp/scott", "/tmp/scott", parameter.getValue());
 
         checkHost = api.getHost("scott2.localdomain");
         assertNotNull(checkHost);
         assertNotNull(checkHost.parameters);
-        parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT");
         assertNotNull(parameter);
         assertEquals("Should be /tmp/scott2", "/tmp/scott2", parameter.getValue());
     }
@@ -57,7 +57,7 @@ public class CreateTest extends AbstractTest {
         Host checkHost = api.getHost("scott.localdomain");
         assertNotNull(checkHost);
         assertNotNull(checkHost.parameters);
-        Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT");
+        Parameter parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT");
         assertNotNull(parameter);
         assertEquals("Should be ${FSROOT}", "${FSROOT}", parameter.getValue());
         assertThat(systemOutRule.getLog(), containsString("Could load properties from /tmp/ffgsfsfsd/sdfasfsaf/DOESNOTEXIST.properties"));
