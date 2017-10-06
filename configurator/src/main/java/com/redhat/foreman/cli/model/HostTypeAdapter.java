@@ -17,6 +17,7 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
     static {
         parameterMapping.put("labels", "JENKINS_LABEL");
         parameterMapping.put("remoteFs", "JENKINS_SLAVE_REMOTEFS_ROOT");
+        parameterMapping.put("javaPath", "JENKINS_SLAVE_JAVA_PATH");
     }
 
     @Override
@@ -25,6 +26,7 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
         out.name("name").value(host.getName());
         out.name("labels").value(host.getParameterValue("JENKINS_LABEL").getValue());
         out.name("remoteFs").value(host.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT").getValue());
+        out.name("javaPath").value(host.getParameterValue("JENKINS_SLAVE_JAVA_PATH").getValue());
         out.endObject();
     }
 
@@ -45,6 +47,9 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
                             host.addParameter(new Parameter(parameterMapping.get(next), reader.nextString()));
                             break;
                         case "remoteFs":
+                            host.addParameter(new Parameter(parameterMapping.get(next), reader.nextString()));
+                            break;
+                        case "javaPath":
                             host.addParameter(new Parameter(parameterMapping.get(next), reader.nextString()));
                             break;
                         default:
