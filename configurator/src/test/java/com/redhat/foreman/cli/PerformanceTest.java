@@ -32,6 +32,7 @@ public class PerformanceTest extends AbstractTest {
             "      \"name\": \"scott.localdomain\",\n" +
             "      \"labels\": \"scott scott\",\n" +
             "      \"remoteFs\": \"/tmp/scott\"\n" +
+            "      \"javaPath\": \"/hudson/script.sh\"\n" +
             "    }\n" +
             "  ]\n" +
             "}";
