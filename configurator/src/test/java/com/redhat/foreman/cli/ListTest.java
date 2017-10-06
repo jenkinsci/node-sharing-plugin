@@ -65,7 +65,58 @@ public class ListTest extends AbstractTest {
     }
 
     @Test
-    public void testList() throws ForemanApiException {
+    public void testQueryCsv() throws ForemanApiException {
+        String url = getUrl();
+        createHosts(url);
+
+        ListHosts listHosts = new ListHosts();
+        listHosts.server = url;
+        listHosts.user = user;
+        listHosts.password = password;
+        listHosts.query = "environment = staging";
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 1 host"));
+
+        systemOutRule.clearLog();
+        listHosts.query = "environment = prod";
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 1 host"));
+
+        systemOutRule.clearLog();
+        listHosts.query = "environment = dummy";
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 0 host"));
+
+        systemOutRule.clearLog();
+        listHosts.query = "hostgroup = \"staging servers\"";
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 2 host"));
+
+        systemOutRule.clearLog();
+        listHosts.query = "name ~ stage";
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 2 host"));
+
+        systemOutRule.clearLog();
+        listHosts.query = "params.JENKINS_LABEL = \"example1 example2\"";
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 1 host"));
+
+        systemOutRule.clearLog();
+        listHosts.query = null;
+        listHosts.setCsv(true);
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString("Found 2 host"));
+    }
+
+    @Test
+    public void testListCsv() throws ForemanApiException {
         String url = getUrl();
         createHosts(url);
 
@@ -74,21 +125,12 @@ public class ListTest extends AbstractTest {
         listHosts.server = url;
         listHosts.user = user;
         listHosts.password = password;
+        listHosts.setCsv(true);
         listHosts.run();
         assertThat(systemOutRule.getLog(), containsString(
-                "stage1.scoheb.com"
-                        + "\n--> JENKINS_LABEL: example1 example2\n"
-                        + "--> JENKINS_SLAVE_JAVA_PATH: ~/unix.sh\n"
-                        + "--> JENKINS_SLAVE_REMOTEFS_ROOT: /tmp/remoteFSRoot\n"
-                        + "--> RESERVED: false")
-        );
+                "stage1.scoheb.com;example1 example2;/tmp/remoteFSRoot;~/unix.sh"));
         assertThat(systemOutRule.getLog(), containsString(
-                "stage2.scoheb.com\n"
-                        + "--> JENKINS_LABEL: example2\n"
-                        + "--> JENKINS_SLAVE_JAVA_PATH: ~/unix.sh\n"
-                        + "--> JENKINS_SLAVE_REMOTEFS_ROOT: /tmp/remoteFSRoot\n"
-                        + "--> RESERVED: false")
-        );
+                "stage2.scoheb.com;example2;/tmp/remoteFSRoot;~/unix.sh"));
     }
 
     public void createHosts(String url) throws ForemanApiException {

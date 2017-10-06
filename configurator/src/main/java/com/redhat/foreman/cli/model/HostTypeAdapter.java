@@ -15,7 +15,7 @@ import java.util.Map;
  * Created by shebert on 20/01/17.
  */
 public class HostTypeAdapter extends TypeAdapter<Host> {
-    final transient static Map<String, String> parameterMapping = new HashMap<>();
+    final public transient static Map<String, String> parameterMapping = new HashMap<>();
     static {
         parameterMapping.put("labels", "JENKINS_LABEL");
         parameterMapping.put("remoteFs", "JENKINS_SLAVE_REMOTEFS_ROOT");
