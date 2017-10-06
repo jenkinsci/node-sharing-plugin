@@ -5,6 +5,8 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +30,11 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
         out.name("remoteFs").value(host.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT").getValue());
         out.name("javaPath").value(host.getParameterValue("JENKINS_SLAVE_JAVA_PATH").getValue());
         out.endObject();
+    }
+
+    @Nonnull
+    private String valueDefaulted(@CheckForNull final String in) {
+        return in == null ? "" : in;
     }
 
     @Override
