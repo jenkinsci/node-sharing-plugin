@@ -16,7 +16,7 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
     final transient static Map<String, String> parameterMapping = new HashMap<>();
     static {
         parameterMapping.put("labels", "JENKINS_LABEL");
-        parameterMapping.put("remoteFs", "JENKINS_SLAVE_REMOTE_FSROOT");
+        parameterMapping.put("remoteFs", "JENKINS_SLAVE_REMOTEFS_ROOT");
     }
 
     @Override
@@ -24,7 +24,7 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
         out.beginObject();
         out.name("name").value(host.getName());
         out.name("labels").value(host.getParameterValue("JENKINS_LABEL").getValue());
-        out.name("remoteFs").value(host.getParameterValue("JENKINS_SLAVE_REMOTE_FSROOT").getValue());
+        out.name("remoteFs").value(host.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT").getValue());
         out.endObject();
     }
 
