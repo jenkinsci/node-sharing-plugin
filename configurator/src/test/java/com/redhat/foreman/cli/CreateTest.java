@@ -88,12 +88,14 @@ public class CreateTest extends AbstractTest {
     public void testCreateDuplicateNames() throws ForemanApiException {
         exception.expect(RuntimeException.class);
         exception.expectMessage("Host scott.localdomain already exists");
+        
         createFromFile("create-same-name.json");
     }
 
     @Test
     public void testCreateMissingInfo() throws ForemanApiException {
         exception.expect(RuntimeException.class);
+        
         createFromFile("create-missing-name.json");
     }
 }
