@@ -60,7 +60,8 @@ public class MainTest {
 
     @Theory
     public void testDebugLogging(Invoker inv) {
-        assertEquals(1, inv.run("--debug", "list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme"));
+        assertEquals(1, 
+                     inv.run("--debug", "list", "--server=http://127.0.0.1:9999", "--user=admin", "--password=changeme"));
         assertThat(inv.out(), containsString("java.net.ConnectException: Connection refused"));
         assertThat(inv.out(), containsString("Debug logging enabled."));
     }
