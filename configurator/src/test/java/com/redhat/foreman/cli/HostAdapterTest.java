@@ -18,19 +18,22 @@ public class HostAdapterTest {
     String json = "{\n" +
             "      \'name\': \'solaris-test-1\',\n" +
             "      \'labels\': \'solaris10\',\n" +
-            "      \'remoteFs\': \'/home/jenkins\'\n" +
+            "      \'remoteFs\': \'/home/jenkins\',\n" +
+            "      \'javaPath\': \'/hudson/script.sh\'\n" +
             "}";
     String jsonList = "{\n" +
             "  \"hosts\": [\n" +
             "    {\n" +
             "      \"name\": \"scott1.localdomain\",\n" +
             "      \"labels\": \"scott scott\",\n" +
-            "      \"remoteFs\": \"/tmp/scott\"\n" +
+            "      \"remoteFs\": \"/tmp/scott\",\n" +
+            "      \'javaPath\': \'/hudson/script.sh\'\n" +
             "    },\n" +
             "    {\n" +
             "      \"name\": \"scott2.localdomain\",\n" +
             "      \"labels\": \"scott scott\",\n" +
-            "      \"remoteFs\": \"/tmp/scott\"\n" +
+            "      \"remoteFs\": \"/tmp/scott\",\n" +
+            "      \'javaPath\': \'/hudson/script.sh\'\n" +
             "    }\n" +
             "  ]\n" +
             "}";
@@ -45,7 +48,7 @@ public class HostAdapterTest {
         final Host host = gson.fromJson(json, Host.class);
         assertNotNull(host);
         assertNotNull(host.parameters);
-        assertTrue(host.parameters.size() > 0);
+        assertTrue(host.parameters.size() == 3);
     }
 
     @Test
@@ -59,7 +62,7 @@ public class HostAdapterTest {
         assertNotNull(hosts);
         assertNotNull(hosts.getHosts().get(0));
         assertNotNull(hosts.getHosts().get(0).parameters);
-        assertTrue(hosts.getHosts().get(0).parameters.size() > 0);
+        assertTrue(hosts.getHosts().get(0).parameters.size() == 3);
     }
 
     @Test
@@ -73,7 +76,7 @@ public class HostAdapterTest {
         assertNotNull(hosts);
         assertNotNull(hosts.getHosts().get(0));
         assertNotNull(hosts.getHosts().get(0).parameters);
-        assertTrue(hosts.getHosts().get(0).parameters.size() > 0);
+        assertTrue(hosts.getHosts().get(0).parameters.size() == 3);
 
         String hostsJson = gson.toJson(hosts);
         assertNotNull(hostsJson);
