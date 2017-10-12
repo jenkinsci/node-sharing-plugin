@@ -64,6 +64,33 @@ public class ListTest extends AbstractTest {
         assertThat(systemOutRule.getLog(), containsString("Found 2 host"));
     }
 
+    @Test
+    public void testList() throws ForemanApiException {
+        String url = getUrl();
+        createHosts(url);
+
+        systemOutRule.clearLog();
+        ListHosts listHosts = new ListHosts();
+        listHosts.server = url;
+        listHosts.user = user;
+        listHosts.password = password;
+        listHosts.run();
+        assertThat(systemOutRule.getLog(), containsString(
+                "stage1.scoheb.com"
+                        + "\n--> JENKINS_LABEL: example1 example2\n"
+                        + "--> JENKINS_SLAVE_JAVA_PATH: ~/unix.sh\n"
+                        + "--> JENKINS_SLAVE_REMOTEFS_ROOT: /tmp/remoteFSRoot\n"
+                        + "--> RESERVED: false")
+        );
+        assertThat(systemOutRule.getLog(), containsString(
+                "stage2.scoheb.com\n"
+                        + "--> JENKINS_LABEL: example2\n"
+                        + "--> JENKINS_SLAVE_JAVA_PATH: ~/unix.sh\n"
+                        + "--> JENKINS_SLAVE_REMOTEFS_ROOT: /tmp/remoteFSRoot\n"
+                        + "--> RESERVED: false")
+        );
+    }
+
     public void createHosts(String url) throws ForemanApiException {
 
         Api api = new Api(url, user, password);
@@ -86,14 +113,17 @@ public class ListTest extends AbstractTest {
         Parameter remoteFSParam = new Parameter("JENKINS_SLAVE_REMOTEFS_ROOT", "/tmp/remoteFSRoot");
         Parameter labelParam1 = new Parameter("JENKINS_LABEL", "example1 example2");
         Parameter labelParam2 = new Parameter("JENKINS_LABEL", "example2");
+        Parameter javaPathParam = new Parameter("JENKINS_SLAVE_JAVA_PATH", "~/unix.sh");
 
         host = api.addHostParameter(host, reservedParam);
         host = api.addHostParameter(host, remoteFSParam);
         host = api.addHostParameter(host, labelParam1);
+        host = api.addHostParameter(host, javaPathParam);
 
         host2 = api.addHostParameter(host2, reservedParam);
         host2 = api.addHostParameter(host2, remoteFSParam);
         host2 = api.addHostParameter(host2, labelParam2);
+        host2 = api.addHostParameter(host2, javaPathParam);
     }
 
     public void createHostsFull(String url) throws ForemanApiException {
@@ -128,13 +158,16 @@ public class ListTest extends AbstractTest {
         Parameter reservedParam = new Parameter("RESERVED", "false");
         Parameter remoteFSParam = new Parameter("JENKINS_SLAVE_REMOTEFS_ROOT", "/tmp/remoteFSRoot");
         Parameter labelParam = new Parameter("JENKINS_LABEL", "example1");
+        Parameter javaPathParam = new Parameter("JENKINS_SLAVE_JAVA_PATH", "~/unix.sh");
 
         host = api.addHostParameter(host, reservedParam);
         host = api.addHostParameter(host, remoteFSParam);
         host = api.addHostParameter(host, labelParam);
+        host = api.addHostParameter(host, javaPathParam);
 
         host2 = api.addHostParameter(host2, reservedParam);
         host2 = api.addHostParameter(host2, remoteFSParam);
         host2 = api.addHostParameter(host2, labelParam);
+        host2 = api.addHostParameter(host2, javaPathParam);
     }
 }
