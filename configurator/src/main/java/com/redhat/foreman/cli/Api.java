@@ -92,7 +92,7 @@ public class Api {
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.CREATED ||
                 Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK  ) {
             Gson gson = new Gson();
-            return gson.fromJson(responseAsString, className);
+            return gson.fromJson(responseAsString, className.getClass());
         } else {
             throw new ForemanApiException("Creating " + objectType
                     + " returned code " + response.getStatus() + ".", responseAsString);
