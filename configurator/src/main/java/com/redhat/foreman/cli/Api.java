@@ -83,7 +83,7 @@ public class Api {
         return (Domain)createObject("domains", Domain.class, json);
     }
 
-    private Object createObject(String objectType, Class className, String json) throws ForemanApiException {
+    private Object createObject(String objectType, Class<? extends Object> className, String json) throws ForemanApiException {
         Response response =
                 base.path(V2 + "/" + objectType).request(MediaType.APPLICATION_JSON)
                         .post(Entity.entity(json, MediaType.APPLICATION_JSON));
