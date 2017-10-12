@@ -83,7 +83,7 @@ public class Api {
         return (Domain)createObject("domains", Domain.class, json);
     }
 
-    private <Object> Object createObject(String objectType, Class className, String json) throws ForemanApiException {
+    private Object createObject(String objectType, Class<? extends Object> className, String json) throws ForemanApiException {
         Response response =
                 base.path(V2 + "/" + objectType).request(MediaType.APPLICATION_JSON)
                         .post(Entity.entity(json, MediaType.APPLICATION_JSON));
@@ -92,7 +92,7 @@ public class Api {
         if (Response.Status.fromStatusCode(response.getStatus()) == Response.Status.CREATED ||
                 Response.Status.fromStatusCode(response.getStatus()) == Response.Status.OK  ) {
             Gson gson = new Gson();
-            return (Object) gson.fromJson(responseAsString, className);
+            return gson.fromJson(responseAsString, className);
         } else {
             throw new ForemanApiException("Creating " + objectType
                     + " returned code " + response.getStatus() + ".", responseAsString);
