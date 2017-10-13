@@ -6,8 +6,10 @@ import com.redhat.foreman.cli.model.Parameter;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.List;
 
 @Parameters(separators = "=", commandDescription = "List hosts in Foreman")
@@ -43,10 +45,10 @@ public class ListHosts extends Command {
         }
         LOGGER.info("Found " + hosts.size() + " host(s).");
         BufferedWriter bw = null;
-        FileWriter fw = null;
+        Writer fw = null;
         try {
             if (fileName != null) {
-                fw = new FileWriter(fileName);
+                fw = new OutputStreamWriter(new FileOutputStream(fileName), "UTF-8");
                 bw = new BufferedWriter(fw);
             }
             for (Host h : hosts) {
