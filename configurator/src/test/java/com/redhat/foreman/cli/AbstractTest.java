@@ -86,12 +86,17 @@ public abstract class AbstractTest {
     }
 
     public UpdateFromFile updateFromFile(String resource) throws ForemanApiException {
+        return updateFromFile(resource, false);
+    }
+
+    public UpdateFromFile updateFromFile(String resource, final boolean csv) throws ForemanApiException {
         File createJson = getResourceAsFile(resource);
 
         UpdateFromFile updater = new UpdateFromFile(Collections.singletonList(createJson.getAbsolutePath()));
         updater.server = getUrl();
         updater.user = user;
         updater.password = password;
+        updater.setCsv(csv);
         updater.run();
         return updater;
     }
@@ -107,10 +112,18 @@ public abstract class AbstractTest {
     }
 
     public CreateFromFile createFromFile(String resource) throws ForemanApiException {
-        return createFromFile(resource, null);
+        return createFromFile(resource, null, false);
+    }
+
+    public CreateFromFile createFromFile(String resource, final boolean csv) throws ForemanApiException {
+        return createFromFile(resource, null, csv);
     }
 
     public CreateFromFile createFromFile(String resource, String properties) throws ForemanApiException {
+        return createFromFile(resource, properties, false);
+    }
+
+    public CreateFromFile createFromFile(String resource, String properties, final boolean csv) throws ForemanApiException {
         File createJson = getResourceAsFile(resource);
 
         CreateFromFile creator = new CreateFromFile(Collections.singletonList(createJson.getAbsolutePath()));
@@ -118,6 +131,7 @@ public abstract class AbstractTest {
         creator.user = user;
         creator.password = password;
         creator.properties = properties;
+        creator.setCsv(csv);
         creator.run();
         return creator;
     }

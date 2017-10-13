@@ -47,6 +47,41 @@ public class ReleaseTest extends AbstractTest {
     }
 
     @Test
+    public void testReleaseCsv() throws ForemanApiException {
+        createFromFile("release.csv", true);
+        {
+            List<Host> hosts;
+            hosts = api.getHosts();
+            Parameter reservedParam = new Parameter("RESERVED", "Reserved by Scott :)");
+            for (Host h : hosts) {
+                api.updateHostParameter(h, reservedParam);
+            }
+        }
+
+        Host checkHost = api.getHost("host-to-release.localdomain");
+        assertNotNull(checkHost);
+        assertNotNull(checkHost.parameters);
+        Parameter parameter = checkHost.getParameterValue("RESERVED");
+        assertNotNull(parameter);
+        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
+
+        releaseHosts("host-to-release.localdomain", false);
+
+        checkHost = api.getHost("host-to-release.localdomain");
+        parameter = checkHost.getParameterValue("RESERVED");
+        assertEquals("Should be 'Reserved by Scott :)'", "Reserved by Scott :)", parameter.getValue());
+
+        releaseHosts("host-to-release.localdomain", true);
+
+        checkHost = api.getHost("host-to-release.localdomain");
+        parameter = checkHost.getParameterValue("RESERVED");
+        assertEquals("Should be 'false'", "false", parameter.getValue());
+
+        releaseHosts("host-to-release.localdomain", true);
+        assertThat(systemOutRule.getLog(), containsString("Host host-to-release.localdomain not reserved..."));
+    }
+
+    @Test
     public void testReleaseUnknownHost() throws ForemanApiException {
         exception.expect(RuntimeException.class);
         releaseHosts("unknownhost-to-release.localdomain", false);
