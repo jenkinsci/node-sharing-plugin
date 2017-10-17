@@ -96,9 +96,15 @@ public abstract class AbstractFileProcessor extends Command {
                             CSVFormat.DEFAULT.withDelimiter(';').withAllowMissingColumnNames(true).parse(new StringReader(json))) {
                         Host host = new Host();
                         host.setName(record.get(0));
-                        host.addParameter(new Parameter(HostTypeAdapter.getParameterMapping().get("labels"), record.get(1)));
-                        host.addParameter(new Parameter(HostTypeAdapter.getParameterMapping().get("remoteFs"), record.get(2)));
-                        host.addParameter(new Parameter(HostTypeAdapter.getParameterMapping().get("javaPath"), record.get(3)));
+                        if(record.size() > 1 && record.get(1).length() > 0) {
+                            host.addParameter(new Parameter(HostTypeAdapter.getParameterMapping().get("labels"), record.get(1)));
+                        }
+                        if(record.size() > 2 && record.get(2).length() > 0) {
+                            host.addParameter(new Parameter(HostTypeAdapter.getParameterMapping().get("remoteFs"), record.get(2)));
+                        }
+                        if(record.size() > 3 && record.get(3).length() > 0) {
+                            host.addParameter(new Parameter(HostTypeAdapter.getParameterMapping().get("javaPath"), record.get(3)));
+                        }
                         hosts.getHosts().add(host);
                     }
                 } catch (Exception e) {

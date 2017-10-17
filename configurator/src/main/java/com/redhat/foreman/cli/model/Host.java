@@ -1,5 +1,7 @@
 package com.redhat.foreman.cli.model;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,10 +20,13 @@ public class Host {
                 '}';
     }
 
+    @CheckForNull
     public List<Parameter> parameters;
+
     public int id;
 
-    public Parameter getParameterValue(String name) {
+    @CheckForNull
+    public Parameter getParameterValue(@Nonnull String name) {
         if (parameters == null) parameters = new ArrayList<Parameter>();
         for (Parameter p: parameters) {
             if (p.getName().equals(name)) {
@@ -31,7 +36,7 @@ public class Host {
         return null;
     }
 
-    public void addParameter(Parameter p) {
+    public void addParameter(@Nonnull Parameter p) {
         Parameter c = getParameterValue(p.getName());
         if (c == null) {
             parameters.add(p);
@@ -41,11 +46,12 @@ public class Host {
         }
     }
 
+    @CheckForNull
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(@Nonnull String name) {
         this.name = name;
     }
 }

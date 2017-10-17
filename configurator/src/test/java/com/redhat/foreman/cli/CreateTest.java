@@ -13,6 +13,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * Created by shebert on 17/01/17.
@@ -177,5 +178,48 @@ public class CreateTest extends AbstractTest {
         exception.expect(RuntimeException.class);
 
         createFromFile("create-missing-name.csv", true);
+    }
+
+    @Test
+    public void testCreateMissingParams() throws ForemanApiException {
+        createFromFile("create-missing-parameters.json");
+
+        Host checkHost = api.getHost("scott.localdomain");
+        Parameter parameter = checkHost.getParameterValue("JENKINS_LABEL");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_JAVA_PATH");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("RESERVED");
+        assertNotNull(parameter);
+        assertEquals("Should be false", parameter.getValue(), "false");
+    }
+
+    @Test
+    public void testCreateMissingParamsCsv() throws ForemanApiException {
+        createFromFile("create-missing-parameters.csv", true);
+
+        Host checkHost = api.getHost("scott.localdomain");
+        Parameter parameter = checkHost.getParameterValue("JENKINS_LABEL");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_JAVA_PATH");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("RESERVED");
+        assertNotNull(parameter);
+        assertEquals("Should be false", parameter.getValue(), "false");
+
+        checkHost = api.getHost("scott2.localdomain");
+        parameter = checkHost.getParameterValue("JENKINS_LABEL");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("JENKINS_SLAVE_JAVA_PATH");
+        assertNull(parameter);
+        parameter = checkHost.getParameterValue("RESERVED");
+        assertNotNull(parameter);
+        assertEquals("Should be false", parameter.getValue(), "false");
     }
 }
