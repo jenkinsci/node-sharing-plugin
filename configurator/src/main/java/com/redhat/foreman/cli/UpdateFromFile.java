@@ -56,16 +56,15 @@ public class UpdateFromFile extends AbstractFileProcessor {
     }
 
     private void updateHostParameters(Api api, Host h, Host hostObj) throws ForemanApiException {
-        if (h.parameters != null && h.parameters.size() > 0) {
-            for (Parameter p: h.parameters) {
-                if (p.getName().equals("RESERVED")) {
-                    LOGGER.warn("The parameter RESERVED cannot be updated via this commmand." +
-                            " You must use the 'release' command.");
-                    continue;
-                }
-                api.updateHostParameter(hostObj, p);
-                LOGGER.info("Added/Updated parameter " + p.getName() + " to be '" + p.getValue() + "'");
+        for (Parameter p : h.getParameters()) {
+            String paramName = p.getName();
+            if (paramName != null && paramName.equals("RESERVED")) {
+                LOGGER.warn("The parameter RESERVED cannot be updated via this commmand." +
+                        " You must use the 'release' command.");
+                continue;
             }
+            api.updateHostParameter(hostObj, p);
+            LOGGER.info("Added/Updated parameter " + p.getName() + " to be '" + p.getValue() + "'");
         }
     }
 

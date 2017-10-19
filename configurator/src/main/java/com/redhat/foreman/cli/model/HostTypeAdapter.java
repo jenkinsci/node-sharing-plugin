@@ -28,22 +28,17 @@ public class HostTypeAdapter extends TypeAdapter<Host> {
     }
 
     @Override
-    public void write(JsonWriter out, Host host) throws IOException {
+    public void write(@Nonnull final JsonWriter out, @Nonnull final Host host) throws IOException {
         out.beginObject();
         out.name("name").value(host.getName());
-        out.name("labels").value(host.getParameterValue("JENKINS_LABEL").getValue());
-        out.name("remoteFs").value(host.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT").getValue());
-        out.name("javaPath").value(host.getParameterValue("JENKINS_SLAVE_JAVA_PATH").getValue());
+        out.name("labels").value(Host.getParamOrEmptyString(host, "JENKINS_LABEL"));
+        out.name("remoteFs").value(Host.getParamOrEmptyString(host, "JENKINS_SLAVE_REMOTEFS_ROOT"));
+        out.name("javaPath").value(Host.getParamOrEmptyString(host, "JENKINS_SLAVE_JAVA_PATH"));
         out.endObject();
     }
 
-    @Nonnull
-    private String valueDefaulted(@CheckForNull final String in) {
-        return in == null ? "" : in;
-    }
-
-    @Override
-    public Host read(final JsonReader reader) throws IOException {
+    @Override @Nonnull
+    public Host read(@Nonnull final JsonReader reader) throws IOException {
         final Host host = new Host();
         JsonToken token = reader.peek();
         if (token.equals(JsonToken.BEGIN_OBJECT)) {

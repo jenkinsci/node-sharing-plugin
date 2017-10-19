@@ -54,16 +54,10 @@ public class ListHosts extends Command {
             for (Host h : hosts) {
                 Host h2 = api.getHost(h.getName());
                 if (csv) {
-                    String line = h2.getName()
-                            + ";"
-                            + (h2.getParameterValue("JENKINS_LABEL") == null ?
-                            "" : h2.getParameterValue("JENKINS_LABEL").getValue())
-                            + ";"
-                            + (h2.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT") == null ?
-                            "" : h2.getParameterValue("JENKINS_SLAVE_REMOTEFS_ROOT").getValue())
-                            + ";"
-                            + (h2.getParameterValue("JENKINS_SLAVE_JAVA_PATH") == null ?
-                            "" : h2.getParameterValue("JENKINS_SLAVE_JAVA_PATH").getValue());
+                    String line = h2.getName() + ";"
+                            + Host.getParamOrEmptyString(h2, "JENKINS_LABEL") + ";"
+                            + Host.getParamOrEmptyString(h2, "JENKINS_SLAVE_REMOTEFS_ROOT") + ";"
+                            + Host.getParamOrEmptyString(h2, "JENKINS_SLAVE_JAVA_PATH");
                     if (bw != null) {
                         bw.write(line + "\n");
                     } else {
@@ -71,7 +65,7 @@ public class ListHosts extends Command {
                     }
                 } else {
                     LOGGER.info(h2.getName());
-                    for (Parameter param : h2.parameters) {
+                    for (Parameter param : h2.getParameters()) {
                         LOGGER.info("--> " + param.getName() + ": " + Api.fixValue(param));
                     }
                 }

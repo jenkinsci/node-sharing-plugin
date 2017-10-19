@@ -36,14 +36,14 @@ public class CreateFromFile extends AbstractFileProcessor {
             }
             LOGGER.info("Created " + hostObj.getName());
             //
-            if (hosts.getDefaults().parameters != null && hosts.getDefaults().parameters.size() > 0) {
-                for (Parameter p: hosts.getDefaults().parameters) {
+            if (hosts.getDefaults().getParameters().size() > 0) {
+                for (Parameter p: hosts.getDefaults().getParameters()) {
                     api.updateHostParameter(hostObj, p);
                     LOGGER.info("Added/Updated Default parameter " + p.getName());
                 }
             }
-            if (host.parameters != null && host.parameters.size() > 0) {
-                for (Parameter p: host.parameters) {
+            if (host.getParameters().size() > 0) {
+                for (Parameter p: host.getParameters()) {
                     api.updateHostParameter(hostObj, p);
                     LOGGER.info("Added/Updated parameter " + p.getName());
                 }

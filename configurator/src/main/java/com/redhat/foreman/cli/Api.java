@@ -17,6 +17,7 @@ import com.redhat.foreman.cli.model.OperatingSystem;
 import com.redhat.foreman.cli.model.PTable;
 import com.redhat.foreman.cli.model.Parameter;
 import com.redhat.foreman.cli.model.Reservation;
+import hudson.Util;
 import org.apache.log4j.Logger;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
@@ -384,21 +385,26 @@ public class Api {
 
     public Parameter updateHostParameter(Host host, Parameter parameter) throws ForemanApiException {
 
-        Parameter existing = getHostParameter(host, parameter.getName());
+        final String paramName = parameter.getName();
+        if (paramName == null) {
+            throw new ForemanApiException("Parameter name is null", "");
+        }
+        Parameter existing = getHostParameter(host, paramName);
         if (existing == null) {
             Host hostAddedParam = addHostParameter(host, parameter);
-            return hostAddedParam.getParameterValue(parameter.getName());
+            return hostAddedParam.getParameterValue(paramName);
         }
-        if (existing.getValue().equals(parameter.getValue())) {
-            LOGGER.info("Value for parameter " + parameter.getName() + " already set to " + parameter.getValue());
+        String existingValue = existing.getValue();
+        String paramValue = parameter.getValue();
+        if (existingValue != null && existingValue.equals(paramValue)) {
+            LOGGER.info("Value for parameter " + paramName + " already set to " + parameter.getValue());
             return existing;
         }
         parameter.id = existing.id;
 
-
         JsonObject innerObject = new JsonObject();
-        innerObject.addProperty("name", parameter.getName());
-        innerObject.addProperty("value", parameter.getValue());
+        innerObject.addProperty("name", Util.fixNull(paramName));
+        innerObject.addProperty("value", Util.fixNull(paramValue));
 
         JsonObject jsonObject = new JsonObject();
         jsonObject.add("parameter", innerObject);
