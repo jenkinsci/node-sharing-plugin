@@ -1,5 +1,7 @@
 package com.redhat.foreman.cli.model;
 
+import hudson.Util;
+
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -27,8 +29,7 @@ public class Host {
 
     @CheckForNull
     public Parameter getParameterValue(@Nonnull String name) {
-        if (parameters == null) parameters = new ArrayList<Parameter>();
-        for (Parameter p: parameters) {
+        for (Parameter p: getParameters()) {
             if (p.getName().equals(name)) {
                 return p;
             }
@@ -39,10 +40,10 @@ public class Host {
     public void addParameter(@Nonnull Parameter p) {
         Parameter c = getParameterValue(p.getName());
         if (c == null) {
-            parameters.add(p);
+            getParameters().add(p);
         } else {
-            parameters.remove(c);
-            parameters.add(p);
+            getParameters().remove(c);
+            getParameters().add(p);
         }
     }
 
@@ -53,5 +54,23 @@ public class Host {
 
     public void setName(@Nonnull String name) {
         this.name = name;
+    }
+
+    @Nonnull
+    public List<Parameter> getParameters() {
+        if (parameters == null)
+            parameters = new ArrayList<Parameter>();
+        return parameters;
+    }
+
+    @Nonnull
+    public static String getParamOrEmptyString(@Nonnull final Host host, @Nonnull final String sParam) {
+        String rVal = "";
+
+        Parameter param = host.getParameterValue(sParam);
+        if (param != null) {
+            rVal = Util.fixNull(param.getValue());
+        }
+        return rVal;
     }
 }
