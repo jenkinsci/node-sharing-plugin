@@ -1,5 +1,7 @@
 package com.redhat.foreman.cli.model;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,38 +12,43 @@ public class Hosts {
     private List<Host> hosts;
     private Defaults defaults;
 
+    @Nonnull
     public List<Host> getHosts() {
         if (hosts == null) hosts = new ArrayList<Host>();
         return hosts;
     }
 
+    @Nonnull
     public Defaults getDefaults() {
         if (defaults == null) defaults = new Defaults();
         return defaults;
     }
 
-    public Parameter getParameterValue(String name) {
-        if (getDefaults().parameters == null) getDefaults().parameters = new ArrayList<Parameter>();
-        for (Parameter p: getDefaults().parameters) {
-            if (p.getName().equals(name)) {
+    @CheckForNull
+    public Parameter getParameterValue(@Nonnull final String name) {
+        for (Parameter p: getDefaults().getParameters()) {
+            String paramName = p.getName();
+            if (paramName != null && paramName.equals(name)) {
                 return p;
             }
         }
         return null;
     }
 
-    public void addDefaultParameter(Parameter p) {
-        Parameter c = getParameterValue(p.getName());
+    public void addDefaultParameter(@Nonnull final Parameter p) {
+        String paramName = p.getName();
+        if (paramName == null) return;
+        Parameter c = getParameterValue(paramName);
         if (c == null) {
-            getDefaults().parameters.add(p);
+            getDefaults().getParameters().add(p);
         } else {
-            getDefaults().parameters.remove(c);
-            getDefaults().parameters.add(p);
+            getDefaults().getParameters().remove(c);
+            getDefaults().getParameters().add(p);
         }
     }
 
 
-    @Override
+    @Override @Nonnull
     public String toString() {
         return "Hosts{" +
                 "hosts=" + hosts +

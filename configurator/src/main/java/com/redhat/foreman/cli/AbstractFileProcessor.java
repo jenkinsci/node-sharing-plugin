@@ -13,6 +13,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.log4j.Logger;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -131,16 +132,19 @@ public abstract class AbstractFileProcessor extends Command {
 
     public abstract void perform(Hosts hosts) throws ForemanApiException;
 
-    protected void checkHostAttributes(Host host) {
-        if (host.getName() == null || host.getName().equals("")) {
+    protected void checkHostAttributes(@Nonnull final Host host) {
+        String hostName = host.getName();
+        if (hostName== null || hostName.length() == 0) {
             throw new RuntimeException("host is missing its 'name' attribute");
         }
         if (host.parameters != null) {
             for (Parameter p: host.parameters) {
-                if (p.getName() == null || p.getName().equals("")) {
+                String name = p.getName();
+                if (name == null || name.equals("")) {
                     throw new RuntimeException("host parameter is missing its 'name' attribute: " + p.toString());
                 }
-                if (p.getValue() == null || p.getValue().equals("")) {
+                String value = p.getValue();
+                if (value == null || value.equals("")) {
                     throw new RuntimeException("host parameter is missing its 'value' attribute: " + p.toString());
                 }
             }

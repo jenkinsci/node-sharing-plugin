@@ -1,10 +1,13 @@
 package com.redhat.foreman.cli.model;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+
 /**
  * Created by shebert on 05/01/17.
  */
 public class Parameter {
-    public Parameter(String name, String value) {
+    public Parameter(@Nonnull final String name, @Nonnull final String value) {
         this.setName(name);
         this.setValue(value);
     }
@@ -12,7 +15,7 @@ public class Parameter {
     private String name;
     private String value;
 
-    @Override
+    @Override @Nonnull
     public String toString() {
         return "Parameter{" +
                 "name='" + getName() + '\'' +
@@ -28,33 +31,40 @@ public class Parameter {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
+        if (!(o instanceof Parameter)) return false;
         Parameter parameter = (Parameter) o;
 
-        if (!getName().equals(parameter.getName())) return false;
-        return getValue().equals(parameter.getValue());
+        String paramName = parameter.getName();
+        String myName = getName();
+        if (paramName != null && myName != null && !myName.equals(paramName)) return false;
+        String paramValue = parameter.getValue();
+        String myValue = getValue();
+        return (paramValue != null && myValue != null && myValue.equals(paramValue));
     }
 
     @Override
     public int hashCode() {
-        int result = getName().hashCode();
-        result = 31 * result + getValue().hashCode();
+        String paramName = getName();
+        int result = paramName == null ? 1: paramName.hashCode();
+        String paramValue = getValue();
+        result = 31 * result + (paramValue == null ? 1 : paramValue.hashCode());
         result = 31 * result + id;
         return result;
     }
 
-    public String getValue() {
-        return value;
-    }
+    @CheckForNull
+    public String getValue() { return value; }
 
-    public void setValue(String value) {
+    public void setValue(@Nonnull final String value) {
         this.value = value;
     }
 
+    @CheckForNull
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(@Nonnull final String name) {
         this.name = name;
     }
 }
