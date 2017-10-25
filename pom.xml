@@ -17,6 +17,7 @@
   <modules>
     <module>configurator</module>
     <module>plugin</module>
+    <module>backend-plugin</module>
   </modules>
 
   <licenses>
