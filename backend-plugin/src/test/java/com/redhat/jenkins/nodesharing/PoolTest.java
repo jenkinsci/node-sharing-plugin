@@ -1,6 +1,7 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.EnvVars;
+import hudson.model.Computer;
 import hudson.util.StreamTaskListener;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.gitclient.Git;
@@ -12,11 +13,13 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.File;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Map;
 
 import static com.redhat.jenkins.nodesharing.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author ogondza.
@@ -35,10 +38,11 @@ public class PoolTest {
         Map<String, String> config = Pool.getInstance().getConfig();
         assertEquals("https://dummy.test", config.get("orchestrator.url"));
     }
-    
+
     @Test
     public void testPopulateComputers() throws Exception {
-        
+        fail();
+        injectDummyConfigRepo();
     }
 
     private void injectDummyConfigRepo() throws Exception {

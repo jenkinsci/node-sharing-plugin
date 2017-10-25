@@ -44,8 +44,11 @@ import java.util.Collections;
 public class SharedNode extends Slave implements EphemeralNode {
     private static final long serialVersionUID = 1864241962205144748L;
 
-    /*package*/ SharedNode(@Nonnull String name, String labelString) throws Descriptor.FormException, IOException {
+    private final @Nonnull String xml;
+
+    /*package*/ SharedNode(@Nonnull String name, String labelString, String xml) throws Descriptor.FormException, IOException {
         super(name, name, "/unused", 1, Mode.EXCLUSIVE, labelString, new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+        this.xml = xml;
     }
 
     @Override public Computer createComputer() {

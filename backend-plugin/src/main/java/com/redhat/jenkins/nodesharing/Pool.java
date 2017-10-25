@@ -43,7 +43,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
-import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,6 +52,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author ogondza.
@@ -138,7 +139,19 @@ public class Pool {
             FilePath configFile = new FilePath(CONFIG_DIR).child("config");
             Pool.getInstance().updateConfig(getProperties(configFile));
 
-            updateComputers();
+            FilePath nodesDir = new FilePath(CONFIG_DIR).child("nodes");
+            ArrayList<SharedNode> nodes = new ArrayList<>();
+            for (FilePath xmlNode : nodesDir.list("*.xml")) {
+                String xml = xmlNode.readToString();
+                String hostName = xmlNode.getBaseName().replaceAll(".xml$", "");
+                Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
+                if (!matcher.find()) {
+                    throw new IllegalArgumentException("No labels found in " + xml);
+                }
+                String labels = matcher.group(1);
+                nodes.add(new SharedNode(hostName, labels, xml));
+            }
+            updateNodes(nodes);
         }
 
         private HashMap<String, String> getProperties(FilePath configFile) throws IOException, InterruptedException {
@@ -161,7 +174,8 @@ public class Pool {
             return c;
         }
 
-        private void updateComputers() throws IOException, Descriptor.FormException {
+        private void updateNodes(ArrayList<SharedNode> nodes) throws IOException, Descriptor.FormException {
+System.out.println(nodes);
             Jenkins instance = Jenkins.getInstance();
 
             ArrayList<FakeComputer> existing = new ArrayList<>();
