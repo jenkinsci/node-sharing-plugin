@@ -1,4 +1,4 @@
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.EnvVars;
 import hudson.FilePath;

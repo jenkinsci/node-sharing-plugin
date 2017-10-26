@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.model.Executor;
 import hudson.model.Label;

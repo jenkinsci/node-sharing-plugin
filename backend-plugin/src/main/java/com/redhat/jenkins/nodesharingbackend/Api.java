@@ -21,32 +21,52 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharingbackend;
+
+import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.model.RootAction;
+import jenkins.model.Jenkins;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
-import java.net.MalformedURLException;
-import java.net.URL;
 
 /**
- * Remote Jenkins authorized to use this orchestrator.
+ * Receive and send REST commands from/to executor Jenkinses.
  */
-public class ExecutorJenkins {
+@Extension
+@Restricted(NoExternalUse.class)
+public class Api implements RootAction {
 
-    private final URL url;
+    public static final String HIDDEN = null;
 
-    public ExecutorJenkins(String url) {
-        try {
-            this.url = new URL(url);
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(e);
-        }
+    public static @Nonnull Api getInstance() {
+        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
+        assert list.size() == 1;
+        return list.iterator().next();
     }
 
-    public @Nonnull String getName() {
-        return url.getHost();
+    @Override public String getIconFileName() {
+        return HIDDEN;
     }
 
-    public @Nonnull URL getUrl() {
-        return url;
+    @Override public String getDisplayName() {
+        return HIDDEN;
     }
+
+    @Override public String getUrlName() {
+        return "node-sharing";
+    }
+
+    //// Outgoing
+
+    /**
+     * Signal to executor Jenkins to start using particular node.
+     */
+    public void utilizeNode() {
+
+    }
+
+    //// Incomming
 }
