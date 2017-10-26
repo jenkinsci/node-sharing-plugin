@@ -31,7 +31,9 @@ import hudson.model.Slave;
 import hudson.remoting.Callable;
 import hudson.remoting.CallableFilter;
 import hudson.remoting.Channel;
+import hudson.remoting.ChannelBuilder;
 import hudson.remoting.ChannelProperty;
+import hudson.remoting.CommandTransport;
 import hudson.remoting.JarCache;
 import hudson.remoting.forward.ListeningPort;
 import hudson.security.Permission;
@@ -163,15 +165,16 @@ public class FakeComputer extends SlaveComputer implements EphemeralNode {
     /**
      * Channel that does nothing but still exists.
      *
-     * We need computer to have channel associated os it appears online to Jenkins but no agent to connect it to. Using
-     * local channel for all FakeComputers sounds strange but not outright dangerous. Unfortunately, the types of local
-     * channel and SlaveComputer#getChannel are not compatible.
+     * We need computer to have channel associated so it appears online to Jenkins but have no agent to connect it to.
+     * Using local channel for all FakeComputers sounds strange but not outright dangerous. Unfortunately, the types of
+     * local channel and SlaveComputer#getChannel are not compatible.
      *
      * This channel is noop/throw-all-the-time to do nothing at all.
      */
     public static class NoopChannel extends Channel {
-        public NoopChannel(String name) throws IOException {
-            super(name, null, null, new NullStream());
+
+        private NoopChannel(ChannelBuilder settings, CommandTransport transport) throws IOException {
+            super(settings, transport);
         }
 
         @Override public String getName() {

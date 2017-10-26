@@ -33,18 +33,25 @@ import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
+import jenkins.model.Jenkins;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.Collections;
 
 /**
  * @author ogondza.
  */
+@Restricted(NoExternalUse.class)
 public class SharedNode extends Slave implements EphemeralNode {
     private static final long serialVersionUID = 1864241962205144748L;
 
-    private final @Nonnull String xml;
+    private final Object nodeSharingAttributesLock = new Object();
+    @GuardedBy("nodeSharingAttributesLock")
+    private @Nonnull String xml;
 
     /*package*/ SharedNode(@Nonnull String name, String labelString, String xml) throws Descriptor.FormException, IOException {
         super(name, name, "/unused", 1, Mode.EXCLUSIVE, labelString, new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
@@ -57,6 +64,37 @@ public class SharedNode extends Slave implements EphemeralNode {
 
     @Override public SharedNode asNode() {
         return this;
+    }
+
+    /**
+     * Delete the node now if idle or once it becomes idle.
+     */
+    public void deleteWhenIdle() {
+        // TODO what is not idle?
+        try {
+            Jenkins.getInstance().removeNode(this);
+        } catch (IOException e) {
+            // TODO delay as if idle?
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Update current node with the configuration of a new one.
+     *
+     * The node is not replaced not to interrupt running builds.
+     */
+    public void updateBy(@Nonnull SharedNode node) {
+        assert getNodeName().equals(node.getNodeName());
+
+        synchronized (nodeSharingAttributesLock) {
+            this.xml = node.xml;
+            try {
+                setLabelString(node.getLabelString());
+            } catch (IOException ex) {
+                throw new Error("Never actually thrown");
+            }
+        }
     }
 
     public static final class NoopLauncher extends ComputerLauncher {

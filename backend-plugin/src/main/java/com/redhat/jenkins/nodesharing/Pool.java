@@ -31,6 +31,7 @@ import hudson.FilePath;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.util.LogTaskListener;
 import jenkins.model.Jenkins;
@@ -140,18 +141,7 @@ public class Pool {
             Pool.getInstance().updateConfig(getProperties(configFile));
 
             FilePath nodesDir = new FilePath(CONFIG_DIR).child("nodes");
-            ArrayList<SharedNode> nodes = new ArrayList<>();
-            for (FilePath xmlNode : nodesDir.list("*.xml")) {
-                String xml = xmlNode.readToString();
-                String hostName = xmlNode.getBaseName().replaceAll(".xml$", "");
-                Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
-                if (!matcher.find()) {
-                    throw new IllegalArgumentException("No labels found in " + xml);
-                }
-                String labels = matcher.group(1);
-                nodes.add(new SharedNode(hostName, labels, xml));
-            }
-            updateNodes(nodes);
+            updateNodes(readNodes(nodesDir));
         }
 
         private HashMap<String, String> getProperties(FilePath configFile) throws IOException, InterruptedException {
@@ -160,8 +150,8 @@ public class Pool {
                 config.load(is);
             }
 
-            // There is no easy way to make Properties unmodifiable or create a defensive copy. Also, the Map<Object, Object>
-            // is not desirable here as well.
+            // There is no easy way to make Properties unmodifiable or create a defensive copy. Also, the type of
+            // Map<Object, Object> is not desirable here as well.
             HashMap<String, String> c = new HashMap<>();
             for (Object key : config.keySet()) {
                 if (key instanceof String) {
@@ -174,23 +164,41 @@ public class Pool {
             return c;
         }
 
-        private void updateNodes(ArrayList<SharedNode> nodes) throws IOException, Descriptor.FormException {
-System.out.println(nodes);
-            Jenkins instance = Jenkins.getInstance();
+        private Map<String, SharedNode> readNodes(FilePath nodesDir) throws IOException, InterruptedException, Descriptor.FormException {
+            Map<String, SharedNode> nodes = new HashMap<>();
+            for (FilePath xmlNode : nodesDir.list("*.xml")) {
+                String xml = xmlNode.readToString();
+                String hostName = xmlNode.getBaseName().replaceAll(".xml$", "");
+                Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
+                if (!matcher.find()) {
+                    throw new IllegalArgumentException("No labels found in " + xml);
+                }
+                String labels = matcher.group(1);
+                nodes.put(hostName, new SharedNode(hostName, labels, xml));
+            }
+            return nodes;
+        }
 
-            ArrayList<FakeComputer> existing = new ArrayList<>();
-            for (Computer c : instance.getComputers()) {
-                if (c instanceof FakeComputer) {
-                    existing.add((FakeComputer) c);
+        private void updateNodes(Map<String, SharedNode> nodes) throws IOException, Descriptor.FormException {
+            Jenkins j = Jenkins.getInstance();
+
+            for (SharedNode node : nodes.values()) {
+                SharedNode existing = (SharedNode) j.getNode(node.getNodeName());
+                if (existing == null) {
+                    // Add new ones
+                    j.addNode(node);
+                } else {
+                    // Update existing
+                    existing.updateBy(node);
                 }
             }
 
-//            if (instance.getNode("solaris42") == null) {
-//                instance.addNode(new SharedNode("solaris42", "solaris"));
-//            }
-//
-//            ReservationTask task = new ReservationTask("mwqa-jenkins", Label.get("solaris"));
-//            System.out.println(instance.getQueue().schedule2(task, 0).getItem());
+            // Delete removed
+            for (Node node : j.getNodes()) {
+                if (node instanceof SharedNode && !nodes.containsKey(node.getNodeName())) {
+                    ((SharedNode) node).deleteWhenIdle();
+                }
+            }
         }
     }
 }
