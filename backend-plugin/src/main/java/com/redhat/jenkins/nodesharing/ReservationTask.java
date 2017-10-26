@@ -30,6 +30,7 @@ import hudson.model.Queue;
 import hudson.model.ResourceList;
 import hudson.model.queue.AbstractQueueTask;
 import hudson.model.queue.SubTask;
+import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
 import org.acegisecurity.AccessDeniedException;
 
@@ -47,20 +48,20 @@ import java.io.IOException;
  * @author ogondza.
  */
 public class ReservationTask extends AbstractQueueTask {
-    private final @Nonnull String name;
+    private final @Nonnull ExecutorJenkins owner;
     private final @Nonnull Label label;
 
-    public ReservationTask(@Nonnull String name, @Nonnull Label label) {
-        this.name = name;
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
+        this.owner = owner;
         this.label = label;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
     @Override public String getWhyBlocked() { return null; }
 
-    @Override public String getName() { return name; }
-    @Override public String getFullDisplayName() { return name; }
-    @Override public String getDisplayName() { return name; }
+    @Override public String getName() { return owner.getName(); }
+    @Override public String getFullDisplayName() { return owner.getName(); }
+    @Override public String getDisplayName() { return owner.getName(); }
 
     @Override public Label getAssignedLabel() {
         return label;
@@ -69,9 +70,13 @@ public class ReservationTask extends AbstractQueueTask {
     @Override public void checkAbortPermission() {throw new AccessDeniedException("Not abortable"); }
     @Override public boolean hasAbortPermission() { return false; }
 
+    public Queue.Item schedule() {
+        return Jenkins.getInstance().getQueue().schedule2(this, 0).getItem();
+    }
+
     @Override public String getUrl() {
         // TODO: link to Real Jenkins computer ?
-        return null;
+        return "";
     }
 
     @Override public ResourceList getResourceList() {
@@ -107,7 +112,7 @@ public class ReservationTask extends AbstractQueueTask {
         public void run() throws AsynchronousExecution {
             System.out.println("Reserving " + Executor.currentExecutor().getOwner().getName() + " for " + task.getName());
             try {
-                Thread.sleep(80000); // TODO
+                Thread.sleep(8000); // TODO
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 // Terminate

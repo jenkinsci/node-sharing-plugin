@@ -10,9 +10,11 @@ import hudson.model.Queue;
 import hudson.model.queue.ScheduleResult;
 import hudson.util.StreamTaskListener;
 import jenkins.model.queue.AsynchronousExecution;
+import jenkins.util.Timer;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -23,8 +25,14 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static com.redhat.jenkins.nodesharing.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -48,8 +56,15 @@ public class PoolTest {
     @Test
     public void readConfigFromRepo() throws Exception {
         injectDummyConfigRepo();
-        Map<String, String> config = Pool.getInstance().getConfig();
+        Pool pool = Pool.getInstance();
+        Map<String, String> config = pool.getConfig();
         assertEquals("https://dummy.test", config.get("orchestrator.url"));
+
+        Iterator<ExecutorJenkins> jenkinses = pool.getJenkinses().iterator();
+        ExecutorJenkins j1 = jenkinses.next();
+        ExecutorJenkins j2 = jenkinses.next();
+        assertEquals("https://jenkins1.acme.com", j1.getUrl().toExternalForm());
+        assertEquals("https://jenkins2.acme.com", j2.getUrl().toExternalForm());
     }
 
     @Test
@@ -103,17 +118,21 @@ public class PoolTest {
     @Test
     public void workloadMapping() throws Exception {
         injectDummyConfigRepo();
+        ExecutorJenkins owner = new ExecutorJenkins("https://jenkins42.acme.com");
 
-        MockTask task = new MockTask("foo", Label.get("solaris11"));
-        j.jenkins.getQueue().schedule2(task, 0).getItem().getFuture().get();
+        MockTask task = new MockTask(owner, Label.get("solaris11"));
+        Queue.Item item = j.jenkins.getQueue().schedule2(task, 0).getItem();
+        assertEquals("jenkins42.acme.com", item.task.getFullDisplayName());
+        item.getFuture().get();
         assertEquals(getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
 
-        task = new MockTask("foo", Label.get("windows"));
+
+        task = new MockTask(owner, Label.get("windows"));
         j.jenkins.getQueue().schedule2(task, 0).getItem().getFuture().get();
         assertThat(task.actuallyRunOn[0].getName(), startsWith("win"));
 
         // Never schedule labels we do not serve - including empty one
-        task = new MockTask("foo", Label.get(""));
+        task = new MockTask(owner, Label.get(""));
         ScheduleResult scheduleResult = j.jenkins.getQueue().schedule2(task, 0);
         assertTrue(scheduleResult.isAccepted());
         assertFalse(scheduleResult.isRefused());
@@ -123,10 +142,39 @@ public class PoolTest {
         assertFalse(startCondition.isDone());
     }
 
+    @Test @Ignore
+    public void ui() throws Exception {
+        injectDummyConfigRepo();
+        Timer.get().schedule(new Runnable() {
+            private final Random rand = new Random();
+            @Override public void run() {
+                List<String> owners = Arrays.asList("https://a.com", "https://b.org", "http://10.8.0.14");
+                List<String> labels = Arrays.asList("soalris11", "windows", "sparc", "w2k16");
+                for (;;) {
+                    new ReservationTask(
+                            new ExecutorJenkins(
+                                    owners.get(rand.nextInt(owners.size()))
+                            ),
+                            Label.get(
+                                    labels.get(rand.nextInt(labels.size()))
+                            )
+                    ).schedule();
+                    System.out.println('.');
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+        }, 0, TimeUnit.SECONDS);
+        j.interactiveBreak();
+    }
+
     private static class MockTask extends ReservationTask {
         final FakeComputer actuallyRunOn[] = new FakeComputer[1];
-        public MockTask(@Nonnull String name, @Nonnull Label label) {
-            super(name, label);
+        public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
+            super(owner, label);
         }
 
         @Override

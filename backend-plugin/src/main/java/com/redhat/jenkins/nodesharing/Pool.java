@@ -44,13 +44,20 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -71,6 +78,8 @@ public class Pool {
 
     @GuardedBy("configLock")
     private Map<String, String> config;
+    @GuardedBy("configLock")
+    private Set<ExecutorJenkins> jenkinses;
 
     public static @Nonnull Pool getInstance() {
         return INSTANCE;
@@ -86,9 +95,10 @@ public class Pool {
 
     private Pool() {}
 
-    private void updateConfig(@Nonnull Map<String, String> config) {
+    private void updateConfig(@Nonnull Map<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses) {
         synchronized (configLock) {
             this.config = config;
+            this.jenkinses = jenkinses;
         }
     }
 
@@ -96,6 +106,12 @@ public class Pool {
     /*package*/ @CheckForNull Map<String, String> getConfig() {
         synchronized (configLock) {
             return config;
+        }
+    }
+
+    public @CheckForNull Set<ExecutorJenkins> getJenkinses() {
+        synchronized (configLock) {
+            return jenkinses;
         }
     }
 
@@ -138,10 +154,21 @@ public class Pool {
             client.checkout().branch("master").ref("origin/master").execute();
 
             FilePath configFile = new FilePath(CONFIG_DIR).child("config");
-            Pool.getInstance().updateConfig(getProperties(configFile));
+            FilePath jenkinsesFile = new FilePath(CONFIG_DIR).child("jenkinses");
+            Pool.getInstance().updateConfig(getProperties(configFile), getJenkinses(jenkinsesFile));
 
             FilePath nodesDir = new FilePath(CONFIG_DIR).child("nodes");
             updateNodes(readNodes(nodesDir));
+        }
+
+        private Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {
+            HashSet<ExecutorJenkins> executorJenkins = new LinkedHashSet<>();
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(jenkinsesFile.read()))) {
+                for(String line; (line = br.readLine()) != null; ) {
+                    executorJenkins.add(new ExecutorJenkins(line.trim()));
+                }
+            }
+            return Collections.unmodifiableSet(executorJenkins);
         }
 
         private HashMap<String, String> getProperties(FilePath configFile) throws IOException, InterruptedException {
