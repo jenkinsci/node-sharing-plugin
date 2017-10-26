@@ -12,6 +12,7 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.queue.AsynchronousExecution;
 import jenkins.util.Timer;
 import org.apache.commons.io.FileUtils;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
@@ -19,6 +20,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.WithoutJenkins;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -30,11 +32,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static com.redhat.jenkins.nodesharing.Pool.CONFIG_REPO_PROPERTY_NAME;
+import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.startsWith;
@@ -52,6 +53,14 @@ public class PoolTest {
 
     @Rule
     public TemporaryFolder tmp = new TemporaryFolder();
+
+    @Test
+    public void inactiveWithNoProperty() throws Exception {
+        Pool.Updater.getInstance().doRun();
+        assertNull(Pool.getInstance().getConfig());
+        assertNull(Pool.getInstance().getJenkinses());
+        assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
+    }
 
     @Test
     public void readConfigFromRepo() throws Exception {
@@ -80,11 +89,14 @@ public class PoolTest {
         git.getWorkTree().child("fake_change").touch(0);
         git.add("*");
         git.commit("Update"); // New commit is needed to force computer update
-        Pool.Updater.getInstance().doRun();
 
-        assertThat(j.jenkins.getComputers(), arrayWithSize(4));
-        assertSame(win1, getNode("win1.acme.com"));
-        assertSame(win1.toComputer(), getNode("win1.acme.com").toComputer());
+        for (int i = 0; i < 2; i++) { // Update with no changes preserves state
+            Pool.Updater.getInstance().doRun();
+
+            assertThat(j.jenkins.getComputers(), arrayWithSize(4));
+            assertSame(win1, getNode("win1.acme.com"));
+            assertSame(win1.toComputer(), getNode("win1.acme.com").toComputer());
+        }
     }
 
     @Test
