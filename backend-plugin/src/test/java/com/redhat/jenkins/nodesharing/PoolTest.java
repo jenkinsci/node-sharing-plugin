@@ -3,8 +3,13 @@ package com.redhat.jenkins.nodesharing;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.Computer;
+import hudson.model.Executor;
+import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Queue;
+import hudson.model.queue.ScheduleResult;
 import hudson.util.StreamTaskListener;
+import jenkins.model.queue.AsynchronousExecution;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -13,21 +18,24 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.Future;
 
 import static com.redhat.jenkins.nodesharing.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class PoolTest {
 
@@ -90,6 +98,46 @@ public class PoolTest {
         assertNull(j.jenkins.getNode("win2.acme.com"));
         assertSame(nodeW1, getNode("win1.acme.com"));
         assertSame(computerW1, getNode("win1.acme.com").toComputer());
+    }
+
+    @Test
+    public void workloadMapping() throws Exception {
+        injectDummyConfigRepo();
+
+        MockTask task = new MockTask("foo", Label.get("solaris11"));
+        j.jenkins.getQueue().schedule2(task, 0).getItem().getFuture().get();
+        assertEquals(getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
+
+        task = new MockTask("foo", Label.get("windows"));
+        j.jenkins.getQueue().schedule2(task, 0).getItem().getFuture().get();
+        assertThat(task.actuallyRunOn[0].getName(), startsWith("win"));
+
+        // Never schedule labels we do not serve - including empty one
+        task = new MockTask("foo", Label.get(""));
+        ScheduleResult scheduleResult = j.jenkins.getQueue().schedule2(task, 0);
+        assertTrue(scheduleResult.isAccepted());
+        assertFalse(scheduleResult.isRefused());
+        Future<Queue.Executable> startCondition = scheduleResult.getItem().getFuture().getStartCondition();
+        assertFalse(startCondition.isDone());
+        Thread.sleep(1000);
+        assertFalse(startCondition.isDone());
+    }
+
+    private static class MockTask extends ReservationTask {
+        final FakeComputer actuallyRunOn[] = new FakeComputer[1];
+        public MockTask(@Nonnull String name, @Nonnull Label label) {
+            super(name, label);
+        }
+
+        @Override
+        public @CheckForNull Queue.Executable createExecutable() throws IOException {
+            return new ReservationExecutable(this) {
+                @Override
+                public void run() throws AsynchronousExecution {
+                    actuallyRunOn[0] = (FakeComputer) Executor.currentExecutor().getOwner();
+                }
+            };
+        }
     }
 
     private @Nonnull SharedNode getNode(String name) {

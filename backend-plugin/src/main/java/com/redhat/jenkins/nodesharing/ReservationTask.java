@@ -40,8 +40,9 @@ import java.io.IOException;
 /**
  * Phony queue task that simulates build execution on executor Jenkins.
  *
- * All requests to reserve a host are modeled as queue items so they are prioritized and assigned to {@link FakeComputer}s
- * naturally.
+ * All requests to reserve a host are modeled as queue items so they are prioritized by Jenkins as well as and assigned
+ * to {@link FakeComputer}s according to labels. Similarly, when computer is occupied by this task it means the host is
+ * effectively reserved for executor Jenkins that has created this.
  *
  * @author ogondza.
  */
@@ -78,22 +79,22 @@ public class ReservationTask extends AbstractQueueTask {
     }
 
     @Override public Node getLastBuiltOn() {
-        return null; // We do not know that, I guess
+        return null; // Orchestrator do not know that
     }
 
     @Override public long getEstimatedDuration() {
-        return 0; // We do not know that, I guess
+        return 0; // Orchestrator do not know that
     }
 
     @CheckForNull @Override public Queue.Executable createExecutable() throws IOException {
-        return new LeaseExecutable(this);
+        return new ReservationExecutable(this);
     }
 
-    private static final class LeaseExecutable implements Queue.Executable {
+    public static class ReservationExecutable implements Queue.Executable {
 
         private final ReservationTask task;
 
-        private LeaseExecutable(ReservationTask task) {
+        public ReservationExecutable(ReservationTask task) {
             this.task = task;
         }
 
@@ -106,7 +107,7 @@ public class ReservationTask extends AbstractQueueTask {
         public void run() throws AsynchronousExecution {
             System.out.println("Reserving " + Executor.currentExecutor().getOwner().getName() + " for " + task.getName());
             try {
-                Thread.sleep(80000);
+                Thread.sleep(80000); // TODO
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 // Terminate
