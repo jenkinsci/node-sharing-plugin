@@ -25,7 +25,6 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.Functions;
 import hudson.model.Descriptor;
-import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.remoting.Callable;
 import hudson.remoting.CallableFilter;
@@ -50,6 +49,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import java.io.IOException;
@@ -108,11 +108,6 @@ public class FakeComputer extends SlaveComputer implements EphemeralNode {
         return RetentionStrategy.NOOP;
     }
 
-    @Override
-    protected boolean isAlive() {
-        return true;
-    }
-
     public Boolean isUnix() {
         return !Functions.isWindows();
     }
@@ -156,9 +151,16 @@ public class FakeComputer extends SlaveComputer implements EphemeralNode {
     }
 
     @Override
-    public Node asNode() {
+    public SharedNode asNode() {
         return getNode();
     }
+
+    @Override
+    public @CheckForNull SharedNode getNode() {
+        return (SharedNode) super.getNode();
+    }
+
+
 
     /**
      * Channel that does nothing but still exists.

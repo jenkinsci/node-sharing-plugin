@@ -27,9 +27,11 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
+import hudson.model.User;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
+import hudson.slaves.OfflineCause;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import jenkins.model.Jenkins;
@@ -69,14 +71,38 @@ public class SharedNode extends Slave implements EphemeralNode {
      * Delete the node now if idle or once it becomes idle.
      */
     public void deleteWhenIdle() {
-        // TODO what is not idle?
+        Computer c = toComputer();
+        if (c != null) {
+            c.setTemporarilyOffline(true, PENDING_DELETION);
+            if (!c.isIdle()) {
+                // Postpone deletion until empty.
+                // Note that RunListener is not invoked as we are not running Runs in the first place. Using ExecutorListener
+                // is a bit nasty as it is called before the computer is considered idle. Rely on periodic check initiated
+                // by Pool, than.
+                return;
+            }
+        }
+
         try {
-            Jenkins.getInstance().removeNode(this);
+            Jenkins j = Jenkins.getInstance();
+            j.removeNode(this);
         } catch (IOException e) {
-            // TODO delay as if idle?
-            e.printStackTrace();
+            // delay as if not idle
         }
     }
+
+    /**
+     * The node is no longer occupied.
+     */
+    public boolean canBeDeleted() {
+        Computer c = toComputer();
+        return c == null || (c.getOfflineCause() == PENDING_DELETION && c.isIdle());
+    }
+
+    // TODO proper cause
+    private static final OfflineCause PENDING_DELETION= new OfflineCause.UserCause(
+            User.getUnknown(), "Node is pending deletion"
+    );
 
     /**
      * Update current node with the configuration of a new one.

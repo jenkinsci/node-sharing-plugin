@@ -64,9 +64,9 @@ public class Api implements RootAction {
     /**
      * Signal to executor Jenkins to start using particular node.
      */
-    public void utilizeNode() {
+    public void utilizeNode(ExecutorJenkins owner, FakeComputer computer) {
 
     }
 
-    //// Incomming
+    //// Incoming
 }

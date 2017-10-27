@@ -8,6 +8,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.queue.ScheduleResult;
+import hudson.util.OneShotEvent;
 import hudson.util.StreamTaskListener;
 import jenkins.model.queue.AsynchronousExecution;
 import jenkins.util.Timer;
@@ -20,7 +21,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.WithoutJenkins;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -47,6 +47,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class PoolTest {
+
+    private static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com");
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -123,6 +125,7 @@ public class PoolTest {
         assertEquals("windows w2k16", getNode("windows.acme.com").getLabelString());
         assertEquals("solaris12 sparc", getNode("solaris1.acme.com").getLabelString());
         assertNull(j.jenkins.getNode("win2.acme.com"));
+        assertNull(j.jenkins.getComputer("win2.acme.com"));
         assertSame(nodeW1, getNode("win1.acme.com"));
         assertSame(computerW1, getNode("win1.acme.com").toComputer());
     }
@@ -130,21 +133,20 @@ public class PoolTest {
     @Test
     public void workloadMapping() throws Exception {
         injectDummyConfigRepo();
-        ExecutorJenkins owner = new ExecutorJenkins("https://jenkins42.acme.com");
 
-        MockTask task = new MockTask(owner, Label.get("solaris11"));
-        Queue.Item item = j.jenkins.getQueue().schedule2(task, 0).getItem();
+        MockTask task = new MockTask(DUMMY_OWNER, Label.get("solaris11"));
+        Queue.Item item = task.schedule();
         assertEquals("jenkins42.acme.com", item.task.getFullDisplayName());
         item.getFuture().get();
         assertEquals(getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
 
 
-        task = new MockTask(owner, Label.get("windows"));
-        j.jenkins.getQueue().schedule2(task, 0).getItem().getFuture().get();
+        task = new MockTask(DUMMY_OWNER, Label.get("windows"));
+        task.schedule().getFuture().get();
         assertThat(task.actuallyRunOn[0].getName(), startsWith("win"));
 
         // Never schedule labels we do not serve - including empty one
-        task = new MockTask(owner, Label.get(""));
+        task = new MockTask(DUMMY_OWNER, Label.get(""));
         ScheduleResult scheduleResult = j.jenkins.getQueue().schedule2(task, 0);
         assertTrue(scheduleResult.isAccepted());
         assertFalse(scheduleResult.isRefused());
@@ -153,6 +155,46 @@ public class PoolTest {
         Thread.sleep(1000);
         assertFalse(startCondition.isDone());
     }
+
+    @Test
+    public void waitUntilComputerGetsIdleBeforeDeleting() throws Exception {
+        final String DELETED_NODE = "solaris1.acme.com";
+        GitClient git = injectDummyConfigRepo();
+
+        final OneShotEvent running = new OneShotEvent();
+        final OneShotEvent done = new OneShotEvent();
+        MockTask task = new MockTask(DUMMY_OWNER, Label.get("solaris11")) {
+            @Override public void perform() {
+                running.signal();
+                try {
+                    done.block();
+                } catch (InterruptedException e) {
+                    // Proceed
+                }
+            }
+        };
+        task.schedule();
+        running.block();
+        assertFalse("Computer occupied", getNode(DELETED_NODE).toComputer().isIdle());
+
+        assertTrue(git.getWorkTree().child("nodes").child(DELETED_NODE + ".xml").delete());
+        git.add("*");
+        git.commit("Remove running node from config repo");
+        Pool.Updater.getInstance().doRun();
+
+        assertFalse("Node still exists and occupied", getNode(DELETED_NODE).toComputer().isIdle());
+        Thread.sleep(1000); // It is not an accident
+        Pool.Updater.getInstance().doRun(); // Trigger the check
+        assertFalse("Node still exists and occupied", getNode(DELETED_NODE).toComputer().isIdle());
+
+        done.signal();
+        j.waitUntilNoActivity();
+        Pool.Updater.getInstance().doRun(); // Trigger the check
+        assertNull("Node removed", j.jenkins.getNode(DELETED_NODE));
+        assertNull("Computer removed", j.jenkins.getComputer(DELETED_NODE));
+    }
+
+    // TODO configuration changed on busy node
 
     @Test @Ignore
     public void ui() throws Exception {
@@ -195,8 +237,13 @@ public class PoolTest {
                 @Override
                 public void run() throws AsynchronousExecution {
                     actuallyRunOn[0] = (FakeComputer) Executor.currentExecutor().getOwner();
+                    perform();
                 }
             };
+        }
+
+        public void perform() {
+            // NOOOP until overriden
         }
     }
 

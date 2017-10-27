@@ -29,6 +29,7 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Functions;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
@@ -142,20 +143,31 @@ public class Pool {
             ObjectId currentHead = client.getHeadRev(configEndpoint, "master");
             if (currentHead.equals(oldHead) && client.hasGitRepo()) {
                 LOGGER.fine("No config update after: " + oldHead.name());
-                return;
+            } else {
+                oldHead = currentHead;
+
+                LOGGER.info("Nodesharing config changes discovered: " + oldHead.name());
+                client.clone_().url(configEndpoint).execute();
+                client.checkout().branch("master").ref("origin/master").execute();
+
+                FilePath configFile = new FilePath(CONFIG_DIR).child("config");
+                FilePath jenkinsesFile = new FilePath(CONFIG_DIR).child("jenkinses");
+                Pool.getInstance().updateConfig(getProperties(configFile), getJenkinses(jenkinsesFile));
+
+                FilePath nodesDir = new FilePath(CONFIG_DIR).child("nodes");
+                updateNodes(readNodes(nodesDir));
             }
-            oldHead = currentHead;
 
-            LOGGER.info("Nodesharing config changes discovered: " + oldHead.name());
-            client.clone_().url(configEndpoint).execute();
-            client.checkout().branch("master").ref("origin/master").execute();
+            deletePendingNodes();
+        }
 
-            FilePath configFile = new FilePath(CONFIG_DIR).child("config");
-            FilePath jenkinsesFile = new FilePath(CONFIG_DIR).child("jenkinses");
-            Pool.getInstance().updateConfig(getProperties(configFile), getJenkinses(jenkinsesFile));
-
-            FilePath nodesDir = new FilePath(CONFIG_DIR).child("nodes");
-            updateNodes(readNodes(nodesDir));
+        // Delayed deletion promised by SharedNode#deleteWhenIdle()
+        private void deletePendingNodes() {
+            for (Node node : Jenkins.getInstance().getNodes()) {
+                if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {
+                    ((SharedNode) node).deleteWhenIdle();
+                }
+            }
         }
 
         private Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {

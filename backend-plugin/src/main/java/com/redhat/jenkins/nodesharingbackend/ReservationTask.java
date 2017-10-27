@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -110,7 +111,12 @@ public class ReservationTask extends AbstractQueueTask {
 
         @Override
         public void run() throws AsynchronousExecution {
-            System.out.println("Reserving " + Executor.currentExecutor().getOwner().getName() + " for " + task.getName());
+            Computer owner = Executor.currentExecutor().getOwner();
+            if (!(owner instanceof  FakeComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
+
+            FakeComputer computer = (FakeComputer) owner;
+            System.out.println("Reserving " + owner.getName() + " for " + task.getName());
+            Api.getInstance().utilizeNode(task.owner, computer);
             try {
                 Thread.sleep(8000); // TODO
             } catch (InterruptedException e) {
