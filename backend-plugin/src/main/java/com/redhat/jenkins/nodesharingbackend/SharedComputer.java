@@ -71,12 +71,12 @@ import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
  * The computer is always "up" with no channel so the real system. The purpose of this abstraction is to schedule here
  */
 @Restricted(NoExternalUse.class)
-public class FakeComputer extends SlaveComputer implements EphemeralNode {
+public class SharedComputer extends SlaveComputer implements EphemeralNode {
     private final Channel channel;
-    /*package*/ FakeComputer(Slave slave) {
+    /*package*/ SharedComputer(Slave slave) {
         super(slave);
         // A lot of Jenkins abstractions presumes Computers are either SlaveComputers or a single MasterComputer which
-        // effectively forces us to implement FakeComputer as SlaveComputer. That, however, needs to have Channel associated
+        // effectively forces us to implement SharedComputer as SlaveComputer. That, however, needs to have Channel associated
         // but again, the API enforces that to be a "real" channel which is undesirable. Constructing such channel to do
         // nothing turned to be tricky as it perform transport negotiation in constructor so we are creating our Dummy
         // subtype without invoking constructor here.

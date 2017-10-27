@@ -213,7 +213,7 @@ public class PoolTest {
     }
 
     private static class MockTask extends ReservationTask {
-        final FakeComputer actuallyRunOn[] = new FakeComputer[1];
+        final SharedComputer actuallyRunOn[] = new SharedComputer[1];
         public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
             super(owner, label);
         }
@@ -223,7 +223,7 @@ public class PoolTest {
             return new ReservationExecutable(this) {
                 @Override
                 public void run() throws AsynchronousExecution {
-                    actuallyRunOn[0] = (FakeComputer) Executor.currentExecutor().getOwner();
+                    actuallyRunOn[0] = (SharedComputer) Executor.currentExecutor().getOwner();
                     perform();
                 }
             };

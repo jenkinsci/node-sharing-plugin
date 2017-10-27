@@ -60,7 +60,7 @@ public class SharedNode extends Slave implements EphemeralNode {
     }
 
     @Override public Computer createComputer() {
-        return new FakeComputer(this);
+        return new SharedComputer(this);
     }
 
     @Override public SharedNode asNode() {

@@ -43,7 +43,7 @@ import java.io.IOException;
  * Phony queue task that simulates build execution on executor Jenkins.
  *
  * All requests to reserve a host are modeled as queue items so they are prioritized by Jenkins as well as and assigned
- * to {@link FakeComputer}s according to labels. Similarly, when computer is occupied by this task it means the host is
+ * to {@link SharedComputer}s according to labels. Similarly, when computer is occupied by this task it means the host is
  * effectively reserved for executor Jenkins that has created this.
  *
  * @author ogondza.
@@ -112,9 +112,9 @@ public class ReservationTask extends AbstractQueueTask {
         @Override
         public void run() throws AsynchronousExecution {
             Computer owner = Executor.currentExecutor().getOwner();
-            if (!(owner instanceof  FakeComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
+            if (!(owner instanceof SharedComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
 
-            FakeComputer computer = (FakeComputer) owner;
+            SharedComputer computer = (SharedComputer) owner;
             System.out.println("Reserving " + owner.getName() + " for " + task.getName());
             Api.getInstance().utilizeNode(task.jenkins, computer.getNode());
             try {
