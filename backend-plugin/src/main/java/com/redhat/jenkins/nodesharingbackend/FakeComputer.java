@@ -80,11 +80,12 @@ public class FakeComputer extends SlaveComputer implements EphemeralNode {
         // but again, the API enforces that to be a "real" channel which is undesirable. Constructing such channel to do
         // nothing turned to be tricky as it perform transport negotiation in constructor so we are creating our Dummy
         // subtype without invoking constructor here.
+        String typeName = NoopChannel.class.getName().replace("$", "_-");
         channel = (Channel) Jenkins.XSTREAM2.fromXML(
                 "<?xml version='1.0' encoding='UTF-8'?>" +
-                "<com.redhat.jenkins.nodesharing.FakeComputer_-NoopChannel>" +
-                "  <name>FIXME</name>" +
-                "</com.redhat.jenkins.nodesharing.FakeComputer_-NoopChannel>"
+                "<" + typeName + ">" +
+                "  <name>" + slave.getNodeName() + "</name>" +
+                "</" + typeName + ">"
         );
     }
 
