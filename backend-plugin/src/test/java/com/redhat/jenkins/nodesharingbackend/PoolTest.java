@@ -161,20 +161,9 @@ public class PoolTest {
         final String DELETED_NODE = "solaris1.acme.com";
         GitClient git = injectDummyConfigRepo();
 
-        final OneShotEvent running = new OneShotEvent();
-        final OneShotEvent done = new OneShotEvent();
-        MockTask task = new MockTask(DUMMY_OWNER, Label.get("solaris11")) {
-            @Override public void perform() {
-                running.signal();
-                try {
-                    done.block();
-                } catch (InterruptedException e) {
-                    // Proceed
-                }
-            }
-        };
+        BlockingTask task = new BlockingTask(Label.get("solaris11"));
         task.schedule();
-        running.block();
+        task.running.block();
         assertFalse("Computer occupied", getNode(DELETED_NODE).toComputer().isIdle());
 
         assertTrue(git.getWorkTree().child("nodes").child(DELETED_NODE + ".xml").delete());
@@ -187,14 +176,12 @@ public class PoolTest {
         Pool.Updater.getInstance().doRun(); // Trigger the check
         assertFalse("Node still exists and occupied", getNode(DELETED_NODE).toComputer().isIdle());
 
-        done.signal();
+        task.done.signal();
         j.waitUntilNoActivity();
         Pool.Updater.getInstance().doRun(); // Trigger the check
         assertNull("Node removed", j.jenkins.getNode(DELETED_NODE));
         assertNull("Computer removed", j.jenkins.getComputer(DELETED_NODE));
     }
-
-    // TODO configuration changed on busy node
 
     @Test @Ignore
     public void ui() throws Exception {
@@ -269,5 +256,23 @@ public class PoolTest {
         Pool.Updater.getInstance().doRun();
 
         return git;
+    }
+
+    private static class BlockingTask extends MockTask {
+        final OneShotEvent running = new OneShotEvent();
+        final OneShotEvent done = new OneShotEvent();
+
+        public BlockingTask(Label label) {
+            super(PoolTest.DUMMY_OWNER, label);
+        }
+
+        @Override public void perform() {
+            running.signal();
+            try {
+                done.block();
+            } catch (InterruptedException e) {
+                // Proceed
+            }
+        }
     }
 }

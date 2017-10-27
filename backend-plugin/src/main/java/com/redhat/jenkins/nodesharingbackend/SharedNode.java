@@ -93,6 +93,8 @@ public class SharedNode extends Slave implements EphemeralNode {
 
     /**
      * The node is no longer occupied.
+     *
+     * @return true if the machine was pending delete and
      */
     public boolean canBeDeleted() {
         Computer c = toComputer();
@@ -108,6 +110,8 @@ public class SharedNode extends Slave implements EphemeralNode {
      * Update current node with the configuration of a new one.
      *
      * The node is not replaced not to interrupt running builds.
+     *
+     * @param node New configuration to populate.
      */
     public void updateBy(@Nonnull SharedNode node) {
         assert getNodeName().equals(node.getNodeName());

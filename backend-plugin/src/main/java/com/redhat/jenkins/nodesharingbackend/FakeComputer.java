@@ -160,8 +160,6 @@ public class FakeComputer extends SlaveComputer implements EphemeralNode {
         return (SharedNode) super.getNode();
     }
 
-
-
     /**
      * Channel that does nothing but still exists.
      *

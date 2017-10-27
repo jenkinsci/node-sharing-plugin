@@ -56,16 +56,19 @@ public class Api implements RootAction {
     }
 
     @Override public String getUrlName() {
-        return "node-sharing";
+        return "node-sharing-orchestrator";
     }
 
     //// Outgoing
 
     /**
      * Signal to executor Jenkins to start using particular node.
+     *
+     * @param owner Jenkins instance the node is reserved for.
+     * @param node Node to be reserved.
      */
-    public void utilizeNode(ExecutorJenkins owner, FakeComputer computer) {
-
+    public void utilizeNode(ExecutorJenkins owner, SharedNode node) {
+        
     }
 
     //// Incoming

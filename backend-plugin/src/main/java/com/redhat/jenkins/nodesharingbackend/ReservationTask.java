@@ -49,20 +49,20 @@ import java.io.IOException;
  * @author ogondza.
  */
 public class ReservationTask extends AbstractQueueTask {
-    private final @Nonnull ExecutorJenkins owner;
+    private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
-        this.owner = owner;
+        this.jenkins = owner;
         this.label = label;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
     @Override public String getWhyBlocked() { return null; }
 
-    @Override public String getName() { return owner.getName(); }
-    @Override public String getFullDisplayName() { return owner.getName(); }
-    @Override public String getDisplayName() { return owner.getName(); }
+    @Override public String getName() { return jenkins.getName(); }
+    @Override public String getFullDisplayName() { return jenkins.getName(); }
+    @Override public String getDisplayName() { return jenkins.getName(); }
 
     @Override public Label getAssignedLabel() {
         return label;
@@ -116,7 +116,7 @@ public class ReservationTask extends AbstractQueueTask {
 
             FakeComputer computer = (FakeComputer) owner;
             System.out.println("Reserving " + owner.getName() + " for " + task.getName());
-            Api.getInstance().utilizeNode(task.owner, computer);
+            Api.getInstance().utilizeNode(task.jenkins, computer.getNode());
             try {
                 Thread.sleep(8000); // TODO
             } catch (InterruptedException e) {
