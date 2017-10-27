@@ -53,4 +53,17 @@ public class ExecutorJenkins {
     public @Nonnull URL getUrl() {
         return url;
     }
+
+    /**
+     * Get URL to executors REST endpoint.
+     *
+     * @return REST endpoint URL.
+     */
+    public @Nonnull URL getEndpointUrl() {
+        try {
+            return new URL(url.toExternalForm() + "/node-sharing-executor");
+        } catch (MalformedURLException e) {
+            throw new Error(e); // base url was validated
+        }
+    }
 }
