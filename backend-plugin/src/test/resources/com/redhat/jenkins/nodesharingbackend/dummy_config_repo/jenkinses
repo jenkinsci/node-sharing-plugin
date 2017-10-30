@@ -1,2 +1,2 @@
-https://jenkins1.acme.com
-https://jenkins2.acme.com
+jenkins1=https://jenkins1.acme.com
+jenkins2=https://jenkins2.acme.com

@@ -49,7 +49,7 @@ import static org.junit.Assert.assertTrue;
 
 public class PoolTest {
 
-    private static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com");
+    private static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -196,10 +196,9 @@ public class PoolTest {
                 List<String> owners = Arrays.asList("https://a.com", "https://b.org", "http://10.8.0.14");
                 List<String> labels = Arrays.asList("soalris11", "windows", "sparc", "w2k16");
                 for (;;) {
+                    String ownerUrl = owners.get(rand.nextInt(owners.size()));
                     new ReservationTask(
-                            new ExecutorJenkins(
-                                    owners.get(rand.nextInt(owners.size()))
-                            ),
+                            new ExecutorJenkins(ownerUrl, ownerUrl.replaceAll("\\W", "")),
                             Label.get(
                                     labels.get(rand.nextInt(labels.size()))
                             )

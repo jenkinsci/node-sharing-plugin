@@ -50,7 +50,7 @@ import java.util.Collections;
 public class SharedNode extends Slave implements EphemeralNode {
     private static final long serialVersionUID = 1864241962205144748L;
 
-    private final Object nodeSharingAttributesLock = new Object();
+    private final transient Object nodeSharingAttributesLock = new Object();
     @GuardedBy("nodeSharingAttributesLock")
     private @Nonnull String xml;
 

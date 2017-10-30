@@ -29,7 +29,6 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Functions;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
@@ -44,11 +43,9 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,7 +59,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * @author ogondza.
+ * Pool of shared hosts.
+ *
+ * Reflects the Config Repo.
  */
 @Restricted(NoExternalUse.class)
 public class Pool {
@@ -171,13 +170,15 @@ public class Pool {
         }
 
         private Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {
-            HashSet<ExecutorJenkins> executorJenkins = new LinkedHashSet<>();
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(jenkinsesFile.read()))) {
-                for(String line; (line = br.readLine()) != null; ) {
-                    executorJenkins.add(new ExecutorJenkins(line.trim()));
-                }
+            Properties config = new Properties();
+            try (InputStream is = jenkinsesFile.read()) {
+                config.load(is);
             }
-            return Collections.unmodifiableSet(executorJenkins);
+            HashSet<ExecutorJenkins> jenkinses = new LinkedHashSet<>();
+            for (Map.Entry<Object, Object> entry : config.entrySet()) {
+                jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey()));
+            }
+            return Collections.unmodifiableSet(jenkinses);
         }
 
         private HashMap<String, String> getProperties(FilePath configFile) throws IOException, InterruptedException {

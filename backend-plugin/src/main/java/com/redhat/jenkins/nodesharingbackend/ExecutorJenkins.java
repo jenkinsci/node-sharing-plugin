@@ -23,6 +23,8 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import hudson.model.Failure;
+import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -36,9 +38,16 @@ import java.net.URL;
 @Restricted(NoExternalUse.class)
 public class ExecutorJenkins {
 
-    private final URL url;
+    private final @Nonnull URL url;
+    private final @Nonnull String name;
 
-    public ExecutorJenkins(String url) {
+    public ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
+        try {
+            Jenkins.checkGoodName(name);
+            this.name = name;
+        } catch (Failure ex) {
+            throw new IllegalArgumentException(ex);
+        }
         try {
             this.url = new URL(url);
         } catch (MalformedURLException e) {
@@ -47,7 +56,7 @@ public class ExecutorJenkins {
     }
 
     public @Nonnull String getName() {
-        return url.getHost();
+        return name;
     }
 
     public @Nonnull URL getUrl() {
