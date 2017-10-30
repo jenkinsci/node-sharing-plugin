@@ -92,7 +92,7 @@ public class Api implements RootAction {
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
      * {@link #doReturnNode(String)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
-     * we can not rely on node-sharing API on orchestrator end.
+     * we can not rely on node-sharing API on executor end.
      *
      * @param owner Jenkins instance to query.
      * @param node The node to query

@@ -8,6 +8,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.queue.ScheduleResult;
+import hudson.slaves.DumbSlave;
 import hudson.util.OneShotEvent;
 import hudson.util.StreamTaskListener;
 import jenkins.model.queue.AsynchronousExecution;
@@ -103,6 +104,7 @@ public class PoolTest {
 
     @Test
     public void updateComputers() throws Exception {
+        DumbSlave doNotTouchMe = j.createOnlineSlave(); // There is no reason for using some other slave kinds on orchestrator but ...
         GitClient git = injectDummyConfigRepo();
 
         assertEquals("windows w2k16", getNode("win2.acme.com").getLabelString());
@@ -128,6 +130,8 @@ public class PoolTest {
         assertNull(j.jenkins.getComputer("win2.acme.com"));
         assertSame(nodeW1, getNode("win1.acme.com"));
         assertSame(computerW1, getNode("win1.acme.com").toComputer());
+
+        getNode(doNotTouchMe.getNodeName());
     }
 
     @Test
