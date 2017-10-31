@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -39,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -60,8 +60,9 @@ public class PoolTest {
     @Test
     public void inactiveWithNoProperty() throws Exception {
         Pool.Updater.getInstance().doRun();
-        assertNull(Pool.getInstance().getConfig());
-        assertNull(Pool.getInstance().getJenkinses());
+        Pool pool = Pool.getInstance();
+        assertNull(pool.getConfig());
+        assertThat(pool.getError().getMessage(), startsWith("Node sharing Config Repo not configured"));
         assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
     }
 
@@ -69,18 +70,20 @@ public class PoolTest {
     public void readConfigFromRepo() throws Exception {
         injectDummyConfigRepo();
         Pool pool = Pool.getInstance();
-        Map<String, String> config = pool.getConfig();
+        Map<String, String> config = pool.getConfig().getConfig();
         assertEquals("https://dummy.test", config.get("orchestrator.url"));
 
-        Iterator<ExecutorJenkins> jenkinses = pool.getJenkinses().iterator();
-        ExecutorJenkins j1 = jenkinses.next();
-        ExecutorJenkins j2 = jenkinses.next();
-        assertEquals("https://jenkins1.acme.com", j1.getUrl().toExternalForm());
-        assertEquals("https://jenkins2.acme.com", j2.getUrl().toExternalForm());
+        assertThat(pool.getConfig().getJenkinses(), containsInAnyOrder(
+                new ExecutorJenkins("https://jenkins1.acme.com", "jenkins1"),
+                new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2")
+        ));
+
+        assertFalse(pool.isActivated());
+        assertNull(pool.getError());
     }
 
     @Test
-    public void testPopulateComputers() throws Exception {
+    public void populateComputers() throws Exception {
         GitClient git = injectDummyConfigRepo();
         Node win1 = getNode("win1.acme.com");
         assertEquals("windows w2k12", win1.getLabelString());
@@ -131,7 +134,7 @@ public class PoolTest {
         assertSame(nodeW1, getNode("win1.acme.com"));
         assertSame(computerW1, getNode("win1.acme.com").toComputer());
 
-        getNode(doNotTouchMe.getNodeName());
+        assertNotNull(j.jenkins.getNode(doNotTouchMe.getNodeName()));
     }
 
     @Test
@@ -140,7 +143,7 @@ public class PoolTest {
 
         MockTask task = new MockTask(DUMMY_OWNER, Label.get("solaris11"));
         Queue.Item item = task.schedule();
-        assertEquals("jenkins42.acme.com", item.task.getFullDisplayName());
+        assertEquals("jenkins42", item.task.getFullDisplayName());
         item.getFuture().get();
         assertEquals(getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
 
@@ -185,6 +188,30 @@ public class PoolTest {
         Pool.Updater.getInstance().doRun(); // Trigger the check
         assertNull("Node removed", j.jenkins.getNode(DELETED_NODE));
         assertNull("Computer removed", j.jenkins.getComputer(DELETED_NODE));
+    }
+
+    @Test
+    public void brokenConfig() throws Exception {
+        Pool pool = Pool.getInstance();
+        Pool.Updater updater = Pool.Updater.getInstance();
+
+        GitClient cr = injectDummyConfigRepo();
+        cr.getWorkTree().child("config").write("No orchestrator url here", "cp1250" /*muahaha*/);
+        cr.add("*");
+        cr.commit("Break it!");
+        updater.doRun();
+        assertThat(pool.getError().getMessage(), startsWith("No orchestrator.url specified by Config Repository"));
+        assertTrue(pool.isActivated());
+
+        cr = injectDummyConfigRepo();
+        cr.getWorkTree().child("config").delete();
+        cr.add("*");
+        cr.commit("Break it!");
+        updater.doRun();
+        assertThat(pool.getError().getMessage(), startsWith("No file named 'config' found in Config Repository"));
+        assertTrue(pool.isActivated());
+
+        // TODO many more to cover...
     }
 
     @Test @Ignore

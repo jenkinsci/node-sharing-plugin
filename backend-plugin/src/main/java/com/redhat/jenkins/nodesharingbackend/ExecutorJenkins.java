@@ -31,6 +31,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import javax.annotation.Nonnull;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Objects;
 
 /**
  * Remote Jenkins authorized to use this orchestrator.
@@ -74,5 +75,19 @@ public class ExecutorJenkins {
         } catch (MalformedURLException e) {
             throw new Error(e); // base url was validated
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ExecutorJenkins that = (ExecutorJenkins) o;
+        return Objects.equals(url, that.url) && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(url, name);
     }
 }

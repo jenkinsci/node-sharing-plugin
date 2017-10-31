@@ -24,39 +24,29 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.common.annotations.VisibleForTesting;
-import hudson.EnvVars;
 import hudson.Extension;
 import hudson.ExtensionList;
-import hudson.FilePath;
 import hudson.Functions;
-import hudson.model.Descriptor;
+import hudson.logging.LogRecorder;
+import hudson.logging.LogRecorderManager;
+import hudson.model.AdministrativeMonitor;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.util.LogTaskListener;
+import hudson.plugins.git.GitException;
 import jenkins.model.Jenkins;
 import org.eclipse.jgit.lib.ObjectId;
-import org.jenkinsci.plugins.gitclient.Git;
-import org.jenkinsci.plugins.gitclient.GitClient;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Pool of shared hosts.
@@ -64,51 +54,99 @@ import java.util.regex.Pattern;
  * Reflects the Config Repo.
  */
 @Restricted(NoExternalUse.class)
-public class Pool {
+@Extension
+public class Pool extends AdministrativeMonitor {
     private static final Logger LOGGER = Logger.getLogger(Pool.class.getName());
 
     public static final String CONFIG_REPO_PROPERTY_NAME = Pool.class.getCanonicalName() + ".ENDPOINT";
 
-    private static final Pool INSTANCE = new Pool();
-
     private final Object configLock = new Object();
 
+    // TODO consider storing in Jenkins in case of crash with broken config in repo
     @GuardedBy("configLock")
-    private Map<String, String> config;
+    private @CheckForNull ConfigRepo.Snapshot config = null;
+
     @GuardedBy("configLock")
-    private Set<ExecutorJenkins> jenkinses;
+    private @CheckForNull ConfigError configError; // Null if no problem detected
 
     public static @Nonnull Pool getInstance() {
-        return INSTANCE;
+        ExtensionList<Pool> list = Jenkins.getInstance().getExtensionList(Pool.class);
+        assert list.size() == 1;
+        return list.iterator().next();
     }
 
-    public static @CheckForNull String getConfigEndpoint() {
+    public @CheckForNull String getConfigEndpoint() {
         String property = System.getProperty(CONFIG_REPO_PROPERTY_NAME);
         if (property == null) {
-            LOGGER.severe("Node sharing pool not configured at " + CONFIG_REPO_PROPERTY_NAME);
+            setError("Node sharing Config Repo not configured at " + CONFIG_REPO_PROPERTY_NAME);
         }
         return property;
     }
 
-    private Pool() {}
+    public Pool() {}
 
-    private void updateConfig(@Nonnull Map<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses) {
+    @Override
+    public boolean isActivated() {
+        return configError != null;
+    }
+
+    public @CheckForNull ConfigError getError() {
         synchronized (configLock) {
-            this.config = config;
-            this.jenkinses = jenkinses;
+            return configError;
+        }
+    }
+
+    private void setError(@Nullable String cause) {
+        synchronized (configLock) {
+            configError = new ConfigError(cause);
         }
     }
 
     @VisibleForTesting
-    /*package*/ @CheckForNull Map<String, String> getConfig() {
+    /*package*/ @CheckForNull ConfigRepo.Snapshot getConfig() {
         synchronized (configLock) {
             return config;
         }
     }
 
-    /*package*/ @CheckForNull Set<ExecutorJenkins> getJenkinses() {
+    private void updateConfig(@Nonnull ConfigRepo.Snapshot config) {
         synchronized (configLock) {
-            return jenkinses;
+            this.config = config;
+        }
+
+        updateNodes(config.getNodes());
+    }
+
+    // TODO Queue.withLock?
+    private void updateNodes(Map<String, SharedNode> nodes) {
+        Jenkins j = Jenkins.getInstance();
+        for (SharedNode node : nodes.values()) {
+            SharedNode existing = (SharedNode) j.getNode(node.getNodeName());
+            if (existing == null) {
+                // Add new ones
+                try {
+                    j.addNode(node);
+                } catch (IOException ex) {
+                    // Continue with other changes - this will be reattempted
+                    LOGGER.log(Level.WARNING, "Unable to add node " + node.getNodeName(), ex);
+                }
+            } else {
+                // Update existing
+                existing.updateBy(node);
+            }
+        }
+
+        // Delete removed
+        for (Node node : j.getNodes()) {
+            if (node instanceof SharedNode && !nodes.containsKey(node.getNodeName())) {
+                ((SharedNode) node).deleteWhenIdle();
+            }
+        }
+    }
+
+    public static final class ConfigError extends RuntimeException {
+        public ConfigError(String message) {
+            super(message);
         }
     }
 
@@ -118,6 +156,17 @@ public class Pool {
         private static final File CONFIG_DIR = new File(WORK_DIR, "config");
 
         private ObjectId oldHead;
+
+        public Updater() {
+            // Configure UI logger for ease of maintenance
+            LogRecorderManager log = Jenkins.getInstance().getLog();
+            LogRecorder recorder = log.getLogRecorder("node-sharing");
+            if (recorder == null) {
+                recorder = new LogRecorder("node-sharing");
+                recorder.targets.add(new LogRecorder.Target("com.redhat.jenkins.nodesharingbackend", Level.INFO));
+                log.logRecorders.put("node-sharing", recorder);
+            }
+        }
 
         public static @Nonnull Updater getInstance() {
             ExtensionList<Updater> list = Jenkins.getInstance().getExtensionList(Updater.class);
@@ -132,29 +181,26 @@ public class Pool {
 
         @Override
         protected void doRun() throws Exception {
-            GitClient client = Git.with(new LogTaskListener(LOGGER, Level.FINE), new EnvVars())
-                    .in(CONFIG_DIR).using("git").getClient()
-            ;
-
-            String configEndpoint = getConfigEndpoint();
+            Pool pool = Pool.getInstance();
+            String configEndpoint = pool.getConfigEndpoint();
             if (configEndpoint == null) return;
 
-            ObjectId currentHead = client.getHeadRev(configEndpoint, "master");
-            if (currentHead.equals(oldHead) && client.hasGitRepo()) {
-                LOGGER.fine("No config update after: " + oldHead.name());
-            } else {
-                oldHead = currentHead;
+            ConfigRepo repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
 
-                LOGGER.info("Nodesharing config changes discovered: " + oldHead.name());
-                client.clone_().url(configEndpoint).execute();
-                client.checkout().branch("master").ref("origin/master").execute();
-
-                FilePath configFile = new FilePath(CONFIG_DIR).child("config");
-                FilePath jenkinsesFile = new FilePath(CONFIG_DIR).child("jenkinses");
-                Pool.getInstance().updateConfig(getProperties(configFile), getJenkinses(jenkinsesFile));
-
-                FilePath nodesDir = new FilePath(CONFIG_DIR).child("nodes");
-                updateNodes(readNodes(nodesDir));
+            try {
+                ObjectId currentHead = repo.getHead();
+                if (currentHead.equals(oldHead) && pool.getConfig() != null) {
+                    LOGGER.fine("No config update after: " + oldHead.name());
+                } else {
+                    LOGGER.info("Nodesharing config changes discovered: " + currentHead.name());
+                    repo.update();
+                    ConfigRepo.Snapshot snapshot = repo.read();
+                    pool.updateConfig(snapshot);
+                    oldHead = currentHead;
+                }
+            } catch (GitException|ConfigRepo.IllegalState ex) {
+                pool.setError(ex.getMessage());
+                LOGGER.log(Level.WARNING, "Failed to update config repo", ex);
             }
 
             deletePendingNodes();
@@ -164,75 +210,6 @@ public class Pool {
         private void deletePendingNodes() {
             for (Node node : Jenkins.getInstance().getNodes()) {
                 if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {
-                    ((SharedNode) node).deleteWhenIdle();
-                }
-            }
-        }
-
-        private Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {
-            Properties config = new Properties();
-            try (InputStream is = jenkinsesFile.read()) {
-                config.load(is);
-            }
-            HashSet<ExecutorJenkins> jenkinses = new LinkedHashSet<>();
-            for (Map.Entry<Object, Object> entry : config.entrySet()) {
-                jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey()));
-            }
-            return Collections.unmodifiableSet(jenkinses);
-        }
-
-        private HashMap<String, String> getProperties(FilePath configFile) throws IOException, InterruptedException {
-            Properties config = new Properties();
-            try (InputStream is = configFile.read()) {
-                config.load(is);
-            }
-
-            // There is no easy way to make Properties unmodifiable or create a defensive copy. Also, the type of
-            // Map<Object, Object> is not desirable here as well.
-            HashMap<String, String> c = new HashMap<>();
-            for (Object key : config.keySet()) {
-                if (key instanceof String) {
-                    Object value = config.get(key);
-                    if (value instanceof  String) {
-                        c.put((String) key, (String) value);
-                    }
-                }
-            }
-            return c;
-        }
-
-        private Map<String, SharedNode> readNodes(FilePath nodesDir) throws IOException, InterruptedException, Descriptor.FormException {
-            Map<String, SharedNode> nodes = new HashMap<>();
-            for (FilePath xmlNode : nodesDir.list("*.xml")) {
-                String xml = xmlNode.readToString();
-                String hostName = xmlNode.getBaseName().replaceAll(".xml$", "");
-                Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
-                if (!matcher.find()) {
-                    throw new IllegalArgumentException("No labels found in " + xml);
-                }
-                String labels = matcher.group(1);
-                nodes.put(hostName, new SharedNode(hostName, labels, xml));
-            }
-            return nodes;
-        }
-
-        private void updateNodes(Map<String, SharedNode> nodes) throws IOException, Descriptor.FormException {
-            Jenkins j = Jenkins.getInstance();
-
-            for (SharedNode node : nodes.values()) {
-                SharedNode existing = (SharedNode) j.getNode(node.getNodeName());
-                if (existing == null) {
-                    // Add new ones
-                    j.addNode(node);
-                } else {
-                    // Update existing
-                    existing.updateBy(node);
-                }
-            }
-
-            // Delete removed
-            for (Node node : j.getNodes()) {
-                if (node instanceof SharedNode && !nodes.containsKey(node.getNodeName())) {
                     ((SharedNode) node).deleteWhenIdle();
                 }
             }

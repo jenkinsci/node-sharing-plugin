@@ -122,9 +122,11 @@ public class Api implements RootAction {
 
     /**
      * Return node to orchestrator when no longer needed.
+     *
+     * @param name Name of the node to be returned.
      */
     @RequirePOST
-    public void doReturnNode(@QueryParameter String name) {
+    public void doReturnNode(@QueryParameter String name, @QueryParameter String state) {
 
     }
 }

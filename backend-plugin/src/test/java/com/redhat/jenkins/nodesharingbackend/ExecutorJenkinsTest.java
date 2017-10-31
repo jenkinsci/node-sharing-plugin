@@ -8,8 +8,8 @@ import java.net.URL;
 
 public class ExecutorJenkinsTest {
 
-    public static final String VALID_URL = "https://as.df:8080/orchestrator";
-    public static final String VALID_NAME = "as.df";
+    private static final String VALID_URL = "https://as.df:8080/orchestrator";
+    private static final String VALID_NAME = "as.df";
 
     @Test(expected = IllegalArgumentException.class)
     public void notAnUrl() throws Exception {
