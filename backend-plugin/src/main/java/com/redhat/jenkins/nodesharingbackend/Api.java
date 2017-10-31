@@ -64,7 +64,7 @@ public class Api implements RootAction {
     //// Outgoing
 
     /**
-     * Signal to executor Jenkins to start using particular node.
+     * Signal to Executor Jenkins to start using particular node.
      *
      * @param owner Jenkins instance the node is reserved for.
      * @param node Node to be reserved.
@@ -74,10 +74,10 @@ public class Api implements RootAction {
     }
 
     /**
-     * Query executor Jenkins to report hosts it uses.
+     * Query executor Jenkins to report shared hosts it uses.
      *
-     * It should be the orchestrator who has an authority to say that but this is to query executor's view of things.
-     * Most useful when orchestrator boots after crash with all the reservation info lost/outdated.
+     * It should be the Orchestrator who has an authority to say that but this is to query executor's view of things.
+     * Most useful when Orchestrator boots after crash with all the reservation info possibly lost or outdated.
      *
      * @param owner Jenkins instance to query.
      * @return List of host names the instance is using.
@@ -90,15 +90,15 @@ public class Api implements RootAction {
      * Determine whether the host is still used by executor.
      *
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
-     * {@link #doReturnNode(String)} was received but in case of any of the requests failed to be delivered for some
+     * {@link #doReturnNode(String, String)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
-     * we can not rely on node-sharing API on executor end.
+     * we can not rely on node-sharing API on Executor end.
      *
      * @param owner Jenkins instance to query.
-     * @param node The node to query
-     * @return true if the computer is still connected there.
+     * @param node The node to query.
+     * @return true if the computer is still connected there, false if we know it is not, null otherwise.
      */
-    public boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
+    public Boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
         return true;
     }
 
@@ -109,7 +109,8 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doDiscover() {
-
+        // TODO In  config-repo url and executor url for sanity check
+        // TODO Out error if sanity check failed, labels and TBD for success
     }
 
     /**
@@ -117,13 +118,18 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReportWorkload() {
-
+        // TODO In set of queue items to be build
+        // TODO Out nothing
     }
 
     /**
      * Return node to orchestrator when no longer needed.
      *
      * @param name Name of the node to be returned.
+     * @param state
+     *      'OK' if the host was used successfully,
+     *      'FAILED' when executor failed to get the node onlin,
+     *      other values are ignored.
      */
     @RequirePOST
     public void doReturnNode(@QueryParameter String name, @QueryParameter String state) {
