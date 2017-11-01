@@ -31,6 +31,7 @@ import hudson.model.Queue;
 import hudson.model.ResourceList;
 import hudson.model.queue.AbstractQueueTask;
 import hudson.model.queue.SubTask;
+import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
 import org.acegisecurity.AccessDeniedException;
@@ -92,13 +93,14 @@ public class ReservationTask extends AbstractQueueTask {
         return 0; // Orchestrator do not know that
     }
 
-    @CheckForNull @Override public Queue.Executable createExecutable() throws IOException {
+    @Override public @CheckForNull Queue.Executable createExecutable() throws IOException {
         return new ReservationExecutable(this);
     }
 
     public static class ReservationExecutable implements Queue.Executable {
 
         private final ReservationTask task;
+        private OneShotEvent done = new OneShotEvent();
 
         public ReservationExecutable(ReservationTask task) {
             this.task = task;
@@ -110,6 +112,11 @@ public class ReservationTask extends AbstractQueueTask {
         }
 
         @Override
+        public long getEstimatedDuration() {
+            return task.getEstimatedDuration();
+        }
+
+        @Override
         public void run() throws AsynchronousExecution {
             Computer owner = Executor.currentExecutor().getOwner();
             if (!(owner instanceof SharedComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
@@ -118,16 +125,17 @@ public class ReservationTask extends AbstractQueueTask {
             System.out.println("Reserving " + owner.getName() + " for " + task.getName());
             Api.getInstance().utilizeNode(task.jenkins, computer.getNode());
             try {
-                Thread.sleep(8000); // TODO
+                done.block();
+                System.out.println("Task completed");
             } catch (InterruptedException e) {
+                System.out.println("Task interrupted");
+                // Interrupted
                 e.printStackTrace();
-                // Terminate
             }
         }
 
-        @Override
-        public long getEstimatedDuration() {
-            return task.getEstimatedDuration();
+        public void complete(ExecutorJenkins owner, String state) {
+            done.signal();
         }
     }
 }

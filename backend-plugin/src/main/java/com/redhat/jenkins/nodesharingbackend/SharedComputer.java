@@ -25,7 +25,10 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.Functions;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
+import hudson.model.Queue;
 import hudson.model.Slave;
+import hudson.model.queue.SubTask;
 import hudson.remoting.Channel;
 import hudson.security.Permission;
 import hudson.slaves.EphemeralNode;
@@ -33,6 +36,7 @@ import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import hudson.util.Futures;
 import jenkins.model.Jenkins;
+import org.apache.tools.ant.taskdefs.Exec;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
@@ -46,6 +50,7 @@ import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -76,6 +81,33 @@ public class SharedComputer extends SlaveComputer implements EphemeralNode {
                 "  <name>" + slave.getNodeName() + "</name>" +
                 "</" + typeName + ">"
         );
+    }
+
+    /**
+     * Get the reservation task occupying this computer.
+     *
+     * @return The task or null when the computer is idle.
+     */
+    public @CheckForNull ReservationTask.ReservationExecutable getReservation() {
+        List<Queue.Executable> executables = new ArrayList<>();
+        for (Executor executor : getExecutors()) {
+            Queue.Executable executable = executor.getCurrentExecutable();
+            if (executable != null) {
+                executables.add(executable);
+            }
+        }
+        switch (executables.size()) {
+            case 0: return null;
+            case 1:
+                Queue.Executable executable = executables.get(0);
+                if (!(executable instanceof ReservationTask.ReservationExecutable)) {
+                    throw new IllegalStateException(
+                            "Unknown task running on SharedComputer: " + executable.getClass().getName()
+                    );
+                }
+                return (ReservationTask.ReservationExecutable) executable;
+            default: throw new IllegalStateException("More than a single task running on SharedComputer: " + executables);
+        }
     }
 
     @Override

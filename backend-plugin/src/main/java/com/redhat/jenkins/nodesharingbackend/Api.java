@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.model.Computer;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
@@ -90,7 +91,7 @@ public class Api implements RootAction {
      * Determine whether the host is still used by executor.
      *
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
-     * {@link #doReturnNode(String, String)} was received but in case of any of the requests failed to be delivered for some
+     * {@link #doReturnNode(String, ExecutorJenkins, String)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
      * we can not rely on node-sharing API on Executor end.
      *
@@ -125,14 +126,25 @@ public class Api implements RootAction {
     /**
      * Return node to orchestrator when no longer needed.
      *
-     * @param name Name of the node to be returned.
+     * @param nodeName Name of the node to be returned.
      * @param state
      *      'OK' if the host was used successfully,
      *      'FAILED' when executor failed to get the node onlin,
      *      other values are ignored.
      */
     @RequirePOST
-    public void doReturnNode(@QueryParameter String name, @QueryParameter String state) {
-
+    public void doReturnNode(@QueryParameter String nodeName, @Nonnull ExecutorJenkins owner, @QueryParameter String state) {
+        Computer c = Jenkins.getInstance().getComputer(nodeName);
+        if (!(c instanceof SharedComputer)) {
+            // TODO computer not reservable
+            return;
+        }
+        SharedComputer computer = (SharedComputer) c;
+        ReservationTask.ReservationExecutable executable = computer.getReservation();
+        if (executable == null) {
+            // TODO computer not reserved
+            return;
+        }
+        executable.complete(owner, state);
     }
 }

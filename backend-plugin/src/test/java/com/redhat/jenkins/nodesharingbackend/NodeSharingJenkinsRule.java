@@ -49,7 +49,7 @@ import static org.junit.Assert.assertTrue;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
-    public final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
+    public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
 
     // Hook it in
     private TemporaryFolder tmp = new TemporaryFolder();
@@ -64,6 +64,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     public void after() throws Exception {
         tmp.delete();
         super.after();
+    }
+
+    protected @Nonnull SharedComputer getComputer(String name) {
+        return (SharedComputer) getNode(name).toComputer();
     }
 
     protected @Nonnull SharedNode getNode(String name) {
