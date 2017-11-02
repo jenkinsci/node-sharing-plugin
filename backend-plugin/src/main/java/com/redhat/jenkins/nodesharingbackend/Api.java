@@ -92,7 +92,7 @@ public class Api implements RootAction {
      * Determine whether the host is still used by executor.
      *
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
-     * {@link #doReturnNode(String, ExecutorJenkins, String)} was received but in case of any of the requests failed to be delivered for some
+     * {@link #doReturnNode(String, String, String)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
      * we can not rely on node-sharing API on Executor end.
      *

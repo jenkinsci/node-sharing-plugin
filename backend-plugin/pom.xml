@@ -10,11 +10,10 @@
 
     <artifactId>node-sharing-orchestrator</artifactId>
     <packaging>hpi</packaging>
-    <name>Share nodes across several Jenkins masters</name>
+    <name>Node sharing orchestrator</name>
     <version>2.0.0-SNAPSHOT</version>
-    <!-- TODO FIXUP -->
-    <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
+    <description>Coordinate exclusive sharing of predefined set of machines.</description>
+    <url>https://wiki.jenkins-ci.org/display/JENKINS/Node+Sharing+Plugin</url>
 
     <dependencies>
         <dependency>
