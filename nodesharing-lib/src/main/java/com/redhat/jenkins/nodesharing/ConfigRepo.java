@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharingbackend;
+package com.redhat.jenkins.nodesharing;
 
 import com.google.common.base.Joiner;
 import hudson.EnvVars;
@@ -53,8 +53,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Read Configuration Repository for holding node sharing data.
@@ -62,7 +60,6 @@ import java.util.regex.Pattern;
  * The class is not safe against several instances working with single <tt>workingDir</tt>, though it is safe to use it
  * from multiple threads.
  */
-@Restricted(NoExternalUse.class)
 public class ConfigRepo {
     private static final Logger LOGGER = Logger.getLogger(ConfigRepo.class.getName());
 
@@ -80,15 +77,15 @@ public class ConfigRepo {
 
         private final @Nonnull HashMap<String, String> config;
         private final @Nonnull Set<ExecutorJenkins> jenkinses;
-        private final @Nonnull Map<String, SharedNode> nodes;
+        private final @Nonnull Map<String, NodeDefinition> nodes;
 
-        public Snapshot(@Nonnull HashMap<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Map<String, SharedNode> nodes) {
+        public Snapshot(@Nonnull HashMap<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Map<String, NodeDefinition> nodes) {
             this.config = config;
             this.jenkinses = jenkinses;
             this.nodes = nodes;
         }
 
-        public @Nonnull Map<String, SharedNode> getNodes() {
+        public @Nonnull Map<String, NodeDefinition> getNodes() {
             return nodes;
         }
 
@@ -151,7 +148,7 @@ public class ConfigRepo {
 
             HashMap<String, String> config = null;
             Set<ExecutorJenkins> jenkinses = null;
-            Map<String, SharedNode> hosts = null;
+            Map<String, NodeDefinition> hosts = null;
 
             FilePath configFile = new FilePath(workingDir).child("config");
             if (!configFile.exists()) {
@@ -209,9 +206,10 @@ public class ConfigRepo {
         // There is no easy way to make Properties unmodifiable or create a defensive copy. Also, the type of
         // Map<Object, Object> is not desirable here as well.
         HashMap<String, String> c = new HashMap<>();
-        for (Object key : config.keySet()) {
+        for (Map.Entry<Object, Object> entry : config.entrySet()) {
+            Object key = entry.getKey();
             if (key instanceof String) {
-                Object value = config.get(key);
+                Object value = entry.getValue();
                 if (value instanceof  String) {
                     c.put((String) key, (String) value);
                 }
@@ -220,21 +218,15 @@ public class ConfigRepo {
         return c;
     }
 
-    private @Nonnull Map<String, SharedNode> readNodes(FilePath nodesDir) throws IOException, InterruptedException {
-        Map<String, SharedNode> nodes = new HashMap<>();
-        for (FilePath xmlNode : nodesDir.list("*.xml")) {
-            String xml = xmlNode.readToString();
-            String hostName = xmlNode.getBaseName().replaceAll(".xml$", "");
-            Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
-            if (!matcher.find()) {
-                throw new IllegalState("No labels found in " + xml);
-            }
-            String labels = matcher.group(1);
-            try {
-                nodes.put(hostName, new SharedNode(hostName, labels, xml));
-            } catch (Descriptor.FormException e) {
-                throw new IllegalState(e.getMessage());
-            }
+    private @Nonnull Map<String, NodeDefinition> readNodes(FilePath nodesDir) throws IOException, InterruptedException {
+        Map<String, NodeDefinition> nodes = new HashMap<>();
+        for (FilePath entry : nodesDir.list()) {
+            if (entry.isDirectory()) throw new IllegalArgumentException("No directories expected in nodes dir");
+
+            NodeDefinition nd = NodeDefinition.create(entry);
+            if (nd == null) throw new IllegalArgumentException("Unknown node definition in " + entry.getBaseName());
+
+            nodes.put(nd.getName(), nd);
         }
         return nodes;
     }

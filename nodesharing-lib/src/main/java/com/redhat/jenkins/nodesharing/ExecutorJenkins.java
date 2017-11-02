@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharingbackend;
+package com.redhat.jenkins.nodesharing;
 
 import hudson.model.Failure;
 import jenkins.model.Jenkins;

@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharingbackend.NodeSharingJenkinsRule.BlockingTask;
 import com.redhat.jenkins.nodesharingbackend.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;

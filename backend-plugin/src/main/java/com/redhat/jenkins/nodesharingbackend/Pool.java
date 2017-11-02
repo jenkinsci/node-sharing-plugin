@@ -24,12 +24,15 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.logging.LogRecorder;
 import hudson.logging.LogRecorderManager;
 import hudson.model.AdministrativeMonitor;
+import hudson.model.Descriptor;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.plugins.git.GitException;
@@ -118,21 +121,22 @@ public class Pool extends AdministrativeMonitor {
     }
 
     // TODO Queue.withLock?
-    private void updateNodes(Map<String, SharedNode> nodes) {
+    private void updateNodes(Map<String, NodeDefinition> nodes) {
         Jenkins j = Jenkins.getInstance();
-        for (SharedNode node : nodes.values()) {
-            SharedNode existing = (SharedNode) j.getNode(node.getNodeName());
+        for (NodeDefinition nodeDefinition : nodes.values()) {
+            SharedNode existing = (SharedNode) j.getNode(nodeDefinition.getName());
             if (existing == null) {
                 // Add new ones
                 try {
+                    SharedNode node = SharedNode.get(nodeDefinition);
                     j.addNode(node);
-                } catch (IOException ex) {
+                } catch (Exception ex) {
                     // Continue with other changes - this will be reattempted
-                    LOGGER.log(Level.WARNING, "Unable to add node " + node.getNodeName(), ex);
+                    LOGGER.log(Level.WARNING, "Unable to add node " + nodeDefinition.getName(), ex);
                 }
             } else {
                 // Update existing
-                existing.updateBy(node);
+                existing.updateBy(nodeDefinition);
             }
         }
 
@@ -206,7 +210,7 @@ public class Pool extends AdministrativeMonitor {
             deletePendingNodes();
         }
 
-        // Delayed deletion promised by SharedNode#deleteWhenIdle()
+        // Delayed deletion promised by NodeDefinition#deleteWhenIdle()
         private void deletePendingNodes() {
             for (Node node : Jenkins.getInstance().getNodes()) {
                 if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {

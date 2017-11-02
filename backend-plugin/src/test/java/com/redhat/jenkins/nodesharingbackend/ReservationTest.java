@@ -66,7 +66,7 @@ public class ReservationTest {
         // When first client returns its host
         Api api = Api.getInstance();
         JenkinsRule.WebClient wc = j.createWebClient();
-         String url = wc.createCrumbedUrl(api.getUrlName() + "/returnNode") + "&name=solaris1.acme.com&owner=foo&status=OK";
+         String url = wc.createCrumbedUrl(api.getUrlName() + "/returnNode") + "&name=solaris1.acme.com&owner=" + j.DUMMY_OWNER.getUrl() + "&status=OK";
         WebRequest request = new WebRequest(new URL(url), HttpMethod.POST);
 
         wc.getPage(request);

@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Slave;
@@ -47,16 +48,31 @@ import java.util.Collections;
  * @author ogondza.
  */
 @Restricted(NoExternalUse.class)
-public class SharedNode extends Slave implements EphemeralNode {
+public final class SharedNode extends Slave implements EphemeralNode {
     private static final long serialVersionUID = 1864241962205144748L;
 
     private final transient Object nodeSharingAttributesLock = new Object();
     @GuardedBy("nodeSharingAttributesLock")
-    private @Nonnull String xml;
+    private @Nonnull NodeDefinition nodeDefinition;
 
-    /*package*/ SharedNode(@Nonnull String name, String labelString, String xml) throws Descriptor.FormException, IOException {
-        super(name, name, "/unused", 1, Mode.EXCLUSIVE, labelString, new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
-        this.xml = xml;
+    /**
+     * Instantiate node based on its abstract definition.
+     *
+     * @param def Definition of the node.
+     * @return The node.
+     */
+    public static @Nonnull SharedNode get(NodeDefinition def) throws IOException, Descriptor.FormException {
+        if (!(def instanceof NodeDefinition.Xml)) {
+            throw new IllegalArgumentException("Unsupported node definition " + def.getClass().getName());
+        }
+
+        NodeDefinition.Xml d = ((NodeDefinition.Xml) def);
+        return new SharedNode(d);
+    }
+
+    /*package*/ SharedNode(@Nonnull NodeDefinition.Xml def) throws Descriptor.FormException, IOException {
+        super(def.getName(), def.getName(), "/unused", 1, Mode.EXCLUSIVE, def.getLabel(), new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+        nodeDefinition = def;
     }
 
     @Override public Computer createComputer() {
@@ -111,15 +127,17 @@ public class SharedNode extends Slave implements EphemeralNode {
      *
      * The node is not replaced not to interrupt running builds.
      *
-     * @param node New configuration to populate.
+     * @param definition New configuration to populate.
      */
-    public void updateBy(@Nonnull SharedNode node) {
-        assert getNodeName().equals(node.getNodeName());
+    public void updateBy(@Nonnull NodeDefinition definition) {
+        assert getNodeName().equals(definition.getName());
 
         synchronized (nodeSharingAttributesLock) {
-            this.xml = node.xml;
+            assert definition instanceof NodeDefinition.Xml;
+
+            this.nodeDefinition = definition;
             try {
-                setLabelString(node.getLabelString());
+                setLabelString(definition.getLabel());
             } catch (IOException ex) {
                 throw new Error("Never actually thrown");
             }

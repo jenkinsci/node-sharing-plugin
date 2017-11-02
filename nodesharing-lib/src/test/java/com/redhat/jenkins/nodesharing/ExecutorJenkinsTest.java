@@ -21,13 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharingbackend;
-
-import static org.junit.Assert.*;
+package com.redhat.jenkins.nodesharing;
 
 import org.junit.Test;
 
 import java.net.URL;
+
+import static org.junit.Assert.assertEquals;
 
 public class ExecutorJenkinsTest {
 

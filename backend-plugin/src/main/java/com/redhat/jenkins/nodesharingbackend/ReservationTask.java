@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Label;
@@ -30,7 +31,6 @@ import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.ResourceList;
 import hudson.model.queue.AbstractQueueTask;
-import hudson.model.queue.SubTask;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;

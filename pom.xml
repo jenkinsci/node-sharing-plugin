@@ -17,6 +17,7 @@
   <modules>
     <module>plugin</module>
     <module>backend-plugin</module>
+    <module>nodesharing-lib</module>
   </modules>
 
   <licenses>

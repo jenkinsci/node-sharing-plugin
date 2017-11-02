@@ -17,9 +17,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>git-client</artifactId>
-            <version>2.5.0</version>
+            <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+            <artifactId>nodesharing-lib</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Test deps -->

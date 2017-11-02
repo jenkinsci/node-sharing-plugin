@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.EnvVars;
 import hudson.model.Executor;
 import hudson.model.Label;

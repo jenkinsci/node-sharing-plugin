@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
