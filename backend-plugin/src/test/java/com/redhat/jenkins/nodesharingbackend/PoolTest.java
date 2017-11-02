@@ -47,6 +47,7 @@ import java.util.Random;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -65,6 +66,8 @@ public class PoolTest {
 
     @Test
     public void inactiveWithNoProperty() throws Exception {
+        System.clearProperty(CONFIG_REPO_PROPERTY_NAME);
+
         Pool.Updater.getInstance().doRun();
         Pool pool = Pool.getInstance();
         assertNull(pool.getConfig());
