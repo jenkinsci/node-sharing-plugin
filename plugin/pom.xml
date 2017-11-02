@@ -4,25 +4,16 @@
 
  <parent>
   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-  <artifactId>parent</artifactId>
+  <artifactId>nodesharing-parent</artifactId>
   <version>1.2.9-SNAPSHOT</version>
  </parent>
 
- <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
- <artifactId>foreman-node-sharing</artifactId>
+ <artifactId>node-sharing-frontend</artifactId>
  <packaging>hpi</packaging>
  <name>Foreman Node Sharing Plugin</name>
  <version>1.2.9-SNAPSHOT</version>
  <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
-
- <properties>
-  <jenkins.version>1.609.3</jenkins.version>
-  <java.level>8</java.level>
-  <argLine />
-  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  <surefire.useFile>false</surefire.useFile>
- </properties>
 
  <dependencies>
   <dependency>
@@ -66,6 +57,14 @@
   <dependency>
    <groupId>com.fasterxml.jackson.core</groupId>
    <artifactId>jackson-databind</artifactId>
+  </dependency>
+
+  <!-- Test deps -->
+  <dependency> <!-- Speedup JTH -->
+   <groupId>org.jenkins-ci.modules</groupId>
+   <artifactId>sshd</artifactId>
+   <version>2.0</version>
+   <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>com.github.tomakehurst</groupId>

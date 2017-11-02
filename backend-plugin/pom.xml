@@ -4,7 +4,7 @@
 
     <parent>
         <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-        <artifactId>parent</artifactId>
+        <artifactId>nodesharing-parent</artifactId>
         <version>1.2.9-SNAPSHOT</version>
     </parent>
 
@@ -15,14 +15,6 @@
     <!-- TODO FIXUP -->
     <description>Attach Foreman Shared Resources as Jenkins Nodes</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
-
-    <properties>
-        <jenkins.version>1.609.3</jenkins.version>
-        <java.level>7</java.level>
-        <argLine />
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <surefire.useFile>false</surefire.useFile>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -38,13 +30,5 @@
             <version>2.0</version>
             <scope>test</scope>
         </dependency>
-
-
-        <!--<dependency>-->
-            <!--<groupId>com.github.tomakehurst</groupId>-->
-            <!--<artifactId>wiremock</artifactId>-->
-            <!--<version>1.58</version>-->
-            <!--<scope>test</scope>-->
-        <!--</dependency>-->
     </dependencies>
 </project>
