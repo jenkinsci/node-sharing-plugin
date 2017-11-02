@@ -41,6 +41,7 @@ import java.util.Collection;
  */
 @Extension
 @Restricted(NoExternalUse.class)
+// TODO Check permission
 public class Api implements RootAction {
     private static final String HIDDEN = null;
 
@@ -127,13 +128,14 @@ public class Api implements RootAction {
      * Return node to orchestrator when no longer needed.
      *
      * @param name Name of the node to be returned.
+     * @param owner Name of the owner.
      * @param state
      *      'OK' if the host was used successfully,
      *      'FAILED' when executor failed to get the node onlin,
      *      other values are ignored.
      */
     @RequirePOST
-    public void doReturnNode(@QueryParameter String name, @QueryParameter ExecutorJenkins owner, @QueryParameter String state) {
+    public void doReturnNode(@QueryParameter String name, @QueryParameter String owner, @QueryParameter String state) {
         Computer c = Jenkins.getInstance().getComputer(name);
         if (!(c instanceof SharedComputer)) {
             // TODO computer not reservable
@@ -145,6 +147,7 @@ public class Api implements RootAction {
             // TODO computer not reserved
             return;
         }
+        // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
         executable.complete(owner, state);
     }
 }

@@ -134,12 +134,12 @@ public class ReservationTask extends AbstractQueueTask {
             }
         }
 
-        public void complete(ExecutorJenkins owner, String state) {
-            if (getParent().jenkins.equals(owner)) {
+        public void complete(String owner, String state) {
+            if (getParent().jenkins.getUrl().toExternalForm().equals(owner)) {
                 done.signal();
                 return;
             }
-            throw new IllegalStateException("Computer not reserved for " + owner.getUrl());
+            throw new IllegalStateException("Computer not reserved for " + owner);
         }
     }
 }
