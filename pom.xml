@@ -15,7 +15,6 @@
   <url>https://wiki.jenkins-ci.org/display/JENKINS/Foreman+Node+Sharing+Plugin</url>
 
   <modules>
-    <module>configurator</module>
     <module>plugin</module>
     <module>backend-plugin</module>
   </modules>
