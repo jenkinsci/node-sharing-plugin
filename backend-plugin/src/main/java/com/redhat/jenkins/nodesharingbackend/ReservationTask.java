@@ -107,7 +107,7 @@ public class ReservationTask extends AbstractQueueTask {
         }
 
         @Override
-        public @Nonnull SubTask getParent() {
+        public @Nonnull ReservationTask getParent() {
             return task;
         }
 
@@ -135,7 +135,11 @@ public class ReservationTask extends AbstractQueueTask {
         }
 
         public void complete(ExecutorJenkins owner, String state) {
-            done.signal();
+            if (getParent().jenkins.equals(owner)) {
+                done.signal();
+                return;
+            }
+            throw new IllegalStateException("Computer not reserved for " + owner.getUrl());
         }
     }
 }

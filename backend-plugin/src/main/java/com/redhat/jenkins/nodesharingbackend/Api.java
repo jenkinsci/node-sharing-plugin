@@ -126,15 +126,15 @@ public class Api implements RootAction {
     /**
      * Return node to orchestrator when no longer needed.
      *
-     * @param nodeName Name of the node to be returned.
+     * @param name Name of the node to be returned.
      * @param state
      *      'OK' if the host was used successfully,
      *      'FAILED' when executor failed to get the node onlin,
      *      other values are ignored.
      */
     @RequirePOST
-    public void doReturnNode(@QueryParameter String nodeName, @Nonnull ExecutorJenkins owner, @QueryParameter String state) {
-        Computer c = Jenkins.getInstance().getComputer(nodeName);
+    public void doReturnNode(@QueryParameter String name, @QueryParameter ExecutorJenkins owner, @QueryParameter String state) {
+        Computer c = Jenkins.getInstance().getComputer(name);
         if (!(c instanceof SharedComputer)) {
             // TODO computer not reservable
             return;

@@ -23,10 +23,15 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import hudson.model.Label;
 import hudson.model.Queue;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+
+import java.net.URL;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -59,9 +64,14 @@ public class ReservationTest {
         assertFalse(queuedItem.getFuture().getStartCondition().isDone());
 
         // When first client returns its host
-        Api.getInstance().doReturnNode("solaris1.acme.com", j.DUMMY_OWNER, "OK");
+        Api api = Api.getInstance();
+        JenkinsRule.WebClient wc = j.createWebClient();
+         String url = wc.createCrumbedUrl(api.getUrlName() + "/returnNode") + "&name=solaris1.acme.com&owner=foo&status=OK";
+        WebRequest request = new WebRequest(new URL(url), HttpMethod.POST);
 
-        // Queued reservation is executed
+        wc.getPage(request);
+
+        // Queued reservation is now executed
         queuedItem.getFuture().getStartCondition().get();
         assertSame(s2, j.getComputer("solaris1.acme.com").getReservation().getParent());
     }
