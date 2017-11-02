@@ -221,6 +221,10 @@ public class PoolTest {
         assertTrue(pool.isActivated());
 
         // TODO many more to cover...
+        // Executor URL/endpoint not reachable
+        // Executor name can not be used for computer
+        // Executor config defective
+        // Multiple Executors with same URL / name
     }
 
     @Test @Ignore
