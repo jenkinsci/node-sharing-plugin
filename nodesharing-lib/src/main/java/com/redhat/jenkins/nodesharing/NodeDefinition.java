@@ -40,12 +40,12 @@ import java.util.regex.Pattern;
 public abstract class NodeDefinition {
 
     /**
-     * Get name of the node.
+     * @return Name of the node.
      */
     public abstract String getName();
 
     /**
-     * Get labels of the node.
+     * @return Labels of the node.
      */
     public abstract @Nonnull String getLabel();
 

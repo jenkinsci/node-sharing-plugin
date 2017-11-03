@@ -21,10 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharingbackend;
+package com.redhat.jenkins.nodesharing;
 
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
+import com.redhat.jenkins.nodesharingbackend.Api;
+import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import hudson.model.Label;
 import hudson.model.Queue;
 import org.junit.Rule;
@@ -41,9 +43,12 @@ public class ReservationTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
+    @Rule
+    public ConfigRepoRule configRepo = new ConfigRepoRule();
+
     @Test
     public void runBuildSuccessfully() throws Exception {
-        j.injectDummyConfigRepo();
+        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
 
         // When I schedule a bunch of tasks
         // TODO replace with API#reportUsage()

@@ -21,51 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharingbackend;
+package com.redhat.jenkins.nodesharing;
 
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
-import hudson.EnvVars;
+import com.redhat.jenkins.nodesharingbackend.Pool;
+import com.redhat.jenkins.nodesharingbackend.ReservationTask;
+import com.redhat.jenkins.nodesharingbackend.SharedComputer;
+import com.redhat.jenkins.nodesharingbackend.SharedNode;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.util.OneShotEvent;
-import hudson.util.StreamTaskListener;
 import jenkins.model.queue.AsynchronousExecution;
-import org.apache.commons.io.FileUtils;
-import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.rules.TemporaryFolder;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
-
-    // Hook it in
-    private TemporaryFolder tmp = new TemporaryFolder();
-
-    @Override
-    public void before() throws Throwable {
-        super.before();
-        tmp.create();
-    }
-
-    @Override
-    public void after() throws Exception {
-        tmp.delete();
-        super.after();
-    }
 
     protected @Nonnull SharedComputer getComputer(String name) {
         return (SharedComputer) getNode(name).toComputer();
@@ -77,22 +58,11 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return (SharedNode) node;
     }
 
-    protected GitClient injectDummyConfigRepo() throws Exception {
-        File orig = new File(getClass().getResource("dummy_config_repo").toURI());
-        assertTrue(orig.isDirectory());
-        File repo = tmp.newFolder();
-        FileUtils.copyDirectory(orig, repo);
-
-        StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
-        GitClient git = Git.with(listener, new EnvVars()).in(repo).using("git").getClient();
-        git.init();
-        git.add("*");
-        git.commit("Init");
-
-        System.setProperty(CONFIG_REPO_PROPERTY_NAME, repo.getAbsolutePath());
+    protected GitClient injectConfigRepo(GitClient repoClient) throws Exception {
+        System.setProperty(CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
         Pool.Updater.getInstance().doRun();
 
-        return git;
+        return repoClient;
     }
 
     protected static class BlockingTask extends MockTask {

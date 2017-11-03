@@ -106,7 +106,7 @@ public class Pool extends AdministrativeMonitor {
     }
 
     @VisibleForTesting
-    /*package*/ @CheckForNull ConfigRepo.Snapshot getConfig() {
+    public @CheckForNull ConfigRepo.Snapshot getConfig() {
         synchronized (configLock) {
             return config;
         }
@@ -183,8 +183,8 @@ public class Pool extends AdministrativeMonitor {
             return Functions.getIsUnitTest() ? Long.MAX_VALUE : MIN;
         }
 
-        @Override
-        protected void doRun() throws Exception {
+        @Override @VisibleForTesting
+        public void doRun() throws Exception {
             Pool pool = Pool.getInstance();
             String configEndpoint = pool.getConfigEndpoint();
             if (configEndpoint == null) return;
