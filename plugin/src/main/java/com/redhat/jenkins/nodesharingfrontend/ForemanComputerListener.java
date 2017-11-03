@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
 import java.io.IOException;
 import java.util.logging.Level;

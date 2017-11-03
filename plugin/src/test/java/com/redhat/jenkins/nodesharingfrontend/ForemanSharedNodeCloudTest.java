@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 /*
  * The MIT License
  *
@@ -27,7 +27,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-import static com.redhat.foreman.TestUtils.readFile;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyIterableOf;
 import static org.hamcrest.Matchers.instanceOf;
@@ -65,7 +64,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import com.redhat.foreman.ForemanSharedNodeCloud.DescriptorImpl;
 
 import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
@@ -157,7 +155,7 @@ public class ForemanSharedNodeCloudTest {
     @Test
     public void doTestConnection() throws Exception {
         stubServiceStatus();
-        DescriptorImpl descr = new ForemanSharedNodeCloud.DescriptorImpl();
+        ForemanSharedNodeCloud.DescriptorImpl descr = new ForemanSharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection(URL, USER, Secret.fromString(PASSWORD)).getMessage(),
                 containsString("1.5.3")
@@ -332,7 +330,7 @@ public class ForemanSharedNodeCloudTest {
 
     @Test
     public void reserveHost() throws Exception {
-        HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(String.format(readFile(hostInfoResponseFile), "false"));
+        HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(String.format(TestUtils.readFile(hostInfoResponseFile), "false"));
 
         ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL, USER, PASSWORD);
         ForemanAPI api = orig.getForemanAPI();
@@ -416,7 +414,7 @@ public class ForemanSharedNodeCloudTest {
     }
 
     private ResponseDefinitionBuilder ok(String path, String... args) {
-        String body = String.format(readFile(path), args);
+        String body = String.format(TestUtils.readFile(path), args);
         return aResponse()
                 .withStatus(HTTPOK)
                 .withHeader("Content-Type", "text/json")

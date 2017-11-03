@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

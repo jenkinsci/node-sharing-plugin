@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;

@@ -1,6 +1,6 @@
-package com.redhat.foreman.launcher;
+package com.redhat.jenkins.nodesharingfrontend.launcher;
 
-import com.redhat.foreman.HostInfo;
+import com.redhat.jenkins.nodesharingfrontend.HostInfo;
 import hudson.slaves.ComputerLauncher;
 
 import javax.annotation.Nonnull;

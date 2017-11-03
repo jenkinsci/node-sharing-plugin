@@ -1,6 +1,6 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
-import com.redhat.foreman.launcher.ForemanDummyComputerLauncherFactory;
+import com.redhat.jenkins.nodesharingfrontend.launcher.ForemanDummyComputerLauncherFactory;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AdministrativeMonitor;

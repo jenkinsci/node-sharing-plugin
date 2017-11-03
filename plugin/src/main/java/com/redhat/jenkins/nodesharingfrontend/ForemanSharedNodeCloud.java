@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
@@ -57,8 +57,8 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
-import com.redhat.foreman.launcher.ForemanComputerLauncherFactory;
-import com.redhat.foreman.launcher.ForemanSSHComputerLauncherFactory;
+import com.redhat.jenkins.nodesharingfrontend.launcher.ForemanComputerLauncherFactory;
+import com.redhat.jenkins.nodesharingfrontend.launcher.ForemanSSHComputerLauncherFactory;
 
 /**
  * Foreman Shared Node Cloud implementation.

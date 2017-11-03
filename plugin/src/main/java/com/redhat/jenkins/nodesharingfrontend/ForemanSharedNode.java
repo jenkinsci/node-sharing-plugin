@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
 import hudson.model.Node;

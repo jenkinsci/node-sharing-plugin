@@ -1,8 +1,8 @@
-package com.redhat.foreman.launcher;
+package com.redhat.jenkins.nodesharingfrontend.launcher;
 
 import java.io.File;
 
-import com.redhat.foreman.HostInfo;
+import com.redhat.jenkins.nodesharingfrontend.HostInfo;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.EnvVars;
 import hudson.slaves.CommandLauncher;

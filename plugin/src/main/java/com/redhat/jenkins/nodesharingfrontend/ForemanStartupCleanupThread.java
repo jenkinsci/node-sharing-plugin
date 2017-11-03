@@ -1,4 +1,4 @@
-package com.redhat.foreman;
+package com.redhat.jenkins.nodesharingfrontend;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
