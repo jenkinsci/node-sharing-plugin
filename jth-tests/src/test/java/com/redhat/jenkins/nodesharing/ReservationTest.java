@@ -23,20 +23,25 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.gargoylesoftware.htmlunit.HttpMethod;
-import com.gargoylesoftware.htmlunit.WebRequest;
-import com.redhat.jenkins.nodesharingbackend.Api;
-import com.redhat.jenkins.nodesharingbackend.ReservationTask;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
-import hudson.model.Queue;
+import hudson.util.OneShotEvent;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestBuilder;
 
-import java.net.URL;
+import java.io.IOException;
+import java.util.concurrent.Future;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class ReservationTest {
 
@@ -46,38 +51,57 @@ public class ReservationTest {
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
 
+    // TODO Implement until this passes
     @Test
     public void runBuildSuccessfully() throws Exception {
         j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
 
         // When I schedule a bunch of tasks
-        // TODO replace with API#reportUsage()
-        ReservationTask windows = new ReservationTask(j.DUMMY_OWNER, Label.get("windows"));
-        windows.schedule().getFuture().getStartCondition().get();
-        ReservationTask s1 = new ReservationTask(j.DUMMY_OWNER, Label.get("solaris11"));
-        s1.schedule().getFuture().getStartCondition().get();
-        ReservationTask s2 = new ReservationTask(j.DUMMY_OWNER, Label.get("solaris11"));
-        Queue.Item queuedItem = s2.schedule();
+        Label winLabel = Label.get("w2k12");
+        FreeStyleProject winJob = j.createFreeStyleProject();
+        winJob.setAssignedLabel(winLabel);
+        BlockingBuilder winBuilder = new BlockingBuilder();
+        winJob.getBuildersList().add(winBuilder);
+        Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
+        FreeStyleProject solarisJob = j.createFreeStyleProject();
+        solarisJob.setAssignedLabel(solarisLabel);
+        BlockingBuilder solarisBuilder = new BlockingBuilder();
+        solarisJob.getBuildersList().add(solarisBuilder);
 
-        // They start occupying the hosts they should or stay in queue
-        assertSame(s1, j.getComputer("solaris1.acme.com").getReservation().getParent());
-        ReservationTask.ReservationExecutable winReservation = j.getComputer("win1.acme.com").getReservation();
-        if (winReservation == null) {
-            winReservation = j.getComputer("win2.acme.com").getReservation();
+        winJob.scheduleBuild2(0).getStartCondition().get();
+        solarisJob.scheduleBuild2(0).getStartCondition().get();
+        Future<FreeStyleBuild> scheduledSoalrisRun = solarisJob.scheduleBuild2(0).getStartCondition();
+        assertFalse(scheduledSoalrisRun.isDone());
+
+        // They start occupying real computers or they stay in the queue
+        assertEquals(solarisLabel, j.getComputer("solaris1.executor.com").getReservation().getParent().getAssignedLabel());
+        assertEquals(winLabel, j.getComputer("win1.executor.com").getReservation().getParent().getAssignedLabel());
+        assertNull(j.getComputer("win2.executor.com").getReservation());
+        assertFalse(scheduledSoalrisRun.isDone());
+
+        winBuilder.end.signal();
+        j.assertBuildStatusSuccess(winJob.getBuildByNumber(1));
+        assertNull(j.getComputer("win1.executor.com").getReservation());
+        assertNull(j.getComputer("win2.executor.com").getReservation());
+
+        // When first solaris task completes
+        solarisBuilder.end.signal();
+        j.assertBuildStatusSuccess(solarisJob.getBuildByNumber(1));
+        scheduledSoalrisRun.get();
+        assertTrue("Blocked task should resume", scheduledSoalrisRun.isDone());
+        assertNotNull(j.getComputer("solaris1.executor.com").getReservation());
+
+    }
+
+    private static final class BlockingBuilder extends TestBuilder {
+        private OneShotEvent start = new OneShotEvent();
+        private OneShotEvent end = new OneShotEvent();
+
+        @Override
+        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+            start.signal();
+            end.block();
+            return true;
         }
-        assertSame(windows, winReservation.getParent());
-        assertFalse(queuedItem.getFuture().getStartCondition().isDone());
-
-        // When first client returns its host
-        Api api = Api.getInstance();
-        JenkinsRule.WebClient wc = j.createWebClient();
-         String url = wc.createCrumbedUrl(api.getUrlName() + "/returnNode") + "&name=solaris1.acme.com&owner=" + j.DUMMY_OWNER.getUrl() + "&status=OK";
-        WebRequest request = new WebRequest(new URL(url), HttpMethod.POST);
-
-        wc.getPage(request);
-
-        // Queued reservation is now executed
-        queuedItem.getFuture().getStartCondition().get();
-        assertSame(s2, j.getComputer("solaris1.acme.com").getReservation().getParent());
     }
 }

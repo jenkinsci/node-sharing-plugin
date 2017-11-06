@@ -102,7 +102,7 @@ public class PoolTest {
     @Test
     public void populateComputers() throws Exception {
         GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
-        Node win1 = j.getNode("win1.acme.com");
+        Node win1 = j.getNode("win1.orchestrator");
         assertEquals("windows w2k12", win1.getLabelString());
         assertTrue(win1.toComputer().isOnline());
 
@@ -117,8 +117,8 @@ public class PoolTest {
             Pool.Updater.getInstance().doRun();
 
             MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(4));
-            assertSame(win1, j.getNode("win1.acme.com"));
-            assertSame(win1.toComputer(), j.getNode("win1.acme.com").toComputer());
+            assertSame(win1, j.getNode("win1.orchestrator"));
+            assertSame(win1.toComputer(), j.getNode("win1.orchestrator").toComputer());
         }
     }
 
@@ -127,29 +127,29 @@ public class PoolTest {
         DumbSlave doNotTouchMe = j.createOnlineSlave(); // There is no reason for using some other slave kinds on orchestrator but ...
         GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
 
-        Assert.assertEquals("windows w2k16", j.getNode("win2.acme.com").getLabelString());
-        Assert.assertEquals("solaris11 sparc", j.getNode("solaris1.acme.com").getLabelString());
-        assertNull(j.jenkins.getNode("windows.acme.com"));
+        Assert.assertEquals("windows w2k16", j.getNode("win2.orchestrator").getLabelString());
+        Assert.assertEquals("solaris11 sparc", j.getNode("solaris1.orchestrator").getLabelString());
+        assertNull(j.jenkins.getNode("windows.orchestrator"));
 
-        Node nodeW1 = j.getNode("win1.acme.com");
+        Node nodeW1 = j.getNode("win1.orchestrator");
         Computer computerW1 = nodeW1.toComputer();
 
         // Update
         FilePath workTree = git.getWorkTree().child("nodes");
-        workTree.child("win2.acme.com.xml").renameTo(workTree.child("windows.acme.com.xml")); // Technically, we should rename the attribute as well
-        FilePath solarisXml = workTree.child("solaris1.acme.com.xml");
+        workTree.child("win2.orchestrator.xml").renameTo(workTree.child("windows.orchestrator.xml")); // Technically, we should rename the attribute as well
+        FilePath solarisXml = workTree.child("solaris1.orchestrator.xml");
         String newConfig = solarisXml.readToString().replace("solaris11", "solaris12");
         solarisXml.write(newConfig, Charset.defaultCharset().name());
         git.add("nodes/*");
         git.commit("Update");
         Pool.Updater.getInstance().doRun();
 
-        Assert.assertEquals("windows w2k16", j.getNode("windows.acme.com").getLabelString());
-        Assert.assertEquals("solaris12 sparc", j.getNode("solaris1.acme.com").getLabelString());
-        assertNull(j.jenkins.getNode("win2.acme.com"));
-        assertNull(j.jenkins.getComputer("win2.acme.com"));
-        assertSame(nodeW1, j.getNode("win1.acme.com"));
-        assertSame(computerW1, j.getNode("win1.acme.com").toComputer());
+        Assert.assertEquals("windows w2k16", j.getNode("windows.orchestrator").getLabelString());
+        Assert.assertEquals("solaris12 sparc", j.getNode("solaris1.orchestrator").getLabelString());
+        assertNull(j.jenkins.getNode("win2.orchestrator"));
+        assertNull(j.jenkins.getComputer("win2.orchestrator"));
+        assertSame(nodeW1, j.getNode("win1.orchestrator"));
+        assertSame(computerW1, j.getNode("win1.orchestrator").toComputer());
 
         assertNotNull(j.jenkins.getNode(doNotTouchMe.getNodeName()));
     }
@@ -162,7 +162,7 @@ public class PoolTest {
         Queue.Item item = task.schedule();
         assertEquals("jenkins42", item.task.getFullDisplayName());
         item.getFuture().get();
-        Assert.assertEquals(j.getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
+        Assert.assertEquals(j.getNode("solaris1.orchestrator").toComputer(), task.actuallyRunOn[0]);
 
 
         task = new MockTask(j.DUMMY_OWNER, Label.get("windows"));
@@ -182,7 +182,7 @@ public class PoolTest {
 
     @Test
     public void waitUntilComputerGetsIdleBeforeDeleting() throws Exception {
-        final String DELETED_NODE = "solaris1.acme.com";
+        final String DELETED_NODE = "solaris1.orchestrator";
         GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
 
         BlockingTask task = new BlockingTask(Label.get("solaris11"));

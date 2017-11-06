@@ -68,6 +68,7 @@ public class ReservationTask extends AbstractQueueTask {
     @Override public Label getAssignedLabel() {
         return label;
     }
+    public ExecutorJenkins getOwner() { return jenkins; }
 
     @Override public void checkAbortPermission() {throw new AccessDeniedException("Not abortable"); }
     @Override public boolean hasAbortPermission() { return false; }

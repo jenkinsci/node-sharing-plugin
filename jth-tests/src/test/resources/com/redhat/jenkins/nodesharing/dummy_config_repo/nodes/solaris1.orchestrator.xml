@@ -1,7 +1,7 @@
 <com.redhat.foreman.ForemanSharedNode>
-  <name>win2.acme.com</name>
+  <name>solaris1.executor.com</name>
   <description/>
-  <remoteFS>W:\\</remoteFS>
+  <remoteFS>/var/jenkins-workspace</remoteFS>
   <numExecutors>1</numExecutors>
   <mode>EXCLUSIVE</mode>
   <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.21">
@@ -13,6 +13,6 @@
     <maxNumRetries>0</maxNumRetries>
     <retryWaitTime>0</retryWaitTime>
   </launcher>
-  <label>windows w2k16</label>
+  <label>solaris11 sparc</label>
   <nodeProperties/>
 </com.redhat.foreman.ForemanSharedNode>

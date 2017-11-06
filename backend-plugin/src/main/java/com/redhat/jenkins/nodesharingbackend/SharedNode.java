@@ -26,9 +26,11 @@ package com.redhat.jenkins.nodesharingbackend;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Queue;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.model.User;
+import hudson.model.queue.CauseOfBlockage;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
@@ -82,6 +84,16 @@ public final class SharedNode extends Slave implements EphemeralNode {
     @Override public SharedNode asNode() {
         return this;
     }
+
+    @Override public CauseOfBlockage canTake(Queue.BuildableItem item) {
+        return item.task instanceof ReservationTask ? null : RESERVATION_TASKS_ONLY;
+    }
+
+    private static final CauseOfBlockage RESERVATION_TASKS_ONLY = new CauseOfBlockage() {
+        @Override public String getShortDescription() {
+            return "Reservations tasks only";
+        }
+    };
 
     /**
      * Delete the node now if idle or once it becomes idle.
