@@ -32,7 +32,6 @@ import hudson.Functions;
 import hudson.logging.LogRecorder;
 import hudson.logging.LogRecorderManager;
 import hudson.model.AdministrativeMonitor;
-import hudson.model.Descriptor;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.plugins.git.GitException;
@@ -46,7 +45,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -65,7 +63,7 @@ public class Pool extends AdministrativeMonitor {
 
     private final Object configLock = new Object();
 
-    // TODO consider storing in Jenkins in case of crash with broken config in repo
+    // TODO consider persisting in case of crash with broken config in repo
     @GuardedBy("configLock")
     private @CheckForNull ConfigRepo.Snapshot config = null;
 
@@ -167,7 +165,7 @@ public class Pool extends AdministrativeMonitor {
             LogRecorder recorder = log.getLogRecorder("node-sharing");
             if (recorder == null) {
                 recorder = new LogRecorder("node-sharing");
-                recorder.targets.add(new LogRecorder.Target("com.redhat.jenkins.nodesharingbackend", Level.INFO));
+                recorder.targets.add(new LogRecorder.Target(getClass().getPackage().getName(), Level.INFO));
                 log.logRecorders.put("node-sharing", recorder);
             }
         }
@@ -205,17 +203,6 @@ public class Pool extends AdministrativeMonitor {
             } catch (GitException|ConfigRepo.IllegalState ex) {
                 pool.setError(ex.getMessage());
                 LOGGER.log(Level.WARNING, "Failed to update config repo", ex);
-            }
-
-            deletePendingNodes();
-        }
-
-        // Delayed deletion promised by NodeDefinition#deleteWhenIdle()
-        private void deletePendingNodes() {
-            for (Node node : Jenkins.getInstance().getNodes()) {
-                if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {
-                    ((SharedNode) node).deleteWhenIdle();
-                }
             }
         }
     }

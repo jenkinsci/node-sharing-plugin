@@ -90,7 +90,6 @@ public class ReservationTest {
         scheduledSoalrisRun.get();
         assertTrue("Blocked task should resume", scheduledSoalrisRun.isDone());
         assertNotNull(j.getComputer("solaris1.executor.com").getReservation());
-
     }
 
     private static final class BlockingBuilder extends TestBuilder {

@@ -70,57 +70,6 @@ public class ConfigRepo {
     private final @Nonnull File workingDir;
     private final @Nonnull GitClient client;
 
-    /**
-     * Snapshot of the configuration at particular point in time.
-     */
-    public static final class Snapshot {
-
-        private final @Nonnull HashMap<String, String> config;
-        private final @Nonnull Set<ExecutorJenkins> jenkinses;
-        private final @Nonnull Map<String, NodeDefinition> nodes;
-
-        public Snapshot(@Nonnull HashMap<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Map<String, NodeDefinition> nodes) {
-            this.config = config;
-            this.jenkinses = jenkinses;
-            this.nodes = nodes;
-        }
-
-        public @Nonnull Map<String, NodeDefinition> getNodes() {
-            return nodes;
-        }
-
-        public @Nonnull HashMap<String, String> getConfig() {
-            return config;
-        }
-
-        public @Nonnull Set<ExecutorJenkins> getJenkinses() {
-            return jenkinses;
-        }
-    }
-
-    /**
-     * The state of config repo is considered illegal so it should not be used.
-     */
-    public static final class IllegalState extends RuntimeException {
-        private List<String> problems = new ArrayList<String>();
-
-        public IllegalState() {}
-
-        public IllegalState(String message) {
-            super(message);
-        }
-
-        public void add(@Nonnull String... problems) {
-            this.problems.addAll(Arrays.asList(problems));
-        }
-
-        public void throwIfProblemsFound() throws IllegalState {
-            if (!problems.isEmpty()) {
-                throw new IllegalState(Joiner.on("\n").join(problems));
-            }
-        }
-    }
-
     public ConfigRepo(@Nonnull String url, @Nonnull File workingDir) throws IOException, InterruptedException {
         this.url = url;
         this.workingDir = workingDir;
@@ -229,5 +178,56 @@ public class ConfigRepo {
             nodes.put(nd.getName(), nd);
         }
         return nodes;
+    }
+
+    /**
+     * Snapshot of the configuration at particular point in time.
+     */
+    public static final class Snapshot {
+
+        private final @Nonnull HashMap<String, String> config;
+        private final @Nonnull Set<ExecutorJenkins> jenkinses;
+        private final @Nonnull Map<String, NodeDefinition> nodes;
+
+        private Snapshot(@Nonnull HashMap<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Map<String, NodeDefinition> nodes) {
+            this.config = config;
+            this.jenkinses = jenkinses;
+            this.nodes = nodes;
+        }
+
+        public @Nonnull Map<String, NodeDefinition> getNodes() {
+            return nodes;
+        }
+
+        public @Nonnull HashMap<String, String> getConfig() {
+            return config;
+        }
+
+        public @Nonnull Set<ExecutorJenkins> getJenkinses() {
+            return jenkinses;
+        }
+    }
+
+    /**
+     * The state of config repo is considered illegal so it should not be used.
+     */
+    public static final class IllegalState extends RuntimeException {
+        private List<String> problems = new ArrayList<String>();
+
+        public IllegalState() {}
+
+        public IllegalState(String message) {
+            super(message);
+        }
+
+        public void add(@Nonnull String... problems) {
+            this.problems.addAll(Arrays.asList(problems));
+        }
+
+        public void throwIfProblemsFound() throws IllegalState {
+            if (!problems.isEmpty()) {
+                throw new IllegalState(Joiner.on("\n").join(problems));
+            }
+        }
     }
 }
