@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
 import hudson.Extension;
 import hudson.model.Computer;
@@ -128,11 +129,14 @@ public final class SharedNode extends Slave implements EphemeralNode {
     @Extension
     public static final class DanglingNodeDeleter extends PeriodicWork {
 
-        @Override public long getRecurrencePeriod() {
+        @Override
+        public long getRecurrencePeriod() {
             return HOUR;
         }
 
-        @Override protected void doRun() throws Exception {
+        @VisibleForTesting
+        @Override
+        public void doRun() throws Exception {
             for (Node node : Jenkins.getInstance().getNodes()) {
                 if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {
                     ((SharedNode) node).deleteWhenIdle();

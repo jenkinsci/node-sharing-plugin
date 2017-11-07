@@ -26,16 +26,15 @@ package com.redhat.jenkins.nodesharing;
 import com.google.common.base.Joiner;
 import hudson.EnvVars;
 import hudson.FilePath;
-import hudson.model.Descriptor;
 import hudson.plugins.git.GitException;
 import hudson.util.LogTaskListener;
 import org.eclipse.jgit.lib.ObjectId;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -68,30 +67,54 @@ public class ConfigRepo {
 
     private final @Nonnull String url;
     private final @Nonnull File workingDir;
-    private final @Nonnull GitClient client;
+    private @CheckForNull GitClient client;
 
-    public ConfigRepo(@Nonnull String url, @Nonnull File workingDir) throws IOException, InterruptedException {
+    @GuardedBy("repoLock")
+    private @CheckForNull Snapshot snapshot;
+
+    public ConfigRepo(@Nonnull String url, @Nonnull File workingDir) {
         this.url = url;
         this.workingDir = workingDir;
-        this.client = Git.with(new LogTaskListener(LOGGER, Level.FINE), new EnvVars())
-                .in(workingDir)
-                .using("git")
-                .getClient()
-        ;
     }
 
-    public @Nonnull ObjectId getHead() throws InterruptedException, GitException {
-        return client.getHeadRev(url, "master");
+    /**
+     * Get snapshot or remote repo state or the last working.
+     *
+     * @return Latest snapshot or the most recent working one if latest can not be get.
+     */
+    // TODO reconsider null/Exception when there is no config read, fresh or still
+    public @CheckForNull Snapshot getSnapshot() throws InterruptedException {
+        try {
+            ObjectId currentHead = getRemoteHead();
+            synchronized (repoLock) {
+                if (snapshot != null && currentHead.equals(snapshot.source)) {
+                    LOGGER.fine("No config update after: " + snapshot.source.name());
+                } else {
+                    LOGGER.info("Nodesharing config changes discovered: " + currentHead.name());
+                    fetchChanges();
+                    assert currentHead.equals(getClient().revParse("HEAD")): "What was discovered was in fact checked out";
+                    snapshot = readConfig(currentHead);
+                }
+            }
+        } catch (IOException|GitException|ConfigRepo.IllegalState ex) {
+            LOGGER.log(Level.SEVERE, "Failed to update config repo", ex);
+        }
+
+        return snapshot;
     }
 
-    public void update() throws InterruptedException, GitException {
+    private @Nonnull ObjectId getRemoteHead() throws InterruptedException, GitException {
+        return getClient().getHeadRev(url, "master");
+    }
+
+    private void fetchChanges() throws InterruptedException, GitException {
         synchronized (repoLock) {
-            client.clone_().url(url).execute();
-            client.checkout().branch("master").ref("origin/master").execute();
+            getClient().clone_().url(url).execute();
+            getClient().checkout().branch("master").ref("origin/master").execute();
         }
     }
 
-    public Snapshot read() throws IOException, InterruptedException {
+    @Nonnull private Snapshot readConfig(ObjectId head) throws IOException, InterruptedException {
         synchronized (repoLock) {
             IllegalState problems = new IllegalState();
 
@@ -129,8 +152,7 @@ public class ConfigRepo {
             }
 
             problems.throwIfProblemsFound();
-
-            return new Snapshot(config, jenkinses, hosts);
+            return new Snapshot(head, config, jenkinses, hosts);
         }
     }
 
@@ -180,16 +202,37 @@ public class ConfigRepo {
         return nodes;
     }
 
+    @Nonnull
+    private GitClient getClient() throws InterruptedException {
+        if (client != null) return client;
+        try {
+            return client = Git.with(new LogTaskListener(LOGGER, Level.FINE), new EnvVars())
+                    .in(workingDir)
+                    .using("git")
+                    .getClient()
+            ;
+        } catch (IOException e) {
+            throw new AssertionError("Creating local git client has failed", e);
+        }
+    }
+
     /**
      * Snapshot of the configuration at particular point in time.
      */
     public static final class Snapshot {
 
+        private final @Nonnull ObjectId source;
         private final @Nonnull HashMap<String, String> config;
         private final @Nonnull Set<ExecutorJenkins> jenkinses;
         private final @Nonnull Map<String, NodeDefinition> nodes;
 
-        private Snapshot(@Nonnull HashMap<String, String> config, @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Map<String, NodeDefinition> nodes) {
+        private Snapshot(
+                @Nonnull ObjectId source,
+                @Nonnull HashMap<String, String> config,
+                @Nonnull Set<ExecutorJenkins> jenkinses,
+                @Nonnull Map<String, NodeDefinition> nodes
+        ) {
+            this.source = source;
             this.config = config;
             this.jenkinses = jenkinses;
             this.nodes = nodes;

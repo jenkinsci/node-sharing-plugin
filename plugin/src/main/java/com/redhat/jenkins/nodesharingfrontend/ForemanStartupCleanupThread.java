@@ -139,10 +139,10 @@ public final class ForemanStartupCleanupThread {
                                 Disposable disposableItem = item.getDisposable();
                                 if (disposableItem instanceof DisposableImpl) {
                                     DisposableImpl foremanDisposableItem = (DisposableImpl) disposableItem;
-                                    if (foremanDisposableItem.getCloudName().compareTo(foremanCloud.getCloudName()) == 0) {
+                                    if (foremanDisposableItem.getCloudName().compareTo(foremanCloud.name) == 0) {
                                         LOGGER.info("Found disposable item '"
                                                 + disposableItem.getDisplayName() + "' for Foreman cloud '"
-                                                + foremanCloud.getCloudName() + "'");
+                                                + foremanCloud.name + "'");
                                         foundOurDisposalItem = true;
                                         break;
                                     }
@@ -159,7 +159,7 @@ public final class ForemanStartupCleanupThread {
                                 boolean foundLeakedNode = false;
                                 for (String reservedNode : foremanCloud.getForemanAPI().getAllReservedHosts()) {
                                     LOGGER.warning("Found a leaked computer '" + reservedNode
-                                            + "' for Foreman cloud '" + foremanCloud.getCloudName()
+                                            + "' for Foreman cloud '" + foremanCloud.name
                                             + "'. Disposing!");
                                     ForemanSharedNodeCloud.addDisposableEvent(foremanCloud.name, reservedNode);
                                     rescheduleDisposer = foundLeakedNode = true;

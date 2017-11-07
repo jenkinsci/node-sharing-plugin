@@ -132,15 +132,11 @@ public final class ForemanTestRule extends JenkinsRule {
      *
      * @param cloudName name of the cloud.
      * @param url URL for mocking.
-     * @param user User name for autentization.
-     * @param password Password for autentization.
      * @return created {@link ForemanSharedNodeCloud} instance
      */
     @Nonnull
-    public ForemanSharedNodeCloud addForemanCloud(@Nonnull final String cloudName, @Nonnull final String url,
-                                                  @Nonnull final String user, @Nonnull final String password) {
-        ForemanSharedNodeCloud foremanCloud = new ForemanSharedNodeCloud(cloudName, url, user, Secret.fromString(password),
-                "", 1);
+    public ForemanSharedNodeCloud addForemanCloud(@Nonnull final String cloudName, @Nonnull final String url) {
+        ForemanSharedNodeCloud foremanCloud = new ForemanSharedNodeCloud(cloudName, url, "", 1);
         foremanCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         jenkins.clouds.add(foremanCloud);
         foremanCloud.updateHostData();

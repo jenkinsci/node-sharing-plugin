@@ -1,30 +1,24 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
 
-<f:section title="Foreman Parameters">
-  <f:entry title="${%Name}" field="cloudName">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="${%Foreman API Url}" field="url">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="${%User Name}" field="user">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="${%Password}" field="password">
-    <f:password />
-  </f:entry>
-</f:section>
-  
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="url,user,password" />
-  
-<f:section title="Node Parameters">
-  <f:entry title="${%Credentials}" field="credentialsId">
-    <c:select/>
-  </f:entry>
-  <f:entry title="${%SSH Connection Timeout in Seconds}" field="sshConnectionTimeOut">
-      <f:textbox name="sshConnectionTimeOut" />
-  </f:entry>
-</f:section>
+  <f:section title="Node Sharing Pool">
+    <f:entry title="${%Name}" field="name">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Config Repo Url}" field="configRepoUrl">
+      <f:textbox />
+    </f:entry>
+    <!-- TODO: credential for REST backend -->
+  </f:section>
 
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="configRepoUrl" />
+
+  <f:section title="Node Parameters">
+    <f:entry title="${%Credentials}" field="credentialsId">
+      <c:select/>
+    </f:entry>
+    <f:entry title="${%SSH Connection Timeout in Seconds}" field="sshConnectionTimeOut">
+      <f:textbox name="sshConnectionTimeOut" />
+    </f:entry>
+  </f:section>
 </j:jelly>

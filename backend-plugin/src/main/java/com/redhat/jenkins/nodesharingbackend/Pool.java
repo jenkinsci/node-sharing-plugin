@@ -157,7 +157,7 @@ public class Pool extends AdministrativeMonitor {
         private static final File WORK_DIR = new File(Jenkins.getActiveInstance().getRootDir(), "node-sharing");
         private static final File CONFIG_DIR = new File(WORK_DIR, "config");
 
-        private ObjectId oldHead;
+        private @CheckForNull ConfigRepo repo;
 
         public Updater() {
             // Configure UI logger for ease of maintenance
@@ -187,22 +187,13 @@ public class Pool extends AdministrativeMonitor {
             String configEndpoint = pool.getConfigEndpoint();
             if (configEndpoint == null) return;
 
-            ConfigRepo repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
+            if (repo == null) {
+                repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
+            }
 
-            try {
-                ObjectId currentHead = repo.getHead();
-                if (currentHead.equals(oldHead) && pool.getConfig() != null) {
-                    LOGGER.fine("No config update after: " + oldHead.name());
-                } else {
-                    LOGGER.info("Nodesharing config changes discovered: " + currentHead.name());
-                    repo.update();
-                    ConfigRepo.Snapshot snapshot = repo.read();
-                    pool.updateConfig(snapshot);
-                    oldHead = currentHead;
-                }
-            } catch (GitException|ConfigRepo.IllegalState ex) {
-                pool.setError(ex.getMessage());
-                LOGGER.log(Level.WARNING, "Failed to update config repo", ex);
+            ConfigRepo.Snapshot snapshot = repo.getSnapshot();
+            if (snapshot != null) {
+                pool.updateConfig(snapshot);
             }
         }
     }
