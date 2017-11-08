@@ -169,7 +169,16 @@ public class ForemanSharedNodeCloud extends Cloud {
         }
     }
 
-    public ConfigRepo.Snapshot getLatestConfig() {
+    /**
+     * Get latest config repo snapshot.
+     *
+     * @return Snapshot or null when there are problem reading it.,
+     */
+    // TODO, are we OK throwing InterruptedException?
+    public @CheckForNull ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
+        if (latestConfig == null) {
+            latestConfig = getConfigRepo().getSnapshot();
+        }
         return latestConfig;
     }
 
