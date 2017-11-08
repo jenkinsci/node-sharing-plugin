@@ -25,9 +25,18 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
 import hudson.ExtensionList;
+import hudson.model.Items;
+import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Queue;
 import hudson.model.RootAction;
+import hudson.model.labels.LabelAtom;
+import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
@@ -36,6 +45,13 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.ws.rs.NotSupportedException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Receive and send REST commands from/to Orchestrator Jenkins.
@@ -45,6 +61,24 @@ import javax.ws.rs.NotSupportedException;
 // TODO Check permission
 public class Api implements RootAction {
     private static final String HIDDEN = null;
+
+    private WebTarget base = null;
+
+    public Api(String OrchestratorUrl) {
+        ClientConfig clientConfig = new ClientConfig();
+
+        // TODO HTTP autentization
+        //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
+        //clientConfig.register(feature);
+
+        clientConfig.register(JacksonFeature.class);
+        Client client = ClientBuilder.newClient(clientConfig);
+
+        // Define a quite defensive timeouts
+        client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
+        client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
+        base = client.target(OrchestratorUrl);
+    }
 
     @Nonnull
     public static Api getInstance() {
@@ -82,24 +116,65 @@ public class Api implements RootAction {
     }
 
     /**
-     * Query Executor Jenkins to report the status of executed run.
+     * Query Executor Jenkins to report the status of executed item.
      *
-     * @param run ID of the run to be queried.
+     * @param id ID of the run to be queried.
      * @return Item status.
      */
     @CheckForNull
-    public Object runStatus(@Nonnull final String run) {
+    public Object runStatus(@Nonnull final String id) {
         return null;
+    }
+
+    /**
+     * Put the queue items to Orchestrator
+     */
+    public void putBacklogToOrchestrator() {
+        Set<LabelAtom> sla = new TreeSet<LabelAtom>();
+
+        // TODO Get List of provided labels
+        Set<LabelAtom> sla_tmp = new TreeSet<LabelAtom>();
+        sla_tmp.add(new LabelAtom("foo"));
+        sla_tmp.add(new LabelAtom("bar"));
+        for(LabelAtom la : sla_tmp) {
+            sla.add(la);
+        }
+        sla_tmp = new TreeSet<LabelAtom>();
+        sla_tmp.add(new LabelAtom("test"));
+        for(LabelAtom la : sla_tmp) {
+            sla.add(la);
+        }
+        // TODO Remove above with proper impl.
+
+        List<Queue.Item> qi = new ArrayList<Queue.Item>();
+
+        for(Queue.Item i : Jenkins.getInstance().getQueue().getItems()) {
+            if(i.getAssignedLabel().matches(sla)) {
+                 qi.add(i);
+            }
+        }
+
+        // TODO Prepare the requests from qi
+
+        // TODO Post the request to the Orchestrator
+    }
+
+    /**
+     * Request to Discover the state of the Orchestrator
+     * @return
+     */
+    public String doDiscover() {
+        return "";
     }
 
     //// Incoming
 
     /**
-     * Dummy request to test the connection/compatibility.
+     * Request to execute #Item from the queue
      */
     @RequirePOST
     public void doExecution(@Nonnull @QueryParameter final Node computer,
-                            @Nonnull @QueryParameter final String Item) {
+                            @Nonnull @QueryParameter final String id) {
         // TODO Create a Node based on the info and execute the Item
     }
 
