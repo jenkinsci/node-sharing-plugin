@@ -92,7 +92,11 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     private Integer sshConnectionTimeOut;
 
-    private transient ForemanAPI api = null;
+    @Deprecated // From Foreman days
+    private transient ForemanAPI foremanApi = null;
+
+    private transient Api api = null;
+
     private transient ForemanComputerLauncherFactory launcherFactory = null;
 
     /** All available hosts structured as an immutable map, indexed by their label atoms for performance reasons */
@@ -125,8 +129,27 @@ public class ForemanSharedNodeCloud extends Cloud {
         this.configRepo = getConfigRepo();
         this.credentialsId = credentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
-        api = new ForemanAPI(this.url, this.user, this.password);
-        setOperational();
+
+//        foremanApi = new ForemanAPI(this.url, this.user, this.password);
+
+        try {
+            this.latestConfig = configRepo.getSnapshot();
+
+            // TODO Obtain the OrchestratorURL
+            this.api = getApi();
+            setOperational();
+        } catch (InterruptedException ex) {
+            setOperational(false);
+        }
+    }
+
+    Api getApi() {
+        if(api == null) {
+            ConfigRepo.Snapshot latestCfg = getLatestConfig();
+            // TODO Obtain the OrchestratorURL
+            this.api = new Api(getLatestConfig().getOrchestratorUrl());
+        }
+        return api;
     }
 
     /**
@@ -184,10 +207,10 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @return Foreman API.
      */
     ForemanAPI getForemanAPI() {
-        if (api == null) {
-            api = new ForemanAPI(this.url, this.user, this.password);
+        if (foremanApi == null) {
+            foremanApi = new ForemanAPI(this.url, this.user, this.password);
         }
-        return api;
+        return foremanApi;
     }
 
     @Override
