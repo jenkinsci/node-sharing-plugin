@@ -88,16 +88,17 @@ public class ConfigRepo {
             ObjectId currentHead = getRemoteHead();
             synchronized (repoLock) {
                 if (snapshot != null && currentHead.equals(snapshot.source)) {
-                    LOGGER.fine("No config update after: " + snapshot.source.name());
+                    LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
                 } else {
-                    LOGGER.info("Nodesharing config changes discovered: " + currentHead.name());
+                    LOGGER.info("Nodesharing config changes discovered in " + url + ": " + currentHead.name());
                     fetchChanges();
-                    assert currentHead.equals(getClient().revParse("HEAD")): "What was discovered was in fact checked out";
+                    ObjectId checkedOutHead = getClient().revParse("HEAD");
+                    assert currentHead.equals(checkedOutHead): "What was discovered was in fact checked out";
                     snapshot = readConfig(currentHead);
                 }
             }
         } catch (IOException|GitException|ConfigRepo.IllegalState ex) {
-            LOGGER.log(Level.SEVERE, "Failed to update config repo", ex);
+            LOGGER.log(Level.SEVERE, "Failed to update config repo from " + url, ex);
         }
 
         return snapshot;

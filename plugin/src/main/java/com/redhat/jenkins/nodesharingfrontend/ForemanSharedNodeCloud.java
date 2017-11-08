@@ -26,7 +26,6 @@ import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -114,7 +113,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     /**
      * Constructor for Config Page.
      *
-     * @param name            name of cloud.
+     * @param name                 name of cloud.
      * @param credentialsId        creds to use to connect to slave.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
@@ -123,7 +122,7 @@ public class ForemanSharedNodeCloud extends Cloud {
         super(name);
 
         this.configRepoUrl = configRepoUrl;
-        configRepo = getConfigRepo();
+        this.configRepo = getConfigRepo();
         this.credentialsId = credentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
         api = new ForemanAPI(this.url, this.user, this.password);
@@ -149,13 +148,17 @@ public class ForemanSharedNodeCloud extends Cloud {
         this.launcherFactory = launcherFactory;
     }
 
-    /*package*/ ConfigRepo getConfigRepo() {
+    private ConfigRepo getConfigRepo() {
         synchronized (this) { // Prevent several ConfigRepo instances to be created over same directory
             if (configRepo != null) return configRepo;
 
             FilePath configRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/" + name);
             return configRepo = new ConfigRepo(configRepoUrl, new File(configRepoDir.getRemote()));
         }
+    }
+
+    public ConfigRepo.Snapshot getLatestConfig() {
+        return latestConfig;
     }
 
     @Extension
