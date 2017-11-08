@@ -98,12 +98,12 @@ public final class ForemanOnceRetentionStrategy extends CloudRetentionStrategy i
                                 node.terminate();
                             }
                         } catch (InterruptedException e) {
-                            LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                            LOGGER.log(Level.WARNING, "TaskFailed to terminate " + c.getName(), e);
                             synchronized (ForemanOnceRetentionStrategy.this) {
                                 terminating = false;
                             }
                         } catch (IOException e) {
-                            LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                            LOGGER.log(Level.WARNING, "TaskFailed to terminate " + c.getName(), e);
                             synchronized (ForemanOnceRetentionStrategy.this) {
                                 terminating = false;
                             }

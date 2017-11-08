@@ -44,6 +44,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
@@ -56,6 +57,7 @@ import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NA
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -79,8 +81,16 @@ public class PoolTest {
         Pool.Updater.getInstance().doRun();
         Pool pool = Pool.getInstance();
         assertNull(pool.getConfig());
-        assertThat(pool.getError().getMessage(), startsWith("Node sharing Config Repo not configured"));
+        assertThat(getConfigTaskException().getMessage(), containsString("ERROR: Node sharing Config Repo not configured"));
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
+    }
+
+    private String getConfigTaskLog() throws IOException, InterruptedException {
+        return ((TaskLog.TaskFailed) getConfigTaskException()).getLog().readContent();
+    }
+
+    private Throwable getConfigTaskException() throws IOException, InterruptedException {
+        return Pool.ADMIN_MONITOR.getErrors().get("config-repo");
     }
 
     @Test
@@ -96,13 +106,13 @@ public class PoolTest {
                 new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2")
         ));
 
-        assertFalse(pool.isActivated());
-        assertNull(pool.getError());
+        assertFalse(Pool.ADMIN_MONITOR.isActivated());
     }
 
     @Test
     public void populateComputers() throws Exception {
         GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        assertNull(getConfigTaskException());
         Node win1 = j.getNode("win1.orchestrator");
         assertEquals("windows w2k12", win1.getLabelString());
         assertTrue(win1.toComputer().isOnline());
@@ -219,16 +229,17 @@ public class PoolTest {
         cr.add("*");
         cr.commit("Break it!");
         updater.doRun();
-        assertThat(pool.getError().getMessage(), startsWith("No orchestrator.url specified by Config Repository"));
-        assertTrue(pool.isActivated());
+        assertThat(getConfigTaskLog(), containsString("No orchestrator.url specified by Config Repository"));
+        assertTrue(Pool.ADMIN_MONITOR.isActivated());
+        Pool.ADMIN_MONITOR.clear();
 
-        cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        //cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         cr.getWorkTree().child("config").delete();
         cr.add("*");
         cr.commit("Break it!");
         updater.doRun();
-        assertThat(pool.getError().getMessage(), startsWith("No file named 'config' found in Config Repository"));
-        assertTrue(pool.isActivated());
+        assertThat(getConfigTaskLog(), containsString("No file named 'config' found in Config Repository"));
+        assertTrue(Pool.ADMIN_MONITOR.isActivated());
 
         // TODO many more to cover...
         // Executor URL/endpoint not reachable

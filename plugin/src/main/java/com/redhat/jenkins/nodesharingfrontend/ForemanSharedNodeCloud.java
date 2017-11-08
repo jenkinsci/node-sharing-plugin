@@ -1,6 +1,8 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
+import com.redhat.jenkins.nodesharing.TaskLog;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
 import hudson.Extension;
@@ -26,6 +28,7 @@ import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -71,6 +74,9 @@ public class ForemanSharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(ForemanSharedNodeCloud.class.getName());
 
     private static final int SSH_DEFAULT_PORT = 22;
+
+    @Extension
+    public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
     @Deprecated // From foreman days
     private transient String url;
@@ -183,14 +189,22 @@ public class ForemanSharedNodeCloud extends Cloud {
     /**
      * Get latest config repo snapshot.
      *
-     * @return Snapshot or null when there are problem reading it.,
+     * @return Snapshot or null when there are problem reading it.
      */
     // TODO, are we OK throwing InterruptedException?
     public @CheckForNull ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
         if (latestConfig == null) {
-            latestConfig = getConfigRepo().getSnapshot();
+            updateConfigSnapshot();
         }
         return latestConfig;
+    }
+
+    private void updateConfigSnapshot() throws InterruptedException {
+        try {
+            latestConfig = getConfigRepo().getSnapshot();
+        } catch (IOException|TaskLog.TaskFailed ex) {
+            ADMIN_MONITOR.report(configRepoUrl, ex);
+        }
     }
 
     @Extension
@@ -201,10 +215,11 @@ public class ForemanSharedNodeCloud extends Cloud {
         }
 
         @Override protected void doRun() throws Exception {
+            ADMIN_MONITOR.clear();
             for (Cloud c : Jenkins.getActiveInstance().clouds) {
                 if (c instanceof ForemanSharedNodeCloud) {
                     ForemanSharedNodeCloud cloud = (ForemanSharedNodeCloud) c;
-                    cloud.latestConfig = cloud.getConfigRepo().getSnapshot();
+                    cloud.updateConfigSnapshot();
                 }
             }
         }
