@@ -222,6 +222,8 @@ public class ConfigRepo {
      */
     public static final class Snapshot {
 
+        private final static String ORCHESTRATOR_URL = "OrchestratorUrl";
+
         private final @Nonnull ObjectId source;
         private final @Nonnull HashMap<String, String> config;
         private final @Nonnull Set<ExecutorJenkins> jenkinses;
@@ -250,6 +252,9 @@ public class ConfigRepo {
         public @Nonnull Set<ExecutorJenkins> getJenkinses() {
             return jenkinses;
         }
+
+        @CheckForNull
+        public String getOrchestratorUrl() { return config.get(ORCHESTRATOR_URL); }
     }
 
     /**
