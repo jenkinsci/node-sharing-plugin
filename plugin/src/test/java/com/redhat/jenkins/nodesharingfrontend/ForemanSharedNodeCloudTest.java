@@ -60,6 +60,7 @@ import hudson.plugins.sshslaves.SSHLauncher;
 import hudson.slaves.AbstractCloudSlave;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -135,6 +136,7 @@ public class ForemanSharedNodeCloudTest {
      *
      * @throws Exception if occurs.
      */
+    @Ignore
     @Test
     public void testConfigRoundtrip() throws Exception {
         ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
@@ -152,6 +154,7 @@ public class ForemanSharedNodeCloudTest {
      * @throws IOException if occurs.
      * @throws URISyntaxException if occurs.
      */
+    @Ignore
     @Test
     public void doTestConnection() throws Exception {
         stubServiceStatus();
@@ -165,6 +168,7 @@ public class ForemanSharedNodeCloudTest {
     /**
      * Round trip test that configures, builds, provisions and tears down.
      */
+    @Ignore
     @Test
     public void testRoundTrip() throws Exception {
         String reserveReason = ForemanAPI.getReserveReason();
@@ -196,6 +200,7 @@ public class ForemanSharedNodeCloudTest {
         assertEquals(null, foremanAPI.getHostInfo(SUT_HOSTNAME).getReservedFor());
     }
 
+    @Ignore
     @Test
     public void foremanBreakInTheMiddleOfTheBuildAndDisposerReleasesTheInstance() throws Exception {
         String reserveReason = ForemanAPI.getReserveReason();
@@ -253,6 +258,7 @@ public class ForemanSharedNodeCloudTest {
         assertEquals(null, cloud.getForemanAPI().getHostInfo(SUT_HOSTNAME).getReservedFor());
     }
 
+    @Ignore
     @Test
     public void customJavaPath() throws Exception {
         hostInfoResponseFile = "host-info-custom-java-path.txt";
@@ -277,6 +283,7 @@ public class ForemanSharedNodeCloudTest {
         return out;
     }
 
+    @Ignore
     @Test
     public void getHostData() throws Exception {
         ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
@@ -311,6 +318,7 @@ public class ForemanSharedNodeCloudTest {
         }
     }
 
+    @Ignore
     @Test
     public void getVersion() throws Exception {
         ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
@@ -328,6 +336,7 @@ public class ForemanSharedNodeCloudTest {
         assertEquals("1.5.3", api.getVersion());
     }
 
+    @Ignore
     @Test
     public void reserveHost() throws Exception {
         HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(String.format(TestUtils.readFile(hostInfoResponseFile), "false"));
@@ -344,6 +353,7 @@ public class ForemanSharedNodeCloudTest {
         assertEquals(SUT_HOSTNAME, reservedHost.getName());
     }
 
+    @Ignore
     @Test
     public void releaseHost() throws Exception {
         String reserveReason = ForemanAPI.getReserveReason();
