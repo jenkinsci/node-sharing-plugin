@@ -23,9 +23,13 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
+import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Node;
+import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import hudson.model.Slave;
 import hudson.model.TaskListener;
@@ -103,10 +107,10 @@ public final class SharedNode extends Slave implements EphemeralNode {
         if (c != null) {
             c.setTemporarilyOffline(true, PENDING_DELETION);
             if (!c.isIdle()) {
-                // Postpone deletion until empty.
-                // Note that RunListener is not invoked as we are not running Runs in the first place. Using ExecutorListener
-                // is a bit nasty as it is called before the computer is considered idle. Rely on periodic check initiated
-                // by Pool, than.
+                // Postpone deletion until idle.
+                // Note that RunListener is not invoked as we are not executing Runs and using ExecutorListener is hackish
+                // as it is invoked before the computer is considered idle. Keeping it temp-offline then to be collected
+                // by DanglingNodeDeleter.
                 return;
             }
         }
@@ -119,6 +123,28 @@ public final class SharedNode extends Slave implements EphemeralNode {
         }
     }
 
+    /**
+     * Delayed deletion promised by {@link SharedNode#deleteWhenIdle()}.
+     */
+    @Extension
+    public static final class DanglingNodeDeleter extends PeriodicWork {
+
+        @Override
+        public long getRecurrencePeriod() {
+            return HOUR;
+        }
+
+        @VisibleForTesting
+        @Override
+        public void doRun() throws Exception {
+            for (Node node : Jenkins.getInstance().getNodes()) {
+                if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {
+                    ((SharedNode) node).deleteWhenIdle();
+                }
+            }
+        }
+
+    }
     /**
      * The node is no longer occupied.
      *

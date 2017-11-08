@@ -27,6 +27,7 @@ import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.BlockingTask;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
+import com.redhat.jenkins.nodesharingbackend.SharedNode;
 import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.Label;
@@ -202,7 +203,8 @@ public class PoolTest {
 
         task.done.signal();
         j.waitUntilNoActivity();
-        Pool.Updater.getInstance().doRun(); // Trigger the check
+        // Trigger the check
+        j.jenkins.getExtensionList(SharedNode.DanglingNodeDeleter.class).iterator().next().doRun();
         assertNull("Node removed", j.jenkins.getNode(DELETED_NODE));
         assertNull("Computer removed", j.jenkins.getComputer(DELETED_NODE));
     }
