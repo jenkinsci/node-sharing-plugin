@@ -64,6 +64,8 @@ public class Api implements RootAction {
 
     private WebTarget base = null;
 
+    public Api() {}
+
     public Api(String OrchestratorUrl) {
         ClientConfig clientConfig = new ClientConfig();
 
