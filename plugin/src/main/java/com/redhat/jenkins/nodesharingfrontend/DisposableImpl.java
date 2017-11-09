@@ -23,7 +23,7 @@ public class DisposableImpl implements Disposable {
     @Nonnull
     @Override
     public State dispose() throws Exception {
-        ForemanSharedNodeCloud cloud = ForemanSharedNodeCloud.getByName(cloudName);
+        SharedNodeCloud cloud = SharedNodeCloud.getByName(cloudName);
         if (cloud != null) {
             LOGGER.finer("Attempt to release the node: " + name);
             try {

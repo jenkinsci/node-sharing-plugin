@@ -3,7 +3,7 @@
 
   <f:section title="Node Sharing Pool">
     <f:entry title="${%Name}" field="name">
-      <f:textbox />
+      <f:readOnlyTextbox />
     </f:entry>
     <f:entry title="${%Config Repo Url}" field="configRepoUrl">
       <f:textbox />
