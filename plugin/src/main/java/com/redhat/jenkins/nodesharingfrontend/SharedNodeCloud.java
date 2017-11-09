@@ -27,8 +27,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.annotation.CheckForNull;
@@ -44,8 +42,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -55,7 +51,7 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
-import com.redhat.jenkins.nodesharingfrontend.launcher.ForemanComputerLauncherFactory;
+import com.redhat.jenkins.nodesharingfrontend.launcher.SharedNodeComputerLauncherFactory;
 
 /**
  * Foreman Shared Node Cloud implementation.
@@ -71,13 +67,6 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     private String configRepoUrl;
 
-    @Deprecated // From foreman days
-    private transient String url;
-    @Deprecated // From foreman days
-    private transient String user;
-    @Deprecated // From foreman days
-    private transient Secret password;
-
     /**
      * The id of the credentials to use.
      */
@@ -87,12 +76,9 @@ public class SharedNodeCloud extends Cloud {
      */
     private Integer sshConnectionTimeOut;
 
-    @Deprecated // From Foreman days
-    private transient ForemanAPI foremanApi = null;
-
     private transient Api api = null;
 
-    private transient ForemanComputerLauncherFactory launcherFactory = null;
+    private transient SharedNodeComputerLauncherFactory launcherFactory = null;
 
     /** All available hosts structured as an immutable map, indexed by their label atoms for performance reasons */
     @CopyOnWrite
@@ -128,7 +114,8 @@ public class SharedNodeCloud extends Cloud {
         setOperational();
     }
 
-    Api getApi() throws InterruptedException {
+    @Nonnull
+    public final Api getApi() throws InterruptedException {
         if(api == null) {
             this.api = new Api(getLatestConfig().getOrchestratorUrl());
         }
@@ -136,9 +123,9 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Get Cloud name
+     * Get Cloud name.
      *
-     * @return name
+     * @return name.
      */
     @Nonnull
     public String getName() {
@@ -146,9 +133,9 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Get Config repo url
+     * Get Config repo url.
      *
-     * @return configRepoUrl
+     * @return configRepoUrl.
      */
     @Nonnull
     public String getConfigRepoUrl() {
@@ -156,7 +143,7 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set Config repo url
+     * Set Config repo url.
      *
      * @param configRepoUrl
      */
@@ -165,6 +152,35 @@ public class SharedNodeCloud extends Cloud {
         this.configRepoUrl = configRepoUrl;
     }
 
+    /**
+     * Get SSH connection time in seconds.
+     *
+     * @return timeout in secs.
+     */
+    @Nonnull
+    public Integer getSshConnectionTimeOut() {
+        return sshConnectionTimeOut;
+    }
+
+    /**
+     * Set SSH connection time in seconds.
+     *
+     * @param sshConnectionTimeOut timeout in secs.
+     */
+    @DataBoundSetter
+    public void setSshConnectionTimeOut(@Nonnull final Integer sshConnectionTimeOut) {
+        this.sshConnectionTimeOut = sshConnectionTimeOut;
+    }
+
+    /**
+     * Get credentials for SSH connection.
+     *
+     * @return credential id.
+     */
+    @Nonnull
+    public String getCredentialsId() {
+        return credentialsId;
+    }
 
     /**
      * Setter for credentialsId.
@@ -172,7 +188,7 @@ public class SharedNodeCloud extends Cloud {
      * @param credentialsId to use to connect to slaves with.
      */
     @DataBoundSetter
-    public void setCredentialsId(String credentialsId) {
+    public void setCredentialsId(@Nonnull final String credentialsId) {
         this.credentialsId = credentialsId;
     }
 
@@ -181,10 +197,11 @@ public class SharedNodeCloud extends Cloud {
      *
      * @param launcherFactory launcherFactory to use.
      */
-    /*package for testing*/ void setLauncherFactory(ForemanComputerLauncherFactory launcherFactory) {
+    /*package for testing*/ void setLauncherFactory(@Nonnull final SharedNodeComputerLauncherFactory launcherFactory) {
         this.launcherFactory = launcherFactory;
     }
 
+    @Nonnull
     private ConfigRepo getConfigRepo() {
         synchronized (this) { // Prevent several ConfigRepo instances to be created over same directory
             if (configRepo != null) return configRepo;
@@ -200,7 +217,8 @@ public class SharedNodeCloud extends Cloud {
      * @return Snapshot or null when there are problem reading it.,
      */
     // TODO, are we OK throwing InterruptedException?
-    public @CheckForNull ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
+    @CheckForNull
+    public ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
         if (latestConfig == null) {
             latestConfig = getConfigRepo().getSnapshot();
         }
@@ -219,21 +237,11 @@ public class SharedNodeCloud extends Cloud {
                 if (c instanceof SharedNodeCloud) {
                     SharedNodeCloud cloud = (SharedNodeCloud) c;
                     cloud.latestConfig = cloud.getConfigRepo().getSnapshot();
+
+                    // TODO Check and fire cfg. was changed if necessary
                 }
             }
         }
-    }
-
-    /**
-     * Getter for Foreman API
-     *
-     * @return Foreman API.
-     */
-    ForemanAPI getForemanAPI() {
-        if (foremanApi == null) {
-            foremanApi = new ForemanAPI(this.url, this.user, this.password);
-        }
-        return foremanApi;
     }
 
     @Override
@@ -261,6 +269,7 @@ public class SharedNodeCloud extends Cloud {
         return false;
     }
 
+    @Nonnull
     @Override
     public Collection<PlannedNode> provision(@CheckForNull final Label label, final int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
@@ -275,36 +284,36 @@ public class SharedNodeCloud extends Cloud {
      * @param label Label to reserve for.
      * @return list of hosts that may be free for reservation.
      */
-    @Nonnull
-    private List<HostInfo> getHostsToReserve(@CheckForNull Label label) {
-        ArrayList<HostInfo> free = new ArrayList<HostInfo>();
-        ArrayList<HostInfo> used = new ArrayList<HostInfo>();
-        for (Map.Entry<String, HostInfo> h : hostsMap.entrySet()) {
-            if (h.getValue().satisfies(label)) {
-                HostInfo host = h.getValue();
-                if (host.isReserved()) {
-                    used.add(host);
-                } else {
-                    free.add(host);
-                }
-            }
-        }
-
-        // Get free hosts first, reserved last. We should not remove them altogether as they might not be reserved any longer.
-        free.addAll(used);
-        return free;
-    }
+//    @Nonnull
+//    private List<HostInfo> getHostsToReserve(@CheckForNull Label label) {
+//        ArrayList<HostInfo> free = new ArrayList<HostInfo>();
+//        ArrayList<HostInfo> used = new ArrayList<HostInfo>();
+//        for (Map.Entry<String, HostInfo> h : hostsMap.entrySet()) {
+//            if (h.getValue().satisfies(label)) {
+//                HostInfo host = h.getValue();
+//                if (host.isReserved()) {
+//                    used.add(host);
+//                } else {
+//                    free.add(host);
+//                }
+//            }
+//        }
+//
+//        // Get free hosts first, reserved last. We should not remove them altogether as they might not be reserved any longer.
+//        free.addAll(used);
+//        return free;
+//    }
 
     /**
      * Get Cloud using provided name.
      *
      * @param name Cloud name.
-     * @return a Foreman Cloud.
+     * @return a Sharing node Cloud.
      * @throws IllegalArgumentException if occurs.
      */
     @CheckForNull
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-    public static SharedNodeCloud getByName(String name) throws IllegalArgumentException {
+    public static SharedNodeCloud getByName(final String name) throws IllegalArgumentException {
         if (name == null) {
             return null;
         }
@@ -329,61 +338,10 @@ public class SharedNodeCloud extends Cloud {
         return disposable;
     }
 
-    /**
-     * Get credentials for SSH connection.
-     *
-     * @return credential id.
-     */
-    public String getCredentialsId() {
-        return credentialsId;
-    }
-
-    /**
-     * Get SSH connection time in seconds.
-     *
-     * @return timeout in secs.
-     */
-    public Integer getSshConnectionTimeOut() {
-        return sshConnectionTimeOut;
-    }
-
-    /**
-     * Update hosts data
-     */
-    void updateHostData() {
-        while (!startOperations.isSignaled()) {
-            // We are blocked
-            LOGGER.warning("Update hosts data is still blocked, sleeping 10s.");
-            try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                LOGGER.severe("Sleeping interrupted! Returning...");
-                return;
-            }
-        }
-
-        try {
-
-            Map<String, HostInfo> hosts = getForemanAPI().getCompatibleHosts();
-            // Randomize nodes ordering
-            List<HostInfo> list = new ArrayList<HostInfo>(hosts.values());
-            Collections.shuffle(list);
-            LinkedHashMap<String, HostInfo> shuffleMap = new LinkedHashMap<String, HostInfo>();
-            for (HostInfo k : list) {
-                shuffleMap.put(k.getName(), k);
-            }
-
-            hostsMap = Collections.unmodifiableMap(shuffleMap);
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Unexpected exception occurred in updateHostData: ", e);
-            hostsMap = Collections.emptyMap(); // Erase if we can not get the data
-        }
-    }
-
-    @Restricted(DoNotUse.class) // index.jelly
-    public Collection<HostInfo> getAllHosts() {
-        return hostsMap.values();
-    }
+//    @Restricted(DoNotUse.class) // index.jelly
+//    public Collection<HostInfo> getAllHosts() {
+//        return hostsMap.values();
+//    }
 
     private synchronized Object getStartLock() {
         if (startLock == null) {
@@ -456,26 +414,22 @@ public class SharedNodeCloud extends Cloud {
         /**
          * Test connection.
          *
-         * @param url      url.
-         * @param user     user.
-         * @param password password.
-         * @return Foram Validation.
+         * @return Form Validation.
          * @throws ServletException if occurs.
          */
-        public FormValidation doTestConnection(@QueryParameter("url") String url,
-                                               @QueryParameter("user") String user,
-                                               @QueryParameter("password") Secret password) throws ServletException {
-            url = StringUtils.strip(StringUtils.stripToNull(url), "/");
+        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl)
+                throws ServletException {
+            configRepoUrl = StringUtils.strip(StringUtils.stripToNull(configRepoUrl), "/");
             try {
-                new URI(url);
+                new URI(configRepoUrl);
             } catch (URISyntaxException e) {
                 return FormValidation.error(Messages.InvalidURI(), e);
             }
 
             try {
-                String url1 = url;
-                url1 = StringUtils.strip(StringUtils.stripToNull(url1), "/");
-                String version = new ForemanAPI(url1, user, password).getVersion();
+                String url1 = configRepoUrl;
+                url1 = StringUtils.strip(StringUtils.stripToNull(configRepoUrl), "/");
+                String version = new Api(url1).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
             // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
             //} catch (LoginException e) {
