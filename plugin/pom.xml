@@ -16,48 +16,47 @@
  <url>https://wiki.jenkins-ci.org/display/JENKINS/Node+Sharing+Plugin</url>
 
  <dependencies>
+
+  <!-- Jenkins modules -->
+  <dependency>
+   <groupId>org.jenkins-ci.plugins</groupId>
+   <artifactId>cloud-stats</artifactId>
+  </dependency>
   <dependency>
    <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
    <artifactId>nodesharing-lib</artifactId>
-   <version>${project.version}</version>
   </dependency>
   <dependency>
    <groupId>org.jenkins-ci.plugins</groupId>
    <artifactId>resource-disposer</artifactId>
-   <version>0.1</version>
-  </dependency>
-  <dependency>
-   <groupId>org.jenkins-ci.plugins</groupId>
-   <artifactId>cloud-stats</artifactId>
-   <version>0.9</version>
   </dependency>
   <dependency>
    <groupId>org.jenkins-ci.plugins</groupId>
    <artifactId>ssh-slaves</artifactId>
-   <version>1.10</version>
   </dependency>
 
   <!-- Explicit versions of transitive deps -->
   <dependency>
+   <groupId>org.jenkins-ci</groupId>
+   <artifactId>annotation-indexer</artifactId>
+  </dependency>
+  <dependency>
    <groupId>org.jenkins-ci.plugins</groupId>
    <artifactId>credentials</artifactId>
-   <version>2.1.13</version>
   </dependency>
   <dependency>
    <groupId>org.jenkins-ci.plugins</groupId>
    <artifactId>ssh-credentials</artifactId>
-   <version>1.13</version>
-  </dependency>
-  <dependency>
-   <groupId>org.jenkins-ci</groupId>
-   <artifactId>annotation-indexer</artifactId>
-   <version>1.9</version>
   </dependency>
 
+  <!-- Java modules -->
   <dependency>
    <groupId>org.apache.commons</groupId>
    <artifactId>commons-lang3</artifactId>
-   <version>3.4</version>
+  </dependency>
+  <dependency>
+   <groupId>commons-codec</groupId>
+   <artifactId>commons-codec</artifactId>
   </dependency>
   <dependency>
    <groupId>org.glassfish.jersey.core</groupId>
@@ -66,12 +65,10 @@
   <dependency>
    <groupId>org.glassfish.jersey.media</groupId>
    <artifactId>jersey-media-json-jackson</artifactId>
-   <version>2.6</version>
   </dependency>
   <dependency>
    <groupId>com.fasterxml.jackson.core</groupId>
    <artifactId>jackson-annotations</artifactId>
-   <version>2.6.6</version>
   </dependency>
   <dependency>
    <groupId>com.fasterxml.jackson.core</groupId>
@@ -86,13 +83,11 @@
   <dependency> <!-- Speedup JTH -->
    <groupId>org.jenkins-ci.modules</groupId>
    <artifactId>sshd</artifactId>
-   <version>2.0</version>
    <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>com.github.tomakehurst</groupId>
    <artifactId>wiremock</artifactId>
-   <version>1.58</version>
    <scope>test</scope>
   </dependency>
  </dependencies>

@@ -45,6 +45,7 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.logging.Level;
@@ -123,36 +124,24 @@ public class ForemanSharedNodeCloud extends Cloud {
     /**
      * Constructor for Config Page.
      *
-     * @param name                 name of cloud.
+     * @param configRepoUrl        ConfigRepo url
      * @param credentialsId        creds to use to connect to slave.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public ForemanSharedNodeCloud(String name, String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
-        super(name);
+    public ForemanSharedNodeCloud(String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
+        super(DigestUtils.md5Hex(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
         this.configRepo = getConfigRepo();
         this.credentialsId = credentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
 
-//        foremanApi = new ForemanAPI(this.url, this.user, this.password);
-
-        try {
-            this.latestConfig = configRepo.getSnapshot();
-
-            // TODO Obtain the OrchestratorURL
-            this.api = getApi();
-            setOperational();
-        } catch (InterruptedException ex) {
-            setOperational(false);
-        }
+        setOperational();
     }
 
     Api getApi() {
         if(api == null) {
-            ConfigRepo.Snapshot latestCfg = getLatestConfig();
-            // TODO Obtain the OrchestratorURL
             this.api = new Api(getLatestConfig().getOrchestratorUrl());
         }
         return api;

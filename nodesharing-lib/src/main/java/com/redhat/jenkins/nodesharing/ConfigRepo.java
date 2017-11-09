@@ -226,7 +226,7 @@ public class ConfigRepo {
      */
     public static final class Snapshot {
 
-        private final static String ORCHESTRATOR_URL = "OrchestratorUrl";
+        private final static String ORCHESTRATOR_URL = "orchestrator.url";
 
         private final @Nonnull ObjectId source;
         private final @Nonnull HashMap<String, String> config;
