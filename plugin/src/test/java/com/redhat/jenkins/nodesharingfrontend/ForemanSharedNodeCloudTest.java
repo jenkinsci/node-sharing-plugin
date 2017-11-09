@@ -139,7 +139,7 @@ public class ForemanSharedNodeCloudTest {
     @Ignore
     @Test
     public void testConfigRoundtrip() throws Exception {
-        ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
 
         j.submit(j.createWebClient().goTo("configure").getFormByName("config"));
 
@@ -158,7 +158,7 @@ public class ForemanSharedNodeCloudTest {
     @Test
     public void doTestConnection() throws Exception {
         stubServiceStatus();
-        ForemanSharedNodeCloud.DescriptorImpl descr = new ForemanSharedNodeCloud.DescriptorImpl();
+        SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection(URL, USER, Secret.fromString(PASSWORD)).getMessage(),
                 containsString("1.5.3")
@@ -178,7 +178,7 @@ public class ForemanSharedNodeCloudTest {
         Computer[] computers = j.jenkins.getComputers();
         int initialComputerSet = computers.length;
 
-        ForemanSharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
 
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedLabel(new LabelAtom("label1"));
@@ -210,7 +210,7 @@ public class ForemanSharedNodeCloudTest {
         Computer[] computers = j.jenkins.getComputers();
         int initialComputerSet = computers.length;
 
-        ForemanSharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
 
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedLabel(new LabelAtom("label1"));
@@ -265,7 +265,7 @@ public class ForemanSharedNodeCloudTest {
         stubSearchInventory();
         stubReserveScenario();
 
-        ForemanSharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
         // Do not use the test specific one so we actually test the value propagation to SSHLauncher
         cloud.setLauncherFactory(null);
         AbstractCloudSlave node = (AbstractCloudSlave) cloud.provision(Label.get("label1"), 1).iterator().next().future.get();
@@ -286,7 +286,7 @@ public class ForemanSharedNodeCloudTest {
     @Ignore
     @Test
     public void getHostData() throws Exception {
-        ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
         ForemanAPI api = orig.getForemanAPI();
 
         stubHostInfoIdle();
@@ -321,7 +321,7 @@ public class ForemanSharedNodeCloudTest {
     @Ignore
     @Test
     public void getVersion() throws Exception {
-        ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
         ForemanAPI api = orig.getForemanAPI();
 
         try {
@@ -341,7 +341,7 @@ public class ForemanSharedNodeCloudTest {
     public void reserveHost() throws Exception {
         HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(String.format(TestUtils.readFile(hostInfoResponseFile), "false"));
 
-        ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
         ForemanAPI api = orig.getForemanAPI();
 
         assertEquals(null, api.reserveHost(freeHost));
@@ -358,7 +358,7 @@ public class ForemanSharedNodeCloudTest {
     public void releaseHost() throws Exception {
         String reserveReason = ForemanAPI.getReserveReason();
 
-        ForemanSharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
+        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
         ForemanAPI api = orig.getForemanAPI();
 
         stubReleaseScenario(reserveReason);

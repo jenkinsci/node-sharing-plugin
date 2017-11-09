@@ -56,8 +56,8 @@ public class ForemanComputerListener extends ComputerListener {
         if (c instanceof ForemanComputer) {
             Node node = c.getNode();
             if (node instanceof ForemanSharedNode) {
-               ForemanSharedNodeCloud foremanCloud =
-                       ForemanSharedNodeCloud.getByName(((ForemanSharedNode) node).getCloudName());
+               SharedNodeCloud foremanCloud =
+                       SharedNodeCloud.getByName(((ForemanSharedNode) node).getCloudName());
                if (foremanCloud == null || !foremanCloud.isOperational()) {
                    throw new AbortException("This is a leaked ForemanSharedNode after Jenkins restart!");
                }

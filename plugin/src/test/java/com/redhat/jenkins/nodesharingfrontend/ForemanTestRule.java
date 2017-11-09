@@ -13,7 +13,6 @@ import hudson.remoting.VirtualChannel;
 import hudson.slaves.NodeProvisioner;
 import hudson.tasks.Builder;
 import hudson.util.OneShotEvent;
-import hudson.util.Secret;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 import org.junit.runner.Description;
@@ -128,15 +127,15 @@ public final class ForemanTestRule extends JenkinsRule {
     }
 
     /**
-     * Create a new {@link ForemanSharedNodeCloud} instance and attach it to jenkins
+     * Create a new {@link SharedNodeCloud} instance and attach it to jenkins
      *
      * @param cloudName name of the cloud.
      * @param url URL for mocking.
-     * @return created {@link ForemanSharedNodeCloud} instance
+     * @return created {@link SharedNodeCloud} instance
      */
     @Nonnull
-    public ForemanSharedNodeCloud addForemanCloud(@Nonnull final String cloudName, @Nonnull final String url) {
-        ForemanSharedNodeCloud foremanCloud = new ForemanSharedNodeCloud(cloudName, url, "", 1);
+    public SharedNodeCloud addForemanCloud(@Nonnull final String cloudName, @Nonnull final String url) {
+        SharedNodeCloud foremanCloud = new SharedNodeCloud(url, "", 1);
         foremanCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         jenkins.clouds.add(foremanCloud);
         foremanCloud.updateHostData();

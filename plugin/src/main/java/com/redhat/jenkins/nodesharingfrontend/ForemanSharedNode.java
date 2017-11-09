@@ -94,7 +94,7 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
         }
 
-        ForemanSharedNodeCloud.addDisposableEvent(cloudName, name);
+        SharedNodeCloud.addDisposableEvent(cloudName, name);
     }
 
     @CheckForNull

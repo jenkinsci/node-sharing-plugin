@@ -8,18 +8,13 @@ import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Util;
-import hudson.model.AsyncPeriodicWork;
 import hudson.model.Descriptor;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.model.TaskListener;
 import hudson.slaves.Cloud;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
-import hudson.util.Futures;
 import hudson.util.ListBoxModel;
 import hudson.util.OneShotEvent;
 import hudson.util.Secret;
@@ -51,8 +46,6 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -66,18 +59,22 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharingfrontend.launcher.ForemanComputerLauncherFactory;
-import com.redhat.jenkins.nodesharingfrontend.launcher.ForemanSSHComputerLauncherFactory;
 
 /**
  * Foreman Shared Node Cloud implementation.
  */
-public class ForemanSharedNodeCloud extends Cloud {
-    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNodeCloud.class.getName());
+public class SharedNodeCloud extends Cloud {
+    private static final Logger LOGGER = Logger.getLogger(SharedNodeCloud.class.getName());
 
     private static final int SSH_DEFAULT_PORT = 22;
 
-    @Extension
     public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
+
+    /**
+     * Git cloneable URL of config repository.
+     */
+    @Nonnull
+    private String configRepoUrl;
 
     @Deprecated // From foreman days
     private transient String url;
@@ -86,10 +83,6 @@ public class ForemanSharedNodeCloud extends Cloud {
     @Deprecated // From foreman days
     private transient Secret password;
 
-    /**
-     * Git cloneable URL of config repository.
-     */
-    private final @Nonnull String configRepoUrl;
     /**
      * The id of the credentials to use.
      */
@@ -129,7 +122,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public ForemanSharedNodeCloud(String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
+    public SharedNodeCloud(String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
         super(DigestUtils.md5Hex(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
@@ -140,12 +133,43 @@ public class ForemanSharedNodeCloud extends Cloud {
         setOperational();
     }
 
-    Api getApi() {
+    Api getApi() throws InterruptedException {
         if(api == null) {
             this.api = new Api(getLatestConfig().getOrchestratorUrl());
         }
         return api;
     }
+
+    /**
+     * Get Cloud name
+     *
+     * @return name
+     */
+    @Nonnull
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Get Config repo url
+     *
+     * @return configRepoUrl
+     */
+    @Nonnull
+    public String getConfigRepoUrl() {
+        return configRepoUrl;
+    }
+
+    /**
+     * Set Config repo url
+     *
+     * @param configRepoUrl
+     */
+    @DataBoundSetter
+    public void setConfigRepoUrl(@Nonnull final String configRepoUrl) {
+        this.configRepoUrl = configRepoUrl;
+    }
+
 
     /**
      * Setter for credentialsId.
@@ -206,9 +230,15 @@ public class ForemanSharedNodeCloud extends Cloud {
         @Override protected void doRun() throws Exception {
             ADMIN_MONITOR.clear();
             for (Cloud c : Jenkins.getActiveInstance().clouds) {
+<<<<<<< HEAD:plugin/src/main/java/com/redhat/jenkins/nodesharingfrontend/ForemanSharedNodeCloud.java
                 if (c instanceof ForemanSharedNodeCloud) {
                     ForemanSharedNodeCloud cloud = (ForemanSharedNodeCloud) c;
                     cloud.updateConfigSnapshot();
+=======
+                if (c instanceof SharedNodeCloud) {
+                    SharedNodeCloud cloud = (SharedNodeCloud) c;
+                    cloud.latestConfig = cloud.getConfigRepo().getSnapshot();
+>>>>>>> 254131d465816e88c01f53ef6278c5fc67dc02c9:plugin/src/main/java/com/redhat/jenkins/nodesharingfrontend/SharedNodeCloud.java
                 }
             }
         }
@@ -252,85 +282,8 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     @Override
-    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-    public Collection<PlannedNode> provision(final @CheckForNull Label label, int excessWorkload) {
-        final long start_time = System.currentTimeMillis();
-
+    public Collection<PlannedNode> provision(@CheckForNull final Label label, final int excessWorkload) {
         Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
-
-        LOGGER.info("Request to provision label: '" + (label == null ? "" : label) + "'");
-
-        if (excessWorkload > 0
-                && !Jenkins.getInstance().isQuietingDown()
-                && !Jenkins.getInstance().isTerminating()
-                && canProvision(label)) {
-            try {
-
-                LOGGER.info("Try to provision label: '" + (label == null ? "" : label) + "' in " +
-                        Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                for (final HostInfo hi : getHostsToReserve(label)) {
-
-                    HostInfo host = null;
-                    try {
-
-                        LOGGER.info("Try to reserve host '" + hi.getName() + "' in " +
-                                Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                        host = getForemanAPI().reserveHost(hi);
-                        if (host != null) {
-                            LOGGER.info("Reserved host '" + host.getName() + "' in " +
-                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                            final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, null, host.getName());
-
-                            if (launcherFactory == null) {
-                                launcherFactory = new ForemanSSHComputerLauncherFactory(SSH_DEFAULT_PORT,
-                                        credentialsId, sshConnectionTimeOut);
-                            }
-
-                            LOGGER.info("Trying to create an instance Foreman Shared Node '" + host.getName() + "' in " +
-                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                            final Node node = new ForemanSharedNode(
-                                    id.named(host.getName()),
-                                    host.getLabels(),
-                                    host.getRemoteFs(),
-                                    launcherFactory.getForemanComputerLauncher(host),
-                                    new ForemanOnceRetentionStrategy(1),
-                                    Collections.<NodeProperty<?>>emptyList());
-
-                            LOGGER.info("Instanced Foreman Shared Node '" + host.getName() + "' in " +
-                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                            result.add(new TrackedPlannedNode(id, 1, Futures.precomputed(node)));
-
-                            LOGGER.info("Return node collection with one element in " +
-                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                            return result;
-                        } else {
-
-                            LOGGER.info("Trying to reserve host '" + hi.getName() + "' FAILED in " +
-                                    Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
-                        }
-                    } catch (Error e) {
-                        throw e;
-                    } catch (Throwable e) {
-                        LOGGER.log(Level.WARNING, "Exception encountered when trying to create shared node. ", e);
-                        if(host != null)
-                            addDisposableEvent(name, host.getName());
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unhandled exception in provision(): ", e);
-            }
-        }
-
-        LOGGER.info("Returned empty node collection in " +
-                Util.getTimeSpanString(System.currentTimeMillis() - start_time));
-
         return result;
     }
 
@@ -371,7 +324,7 @@ public class ForemanSharedNodeCloud extends Cloud {
      */
     @CheckForNull
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-    public static ForemanSharedNodeCloud getByName(String name) throws IllegalArgumentException {
+    public static SharedNodeCloud getByName(String name) throws IllegalArgumentException {
         if (name == null) {
             return null;
         }
@@ -381,8 +334,8 @@ public class ForemanSharedNodeCloud extends Cloud {
             if (cloud == null) {
                 return null;
             }
-            if (cloud instanceof ForemanSharedNodeCloud) {
-                return (ForemanSharedNodeCloud) cloud;
+            if (cloud instanceof SharedNodeCloud) {
+                return (SharedNodeCloud) cloud;
             }
         }
         throw new IllegalArgumentException(name + " is not a Foreman Shared Node cloud");
@@ -472,7 +425,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set the ForemanSharedNodeCloud to Operational state (Operational == true).
+     * Set the SharedNodeCloud to Operational state (Operational == true).
      *
      * @return previous state.
      */
@@ -481,7 +434,7 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set the ForemanSharedNodeCloud to desired Operation state (Operation == status).
+     * Set the SharedNodeCloud to desired Operation state (Operation == status).
      *
      * @param status desired Operational state.
      * @return previous Operational state.
@@ -498,13 +451,13 @@ public class ForemanSharedNodeCloud extends Cloud {
     }
 
     /**
-     * Descriptor for Foreman Cloud.
+     * Descriptor for Cloud.
      */
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
         @Override
         public String getDisplayName() {
-            return "Foreman Shared Node";
+            return "Shared Node";
         }
 
         /**
@@ -551,54 +504,6 @@ public class ForemanSharedNodeCloud extends Cloud {
                 e.printStackTrace();
                 return FormValidation.error(e.getMessage(), e);
             }
-        }
-    }
-
-    /**
-     * Update the inventory periodically.
-     */
-    @Extension
-    public static class ForemanSharedNodeWorker extends AsyncPeriodicWork {
-        private final Logger LOGGER =
-                Logger.getLogger(ForemanSharedNodeWorker.class.getName());
-
-        public ForemanSharedNodeWorker() {
-            super("ForemanSharedNodeWorker.Updater");
-        }
-
-        @Override
-        @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-        public void execute(TaskListener listener) {
-            Jenkins instance = Jenkins.getInstance();
-            if (instance.clouds != null) {
-                for (Cloud cloud : instance.clouds) {
-                    if (cloud instanceof ForemanSharedNodeCloud) {
-                        ForemanSharedNodeCloud foremanCloud = (ForemanSharedNodeCloud) cloud;
-                        if(!foremanCloud.isOperational() ) {
-                            // We are still blocked in updating data
-                            LOGGER.warning("Updating data in ForemanSharedNodeWorker.Updater is still blocked for foreman cloud '"
-                                    + foremanCloud.name + "'!");
-                            continue;
-                        }
-
-                        LOGGER.finer("Updating data for ForemanSharedNodeCloud '" + foremanCloud.name + "'");
-                        long time = System.currentTimeMillis();
-                        foremanCloud.updateHostData();
-                        LOGGER.finer("[COMPLETED] Updating data for ForemanSharedNodeCloud '" + foremanCloud.name
-                                + "' in " + Util.getTimeSpanString(System.currentTimeMillis() - time));
-                    }
-                }
-            }
-        }
-
-        @Override
-        public long getRecurrencePeriod() {
-            return MIN;
-        }
-
-        @Override
-        public String toString() {
-            return "ForemanSharedNodeWorker.Updater";
         }
     }
 }
