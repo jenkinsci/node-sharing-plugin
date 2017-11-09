@@ -169,6 +169,11 @@ public class Api implements RootAction {
         return "";
     }
 
+    public String doRelease(@Nonnull final String name) {
+        // TODO do release
+        return "";
+    }
+
     //// Incoming
 
     /**

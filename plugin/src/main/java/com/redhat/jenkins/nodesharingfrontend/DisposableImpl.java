@@ -27,7 +27,7 @@ public class DisposableImpl implements Disposable {
         if (cloud != null) {
             LOGGER.finer("Attempt to release the node: " + name);
             try {
-                cloud.getForemanAPI().release(name);
+                cloud.getApi().doRelease(name);
             } catch (Exception e) {
                 // According Foreman Docs, 404 code means host doesn't exist or isn't reserved now
                 // We can destroy the Disposable item in that case
