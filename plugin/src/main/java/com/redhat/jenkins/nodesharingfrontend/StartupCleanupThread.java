@@ -23,11 +23,11 @@ import java.util.logging.Logger;
  */
 //@Extension
 //@Restricted(NoExternalUse.class)
-public final class ForemanStartupCleanupThread {
+public final class StartupCleanupThread {
 
 //    @Initializer(after = InitMilestone.COMPLETED)
 //    public static void onCompleted() {
-//        LOGGER.finer("[START] ForemanStartupCleanupThread.onCompleted()");
+//        LOGGER.finer("[START] StartupCleanupThread.onCompleted()");
 //
 //        // Make the time consuming operation in the separate thread to not block other listeners
 //        new Thread("ForemanStartCleanupThread") {
@@ -36,7 +36,7 @@ public final class ForemanStartupCleanupThread {
 //                runCleanup();
 //            }
 //        }.start();
-//        LOGGER.finer("[COMPLETED] ForemanStartupCleanupThread.onCompleted()");
+//        LOGGER.finer("[COMPLETED] StartupCleanupThread.onCompleted()");
 //    }
 
     // Until resolved JENKINS-37759, then remove this class and use above onComplete()
@@ -56,7 +56,7 @@ public final class ForemanStartupCleanupThread {
 
         @Override
         public void onLoaded() {
-            LOGGER.finer("[START] ForemanStartupCleanupThread.OnLoadedListener.onLoaded()");
+            LOGGER.finer("[START] StartupCleanupThread.OnLoadedListener.onLoaded()");
             synchronized (getExecutedLock()) {
                 if (executed == null) {
                     executed = new OneShotEvent();
@@ -64,144 +64,19 @@ public final class ForemanStartupCleanupThread {
                 if (!executed.isSignaled()) {
                     executed.signal();
                 } else {
-                    LOGGER.finer("[COMPLETED] ForemanStartupCleanupThread.OnLoadedListener.onLoaded() - without a new thread");
+                    LOGGER.finer("[COMPLETED] StartupCleanupThread.OnLoadedListener.onLoaded() - without a new thread");
                     return;
                 }
             }
 
             // Make the time consuming operation in the separate thread to not block other listeners
-            new Thread("ForemanStartupCleanupThread") {
-                @Override
-                public void run() {
-                    runCleanup();
-                }
-            }.start();
-            LOGGER.finer("[COMPLETED] ForemanStartupCleanupThread.OnLoadedListener.onLoaded() - with a new thread");
-        }
-
-        @SuppressFBWarnings(value = {"BC_VACUOUS_INSTANCEOF", "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"})
-        private static final void runCleanup() {
-            LOGGER.info("[START] ForemanStartCleanupThread.runCleanup()");
-            long time = System.currentTimeMillis();
-//
-//            AsyncResourceDisposer disposer = AsyncResourceDisposer.get();
-//
-//            // Find all ForemanSharedNode instances and terminate their computers.
-//            // As ForemanSharedNode(s) implement EphemeralNode, we shouldn't find ANY!
-//            for (Computer computer : Jenkins.getInstance().getComputers()) {
-//                try {
-//                    if (computer instanceof ForemanComputer) {
-//                        LOGGER.severe("Found computer " + computer.getDisplayName() + "' which belongs under a ForemanCloud.\n"
-//                                + "ForemanSharedNode implements EphemeralNode, so this is a serious Jenkins bug, please report it.");
-//                        ForemanComputer.terminateForemanComputer(computer);
-//                    }
-//                } catch (Error e) {
-//                    throw e;
-//                } catch (Throwable e) {
-//                    LOGGER.log(Level.SEVERE,
-//                            "Unhandled exception in ForemanStartCleanupThread.runCleanup(): ",
-//                            e);
+//            new Thread("StartupCleanupThread") {
+//                @Override
+//                public void run() {
+//                    runCleanup();
 //                }
-//            }
-//
-//            // Wait until ForemanStartupCleanupThread terminates every node in PendingDelete state
-//            boolean doCheck = true;
-//
-//            // Do check until every Foreman cloud is clean
-//            Set<SharedNodeCloud> failedCloudSet = new HashSet<SharedNodeCloud>();
-//            while (doCheck) {
-//                boolean rescheduleDisposer = doCheck = false;
-//                for (Cloud cloud : Jenkins.getInstance().clouds) {
-//                    if (cloud instanceof SharedNodeCloud) {
-//                        SharedNodeCloud foremanCloud = (SharedNodeCloud) cloud;
-//                        try {
-//                            if (failedCloudSet.contains(foremanCloud)) {
-//                                // Cleanup attempt already performed with an unhandled exception occurred
-//                                LOGGER.info("Cleanup of Foreman cloud '" + foremanCloud.getDisplayName()
-//                                        + "' failed previously, sleeping " + SLEEPING_DELAY / 1000 + "s.");
-//                                failedCloudSet.remove(foremanCloud);
-//                                try {
-//                                    Thread.sleep(SLEEPING_DELAY);
-//                                } catch (InterruptedException e) {
-//                                    LOGGER.warning("Thread sleeping interrupted!");
-//                                }
-//                            }
-//
-//                            if (foremanCloud.isOperational()) {
-//                                // Skipping - already fully cleaned-up
-//                                continue;
-//                            }
-//
-//                            LOGGER.info("Found Foreman cloud '" + foremanCloud.getDisplayName() + "' for clean-up");
-//                            boolean foundOurDisposalItem = false;
-//                            // Try to find DisposableItems for this cloud
-//                            for (AsyncResourceDisposer.WorkItem item : disposer.getBacklog()) {
-//                                Disposable disposableItem = item.getDisposable();
-//                                if (disposableItem instanceof DisposableImpl) {
-//                                    DisposableImpl foremanDisposableItem = (DisposableImpl) disposableItem;
-//                                    if (foremanDisposableItem.getCloudName().compareTo(foremanCloud.name) == 0) {
-//                                        LOGGER.info("Found disposable item '"
-//                                                + disposableItem.getDisplayName() + "' for Foreman cloud '"
-//                                                + foremanCloud.name + "'");
-//                                        foundOurDisposalItem = true;
-//                                        break;
-//                                    }
-//                                }
-//                            }
-//
-//                            if (foundOurDisposalItem) {
-//                                // Force rescheduling
-//                                LOGGER.info("Set flag to reschedule AsyncResourceDisposer due to Foreman cloud '"
-//                                        + foremanCloud.getDisplayName() + "'");
-//                                rescheduleDisposer = true;
-//                            } else {
-//                                // All DisposableItems were disposed, there shouldn't be any reserved node for this cloud
-//                                boolean foundLeakedNode = false;
-//                                for (String reservedNode : foremanCloud.getForemanAPI().getAllReservedHosts()) {
-//                                    LOGGER.warning("Found a leaked computer '" + reservedNode
-//                                            + "' for Foreman cloud '" + foremanCloud.name
-//                                            + "'. Disposing!");
-//                                    SharedNodeCloud.addDisposableEvent(foremanCloud.name, reservedNode);
-//                                    rescheduleDisposer = foundLeakedNode = true;
-//                                }
-//                                if (!foundLeakedNode) {
-//                                    // Jenkins  nad Foreman state was narrowed, we can start using this cloud
-//                                    LOGGER.info("Unblocking ForemanSharedNodeWorker.Updater for Foreman cloud '"
-//                                            + foremanCloud.getDisplayName() + "'");
-//                                    foremanCloud.setOperational();
-//                                }
-//                            }
-//                        } catch (Error e) {
-//                            throw e;
-//                        } catch (Throwable e) {
-//                            LOGGER.log(Level.SEVERE,
-//                                    "Unhandled exception in ForemanStartCleanupThread.runCleanup() for Foreman cloud '"
-//                                            + foremanCloud.getDisplayName() + "' (disabling temporary this Foreman cloud): ",
-//                                    e);
-//                            doCheck = true;
-//                            failedCloudSet.add(foremanCloud);
-//                        }
-//                    }
-//                }
-//
-//                if (rescheduleDisposer) {
-//                    // AsyncResourceDisposer needs to be scheduled
-//                    LOGGER.info("Flag to reschedule AsyncResourceDisposer was set, going to process it and sleep "
-//                            + SLEEPING_DELAY / 1000 + "s.");
-//                    doCheck = true;
-//                    disposer.reschedule();
-//                    try {
-//                        Thread.sleep(SLEEPING_DELAY);
-//                    } catch (InterruptedException e) {
-//                        LOGGER.log(Level.WARNING, "Thread sleeping interrupted!", e);
-//                    }
-//                } else {
-//                    LOGGER.info("All ForemanSharedNode items in AsyncResourceDisposer were disposed");
-//                }
-//            }   // while
-
-            LOGGER.info("[COMPLETED] ForemanStartCleanupThread.runCleanup() finished in "
-                    + Util.getTimeSpanString(System.currentTimeMillis() - time));
+//            }.start();
+            LOGGER.finer("[COMPLETED] StartupCleanupThread.OnLoadedListener.onLoaded() - with a new thread");
         }
     }
 }
