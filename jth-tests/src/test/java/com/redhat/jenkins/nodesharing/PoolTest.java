@@ -230,6 +230,14 @@ public class PoolTest {
         assertThat(pool.getError().getMessage(), startsWith("No file named 'config' found in Config Repository"));
         assertTrue(pool.isActivated());
 
+        cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        cr.getWorkTree().child("jenkinses").delete();
+        cr.add("*");
+        cr.commit("Break it!");
+        updater.doRun();
+        assertThat(pool.getError().getMessage(), startsWith("No file named 'jenkinses' found in Config Repository"));
+        assertTrue(pool.isActivated());
+
         // TODO many more to cover...
         // Executor URL/endpoint not reachable
         // Executor name can not be used for computer
