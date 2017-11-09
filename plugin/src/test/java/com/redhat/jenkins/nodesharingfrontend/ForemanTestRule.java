@@ -138,7 +138,7 @@ public final class ForemanTestRule extends JenkinsRule {
         SharedNodeCloud foremanCloud = new SharedNodeCloud(url, "", 1);
         foremanCloud.setLauncherFactory(new ForemanDummyComputerLauncherFactory());
         jenkins.clouds.add(foremanCloud);
-        foremanCloud.updateHostData();
+//        foremanCloud.updateHostData();
         foremanCloud.setOperational();
         return foremanCloud;
     }
