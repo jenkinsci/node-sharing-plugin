@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
 /**
  * SSH Launcher Factory.
  */
-public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFactory {
+public class ForemanSSHComputerLauncherFactory extends SharedNodeComputerLauncherFactory {
 
     private final int port;
     private final String credentialsId;
