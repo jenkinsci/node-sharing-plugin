@@ -65,6 +65,12 @@ public class SharedNodeCloud extends Cloud {
 
     private static final int SSH_DEFAULT_PORT = 22;
 
+    /**
+     * Git cloneable URL of config repository.
+     */
+    @Nonnull
+    private String configRepoUrl;
+
     @Deprecated // From foreman days
     private transient String url;
     @Deprecated // From foreman days
@@ -94,12 +100,6 @@ public class SharedNodeCloud extends Cloud {
 
     private transient OneShotEvent startOperations = null;
     private transient Object startLock = null;
-
-    /**
-     * Git cloneable URL of config repository.
-     */
-    @Nonnull
-    private transient String configRepoUrl;
 
     private transient volatile ConfigRepo configRepo;
     private transient ConfigRepo.Snapshot latestConfig;
