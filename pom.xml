@@ -15,10 +15,10 @@
   <url>https://wiki.jenkins-ci.org/display/JENKINS/Node+Sharing+Plugin</url>
 
   <modules>
-    <module>plugin</module>
     <module>backend-plugin</module>
-    <module>nodesharing-lib</module>
     <module>jth-tests</module>
+    <module>nodesharing-lib</module>
+    <module>plugin</module>
   </modules>
 
   <licenses>
@@ -30,11 +30,6 @@
 
   <developers>
     <developer>
-     <id>scoheb</id>
-     <name>Scott Hebert</name>
-     <email>shebert@redhat.com</email>
-    </developer>
-    <developer>
       <id>pjanouse</id>
       <name>Pavel Janoušek</name>
       <email>pjanouse@redhat.com</email>
@@ -44,23 +39,84 @@
       <name>Oliver Gondža</name>
       <email>ogondza@gmail.com</email>
     </developer>
+    <developer>
+     <id>scoheb</id>
+     <name>Scott Hebert</name>
+     <email>shebert@redhat.com</email>
+    </developer>
   </developers>
 
   <dependencyManagement>
     <dependencies>
+
+      <!-- Project modules -->
       <dependency>
-        <groupId>commons-codec</groupId>
-        <artifactId>commons-codec</artifactId>
+        <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+        <artifactId>node-sharing-executor</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+        <artifactId>nodesharing-lib</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+        <artifactId>node-sharing-orchestrator</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- Jenkins modules -->
+      <dependency>
+        <groupId>org.jenkins-ci</groupId>
+        <artifactId>annotation-indexer</artifactId>
         <version>1.9</version>
       </dependency>
       <dependency>
-        <groupId>org.glassfish.jersey.core</groupId>
-        <artifactId>jersey-client</artifactId>
-        <version>2.22.1</version>
+        <groupId>org.jenkins-ci.modules</groupId>
+        <artifactId>instance-identity</artifactId>
+        <version>2.1</version>
       </dependency>
       <dependency>
+        <groupId>org.jenkins-ci.modules</groupId>
+        <artifactId>ssh-cli-auth</artifactId>
+        <version>1.4</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.modules</groupId>
+        <artifactId>sshd</artifactId>
+        <version>2.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>cloud-stats</artifactId>
+        <version>0.9</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>credentials</artifactId>
+        <version>2.1.13</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>resource-disposer</artifactId>
+        <version>0.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>ssh-credentials</artifactId>
+        <version>1.13</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>ssh-slaves</artifactId>
+        <version>1.10</version>
+      </dependency>
+
+      <!-- Java modules -->
+      <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-core</artifactId>
+        <artifactId>jackson-annotations</artifactId>
         <version>2.6.6</version>
       </dependency>
       <dependency>
@@ -69,15 +125,39 @@
         <version>2.6.6</version>
       </dependency>
       <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>2.6.6</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.tomakehurst</groupId>
+        <artifactId>wiremock</artifactId>
+        <version>1.58</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-codec</groupId>
+        <artifactId>commons-codec</artifactId>
+        <version>1.11</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>3.4</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>4.5.2</version>
       </dependency>
-
       <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ssh-slaves</artifactId>
-        <version>1.10</version>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-client</artifactId>
+        <version>2.22.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-json-jackson</artifactId>
+        <version>2.6</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
