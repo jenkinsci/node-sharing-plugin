@@ -17,7 +17,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Startup cleanup thread for ForemanSharedNode instances
+ * Startup cleanup thread for SharedNode instances
  *
  * @author pjanouse
  */
