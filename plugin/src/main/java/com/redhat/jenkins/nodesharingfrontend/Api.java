@@ -24,18 +24,12 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.model.Items;
-import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.RootAction;
 import hudson.model.labels.LabelAtom;
-import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -50,10 +44,13 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 
 /**
  * Receive and send REST commands from/to Orchestrator Jenkins.
@@ -62,9 +59,19 @@ import java.util.TreeSet;
 @Restricted(NoExternalUse.class)
 // TODO Check permission
 public class Api implements RootAction {
+
+    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());;
+
     private static final String HIDDEN = null;
 
     private WebTarget base = null;
+
+    private static final String PROPERTIES_FILE = "nodesharingfrontend.properties";
+    private static final String PROPERTY_VERSION = "version";
+    private Properties properties = null;
+
+    private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
+    private static final String ORCHESTRATOR_DISCOVER = "discover";
 
     public Api() {}
 
@@ -84,12 +91,30 @@ public class Api implements RootAction {
         base = client.target(OrchestratorUrl);
     }
 
+    /**
+     * Get properties.
+     *
+     * @return Properties.
+     */
     @Nonnull
-    public static Api getInstance() {
-        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
-        assert list.size() == 1;
-        return list.iterator().next();
+    private Properties getProperties() {
+        if(properties == null) {
+            properties = new Properties();
+            try {
+                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
+            } catch (IOException e) {
+                properties = new Properties();
+            }
+        }
+        return properties;
     }
+
+//    @Nonnull
+//    public static Api getInstance() {
+//        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
+//        assert list.size() == 1;
+//        return list.iterator().next();
+//    }
 
     @Override
     public String getIconFileName() {
@@ -106,6 +131,35 @@ public class Api implements RootAction {
         return "node-sharing-executor";
     }
 
+    /**
+     * Do GET HTTP request on target.
+     *
+     * @param target The request.
+     * @return Server response.
+     */
+    @Nonnull
+    public Response doGetRequest(@Nonnull final WebTarget target) {
+        Response response = Response.serverError().entity("error").build();
+        try {
+            response = target.queryParam(PROPERTY_VERSION,
+                    getProperties().getProperty(PROPERTY_VERSION, ""))
+                    .request(MediaType.APPLICATION_JSON).get();
+        } catch (Exception e) {
+            LOGGER.severe(e.getMessage());
+        }
+        return response;
+    }
+
+    /**
+     * Do POST HTTP request on target.
+     *
+     * @param target The request.
+     */
+    @Nonnull
+    public void doPostRequest(@Nonnull final WebTarget target) {
+        target.request(MediaType.APPLICATION_JSON_TYPE).post(null);
+    }
+
     //// Outgoing
 
     /**
@@ -115,7 +169,7 @@ public class Api implements RootAction {
      * @return Node status.
      */
     @CheckForNull
-    public Object nodeStatus(@Nonnull final String name) {
+    public Object nodeStatus(@Nonnull @QueryParameter("name") final String name) {
         return null;
     }
 
@@ -126,7 +180,7 @@ public class Api implements RootAction {
      * @return Item status.
      */
     @CheckForNull
-    public Object runStatus(@Nonnull final String id) {
+    public Object runStatus(@Nonnull @QueryParameter("id") final String id) {
         return null;
     }
 
@@ -169,8 +223,7 @@ public class Api implements RootAction {
      * @return Discovery result
      */
     public String doDiscover() {
-        WebTarget target = base.path("node-sharing-orchestrator/discover");
-        Response response = target.request(MediaType.APPLICATION_JSON_TYPE).get();
+        Response response = doGetRequest(base.path(ORCHESTRATOR_URI+"/"+ORCHESTRATOR_DISCOVER));
 
         // TODO Do a complete discovery
         String responseAsString = response.readEntity(String.class);
@@ -188,7 +241,7 @@ public class Api implements RootAction {
      * Request to execute #Item from the queue
      */
     @RequirePOST
-    public void doExecution(@Nonnull @QueryParameter final Node computer,
+    public void doExecution(@Nonnull @QueryParameter final String nodeName,
                             @Nonnull @QueryParameter final String id) {
         // TODO Create a Node based on the info and execute the Item
     }
@@ -199,7 +252,7 @@ public class Api implements RootAction {
      * @param name Name of the node to be returned.
      */
     @RequirePOST
-    public void doReturnNode(@Nonnull @QueryParameter final String name) {
+    public void doReturnNode(@Nonnull @QueryParameter("name") final String name) {
         throw new NotSupportedException();
 /*
         Computer c = Jenkins.getInstance().getComputer(name);

@@ -35,8 +35,11 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.jar.Manifest;
+import java.util.logging.Logger;
 
 /**
  * Receive and send REST commands from/to executor Jenkinses.
@@ -45,7 +48,13 @@ import java.util.Properties;
 @Restricted(NoExternalUse.class)
 // TODO Check permission
 public class Api implements RootAction {
+
+    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());;
+
     private static final String HIDDEN = null;
+
+    private static final String PROPERTIES_FILE = "nodesharingbackend.properties";
+    private Properties properties = null;
 
     public static @Nonnull Api getInstance() {
         ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
@@ -63,6 +72,25 @@ public class Api implements RootAction {
 
     @Override public String getUrlName() {
         return "node-sharing-orchestrator";
+    }
+
+    /**
+     * Get properties.
+     *
+     * @return Properties.
+     */
+    @Nonnull
+    private Properties getProperties() {
+        if(properties == null) {
+            properties = new Properties();
+            try {
+                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
+            } catch (IOException e) {
+                LOGGER.severe("Cannot load properties from ");
+                properties = new Properties();
+            }
+        }
+        return properties;
     }
 
     //// Outgoing
@@ -116,15 +144,7 @@ public class Api implements RootAction {
         // TODO In  config-repo url and executor url for sanity check
         // TODO Out error if sanity check failed, labels and TBD for success
 
-        String retVal = "";
-        try {
-            final Properties prop = new Properties();
-            prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
-            retVal = prop.getProperty("version");
-        } catch (Exception e) {
-            retVal = e.toString();
-        }
-        return retVal;
+        return getProperties().getProperty("version", "");
     }
 
     /**
