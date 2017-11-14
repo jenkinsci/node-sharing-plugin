@@ -48,6 +48,8 @@ import javax.ws.rs.NotSupportedException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -163,10 +165,16 @@ public class Api implements RootAction {
 
     /**
      * Request to Discover the state of the Orchestrator
-     * @return
+     *
+     * @return Discovery result
      */
     public String doDiscover() {
-        return "";
+        WebTarget target = base.path("node-sharing-orchestrator/discover");
+        Response response = target.request(MediaType.APPLICATION_JSON_TYPE).get();
+
+        // TODO Do a complete discovery
+        String responseAsString = response.readEntity(String.class);
+        return responseAsString;
     }
 
     public String doRelease(@Nonnull final String name) {
