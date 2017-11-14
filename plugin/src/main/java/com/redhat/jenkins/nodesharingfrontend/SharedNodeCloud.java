@@ -430,8 +430,12 @@ public class SharedNodeCloud extends Cloud {
 
             try {
                 FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
+
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
+                if(testSnapshot == null) {
+                    return FormValidation.error(Messages.InvalidConfigRepo());
+                }
 
                 String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");

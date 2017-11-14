@@ -34,6 +34,7 @@ import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 
 public class SharedNodeCloudTest {
 
@@ -53,9 +54,42 @@ public class SharedNodeCloudTest {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection(configRepoUrl).getMessage(),
-                containsString(prop.getProperty("version"))
+                containsString("Orchestrator version is " + prop.getProperty("version"))
         );
 
+    }
+
+    @Test
+    public void doTestConnectionInvalidUrl() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
+        assertThat(
+                descr.doTestConnection("file:\\\\aaa").getMessage(),
+                equalTo("Invalid config repo url")
+        );
+    }
+
+    @Test
+    public void doTestConnectionNonExistsUrl() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
+        assertThat(
+                descr.doTestConnection("file://dummy_not_exists").getMessage(),
+                equalTo("Unrecognized config repo content")
+        );
+    }
+
+    @Test
+    public void doTestConnectionImproperContentRepo() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
+        assertThat(
+                descr.doTestConnection("file:///tmp").getMessage(),
+                equalTo("Unrecognized config repo content")
+        );
     }
 
     @Ignore
