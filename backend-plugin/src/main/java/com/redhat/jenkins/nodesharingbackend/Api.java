@@ -36,6 +36,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
 import java.util.Collection;
+import java.util.Properties;
 
 /**
  * Receive and send REST commands from/to executor Jenkinses.
@@ -110,10 +111,20 @@ public class Api implements RootAction {
     /**
      * Dummy request to test the connection/compatibility.
      */
-    @RequirePOST
-    public void doDiscover() {
+//    @RequirePOST
+    public String doDiscover() {
         // TODO In  config-repo url and executor url for sanity check
         // TODO Out error if sanity check failed, labels and TBD for success
+
+        String retVal = "";
+        try {
+            final Properties prop = new Properties();
+            prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
+            retVal = prop.getProperty("version");
+        } catch (Exception e) {
+            retVal = e.toString();
+        }
+        return retVal;
     }
 
     /**
