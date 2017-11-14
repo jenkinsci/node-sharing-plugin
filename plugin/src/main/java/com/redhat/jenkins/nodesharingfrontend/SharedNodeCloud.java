@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
@@ -197,7 +198,8 @@ public class SharedNodeCloud extends Cloud {
      *
      * @param launcherFactory launcherFactory to use.
      */
-    /*package for testing*/ void setLauncherFactory(@Nonnull final SharedNodeComputerLauncherFactory launcherFactory) {
+    @VisibleForTesting
+    /*package for testing*/ public void setLauncherFactory(@Nonnull final SharedNodeComputerLauncherFactory launcherFactory) {
         this.launcherFactory = launcherFactory;
     }
 
@@ -414,12 +416,12 @@ public class SharedNodeCloud extends Cloud {
         /**
          * Test connection.
          *
+         * @param configRepoUrl Config repository URL.
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
         public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl)
                 throws ServletException {
-            configRepoUrl = StringUtils.strip(StringUtils.stripToNull(configRepoUrl), "/");
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
@@ -427,9 +429,11 @@ public class SharedNodeCloud extends Cloud {
             }
 
             try {
-                String url1 = configRepoUrl;
-                url1 = StringUtils.strip(StringUtils.stripToNull(configRepoUrl), "/");
-                String version = new Api(url1).doDiscover();
+                FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
+                ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
+                ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
+
+                String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
             // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
             //} catch (LoginException e) {
