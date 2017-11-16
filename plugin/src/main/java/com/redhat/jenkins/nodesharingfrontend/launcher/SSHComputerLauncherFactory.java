@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
 /**
  * SSH Launcher Factory.
  */
-public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFactory {
+public class SSHComputerLauncherFactory extends SharedNodeComputerLauncherFactory {
 
     private final int port;
     private final String credentialsId;
@@ -22,7 +22,7 @@ public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFa
      * @param credId Credentials to use.
      * @param timeOut timeout for SSH connection in secs.
      */
-    public ForemanSSHComputerLauncherFactory(int p, String credId, Integer timeOut) {
+    public SSHComputerLauncherFactory(int p, String credId, Integer timeOut) {
         super();
         this.port = p;
         this.credentialsId = credId;
@@ -33,7 +33,7 @@ public class ForemanSSHComputerLauncherFactory extends ForemanComputerLauncherFa
      * Create launcher tailored for particular host.
      */
     @Override
-    public ComputerLauncher getForemanComputerLauncher(@Nonnull HostInfo host) {
+    public ComputerLauncher getComputerLauncher(@Nonnull HostInfo host) {
         return new SSHLauncher(host.getName(),
                 port,
                 credentialsId,

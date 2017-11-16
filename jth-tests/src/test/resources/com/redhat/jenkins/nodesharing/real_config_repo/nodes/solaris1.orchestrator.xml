@@ -1,0 +1,18 @@
+<com.redhat.foreman.ForemanSharedNode>
+  <name>solaris1.executor.com</name>
+  <description/>
+  <remoteFS>/var/jenkins-workspace</remoteFS>
+  <numExecutors>1</numExecutors>
+  <mode>EXCLUSIVE</mode>
+  <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.21">
+    <host></host>
+    <port>22</port>
+    <credentialsId></credentialsId>
+    <javaPath>/path/to/launcher</javaPath>
+    <launchTimeoutSeconds>600</launchTimeoutSeconds>
+    <maxNumRetries>0</maxNumRetries>
+    <retryWaitTime>0</retryWaitTime>
+  </launcher>
+  <label>solaris11 sparc</label>
+  <nodeProperties/>
+</com.redhat.foreman.ForemanSharedNode>

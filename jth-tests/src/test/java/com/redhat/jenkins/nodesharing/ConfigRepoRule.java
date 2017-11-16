@@ -24,8 +24,10 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.EnvVars;
+import hudson.FilePath;
 import hudson.Util;
 import hudson.util.StreamTaskListener;
+import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -85,6 +87,42 @@ public class ConfigRepoRule implements TestRule {
         git.init();
         git.add("*");
         git.commit("Init");
+
+        return git;
+    }
+
+    protected GitClient createReal(URL repoSources, Jenkins j) throws Exception {
+        File orig = new File(repoSources.toURI());
+        assertTrue(orig.isDirectory());
+        File repo = File.createTempFile("jenkins.nodesharing.real", getClass().getSimpleName());
+        assert repo.delete();
+        assert repo.mkdir();
+        FileUtils.copyDirectory(orig, repo);
+        repos.add(repo);
+
+        StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
+        GitClient git = Git.with(listener, new EnvVars()).in(repo).using("git").getClient();
+        git.init();
+        git.add("*");
+        git.commit("Init");
+
+        FilePath config = git.getWorkTree().child("config");
+        // TODO replase Jenkins URL
+        String newConfig = config.readToString().replace("orchestrator.url=",
+                "orchestrator.url=" + j.getRootUrl());
+        config.write(newConfig, Charset.defaultCharset().name());
+        git.add("config");
+
+        FilePath jenkinses = git.getWorkTree().child("jenkinses");
+        // TODO replase Jenkins URL
+        String newJenkinses = jenkinses.readToString().replace("jenkins1=",
+                "jenkins1=" + j.getRootUrl());
+        jenkinses.write(newJenkinses, Charset.defaultCharset().name());
+        git.add("jenkinses");
+
+        // TODO create and store real Slave
+
+        git.commit("Update");
 
         return git;
     }

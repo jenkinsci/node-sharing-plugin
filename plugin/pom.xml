@@ -90,5 +90,18 @@
    <artifactId>wiremock</artifactId>
    <scope>test</scope>
   </dependency>
+  <dependency>
+   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+   <artifactId>node-sharing-orchestrator</artifactId>
+  </dependency>
  </dependencies>
+
+ <build>
+  <resources>
+   <resource>
+    <directory>src/main/resources</directory>
+    <filtering>true</filtering>
+   </resource>
+  </resources>
+ </build>
 </project>

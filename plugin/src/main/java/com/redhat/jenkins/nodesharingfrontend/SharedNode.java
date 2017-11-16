@@ -27,9 +27,9 @@ import java.util.logging.Logger;
 /**
  * Foreman Shared Node.
  */
-public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
+public class SharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanSharedNode.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(SharedNode.class.getName());
     private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
@@ -50,7 +50,7 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
      * @throws FormException if occurs.
      * @throws IOException   if occurs.
      */
-    public ForemanSharedNode(
+    public SharedNode(
             ProvisioningActivity.Id id,
             String label,
             String remoteFS,
@@ -63,13 +63,13 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
                 label, launcher, strategy, nodeProperties);
         this.id = id;
         this.cloudName = id.getCloudName();
-        LOGGER.info("Instancing a new ForemanSharedNode: name='" + name + "', label='"
+        LOGGER.info("Instancing a new SharedNode: name='" + name + "', label='"
                 + (label == null ? "<NULL>" : label) + "'");
     }
 
     @Override
     public AbstractCloudComputer<?> createComputer() {
-        return new ForemanComputer(this);
+        return new SharedComputer(this);
     }
 
     @Override
@@ -87,7 +87,7 @@ public class ForemanSharedNode extends AbstractCloudSlave implements EphemeralNo
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        LOGGER.info("Terminating the ForemanSharedNode: name='" + name + "'");
+        LOGGER.info("Terminating the SharedNode: name='" + name + "'");
 
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {

@@ -16,9 +16,9 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class ForemanOnceRetentionStrategy extends CloudRetentionStrategy implements ExecutorListener {
+public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy implements ExecutorListener {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanOnceRetentionStrategy.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(SharedOnceRetentionStrategy.class.getName());
 
     private transient boolean terminating;
 
@@ -28,7 +28,7 @@ public final class ForemanOnceRetentionStrategy extends CloudRetentionStrategy i
      * Creates the retention strategy.
      * @param idleMinutes number of minutes of idleness after which to kill the slave; serves a backup in case the strategy fails to detect the end of a task
      */
-    public ForemanOnceRetentionStrategy(int idleMinutes) {
+    public SharedOnceRetentionStrategy(int idleMinutes) {
         super(idleMinutes);
         this.idleMinutes = idleMinutes;
     }
@@ -98,13 +98,13 @@ public final class ForemanOnceRetentionStrategy extends CloudRetentionStrategy i
                                 node.terminate();
                             }
                         } catch (InterruptedException e) {
-                            LOGGER.log(Level.WARNING, "TaskFailed to terminate " + c.getName(), e);
-                            synchronized (ForemanOnceRetentionStrategy.this) {
+                            LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                            synchronized (SharedOnceRetentionStrategy.this) {
                                 terminating = false;
                             }
                         } catch (IOException e) {
-                            LOGGER.log(Level.WARNING, "TaskFailed to terminate " + c.getName(), e);
-                            synchronized (ForemanOnceRetentionStrategy.this) {
+                            LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                            synchronized (SharedOnceRetentionStrategy.this) {
                                 terminating = false;
                             }
                         }

@@ -2,7 +2,6 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import java.io.IOException;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import hudson.remoting.VirtualChannel;
@@ -24,14 +23,14 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Foreman Cloud Computer.
  */
-public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> implements TrackedItem {
+public class SharedComputer extends AbstractCloudComputer<SharedNode> implements TrackedItem {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanComputer.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(SharedComputer.class.getName());
 
     private final ProvisioningActivity.Id id;
 
     @Override
-    public ForemanSharedNode getNode() {
+    public SharedNode getNode() {
         return super.getNode();
     }
 
@@ -42,12 +41,12 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
      * @throws IOException if occurs.
      * @throws InterruptedException if occurs.
      */
-    public static void terminateForemanComputer(Computer c) throws IOException, InterruptedException {
-        if (c instanceof ForemanComputer) {
-            ForemanComputer fc = (ForemanComputer) c;
+    public static void terminateComputer(Computer c) throws IOException, InterruptedException {
+        if (c instanceof SharedComputer) {
+            SharedComputer fc = (SharedComputer) c;
             Node node = fc.getNode();
             if (node != null) {
-                ForemanSharedNode sharedNode = (ForemanSharedNode) node;
+                SharedNode sharedNode = (SharedNode) node;
 
                 VirtualChannel channel = sharedNode.getChannel();
                 if (channel != null) {
@@ -67,17 +66,17 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
      * @throws InterruptedException if occurs
      */
     public void deleteSlave() throws IOException, InterruptedException {
-        terminateForemanComputer(this);
+        terminateComputer(this);
     }
 
     /**
      * Default constructor.
      *
-     * @param slave Foreman slave {@link ForemanSharedNode}.
+     * @param slave Foreman slave {@link SharedNode}.
      */
-    public ForemanComputer(ForemanSharedNode slave) {
+    public SharedComputer(SharedNode slave) {
         super(slave);
-        LOGGER.fine("Instancing a new ForemanComputer: name='" + slave.getNodeName() + "'");
+        LOGGER.fine("Instancing a new SharedComputer: name='" + slave.getNodeName() + "'");
         id = slave.getId();
     }
 
@@ -95,12 +94,12 @@ public class ForemanComputer extends AbstractCloudComputer<ForemanSharedNode> im
     @Override
     @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
-        ForemanSharedNode node = getNode();
+        SharedNode node = getNode();
         if (node == null) {
             super.doDoDelete();
         }
         try {
-            terminateForemanComputer(this);
+            terminateComputer(this);
         } catch (Exception e) {
         }
         return new HttpRedirect("..");

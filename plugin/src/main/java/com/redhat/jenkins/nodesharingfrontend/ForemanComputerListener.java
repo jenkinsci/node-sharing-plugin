@@ -32,15 +32,15 @@ public class ForemanComputerListener extends ComputerListener {
             LOGGER.log(Level.SEVERE,
                     "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
         }
-        if (c instanceof ForemanComputer) {
-            ForemanComputer fc = (ForemanComputer) c;
+        if (c instanceof SharedComputer) {
+            SharedComputer fc = (SharedComputer) c;
             CloudStatistics.get().attach(
                     CloudStatistics.get().getActivityFor(fc.getId()),
                     CloudStatistics.get().getActivityFor(fc.getId()).getCurrentPhase(),
                     new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL,
                             "Launch failed with:\n" + c.getLog()));
             LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...:\n" + c.getLog());
-            ((ForemanComputer) c).terminateForemanComputer(c);
+            ((SharedComputer) c).terminateComputer(c);
         }
     }
 
@@ -53,13 +53,13 @@ public class ForemanComputerListener extends ComputerListener {
             LOGGER.log(Level.SEVERE,
                     "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
         }
-        if (c instanceof ForemanComputer) {
+        if (c instanceof SharedComputer) {
             Node node = c.getNode();
-            if (node instanceof ForemanSharedNode) {
+            if (node instanceof SharedNode) {
                SharedNodeCloud foremanCloud =
-                       SharedNodeCloud.getByName(((ForemanSharedNode) node).getCloudName());
+                       SharedNodeCloud.getByName(((SharedNode) node).getCloudName());
                if (foremanCloud == null || !foremanCloud.isOperational()) {
-                   throw new AbortException("This is a leaked ForemanSharedNode after Jenkins restart!");
+                   throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
                }
            }
         }
@@ -73,10 +73,10 @@ public class ForemanComputerListener extends ComputerListener {
             LOGGER.log(Level.SEVERE,
                     "Uncaught unexpected exception occurred while calling super.onTemporarilyOnline(): ", e);
         }
-        if (c instanceof ForemanComputer) {
+        if (c instanceof SharedComputer) {
             if (c.isIdle()) {
                 try {
-                    ((ForemanComputer) c).terminateForemanComputer(c);
+                    ((SharedComputer) c).terminateComputer(c);
                 } catch (InterruptedException e) {
                 } catch (IOException e) {
                 }
