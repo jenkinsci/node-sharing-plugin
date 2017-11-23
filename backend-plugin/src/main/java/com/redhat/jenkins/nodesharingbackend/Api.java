@@ -23,22 +23,27 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.Workload;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.model.RootAction;
+import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
+import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Properties;
-import java.util.jar.Manifest;
 import java.util.logging.Logger;
 
 /**
@@ -151,9 +156,25 @@ public class Api implements RootAction {
      * Report workload to be executed on orchestrator for particular executor master.
      */
     @RequirePOST
-    public void doReportWorkload() {
+    public void doReportWorkload(@Nonnull final StaplerRequest request, @Nonnull final StaplerResponse response) {
+        String json = null;
+        try {
+            json = IOUtils.toString(request.getReader());
+            System.out.println("Backend: " + json);
+        } catch (IOException e) {
+            throw HttpResponses.error(e);
+        }
+
+        Workload items = new Gson().fromJson(json, Workload.class);
+
+        System.out.println("doReportWorkload(): Backend got this request: ");
+
+        for (Workload.WorkloadItem item : items.getItems()) {
+            System.out.println("Id: " + item.getId() + ", Name: '" + item.getName() + "'");
+        }
+        // TODO Process the workload
         // TODO In set of queue items to be build
-        // TODO Out nothing
+        // TODO Out nothing or OK
     }
 
     /**
