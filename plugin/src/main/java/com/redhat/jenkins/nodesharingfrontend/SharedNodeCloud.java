@@ -23,11 +23,14 @@ import hudson.util.Secret;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectStreamException;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -434,31 +437,34 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
-        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl)
-                throws ServletException {
+        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl) throws Exception {
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
                 return FormValidation.error(Messages.InvalidURI(), e);
             }
 
+            FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
-                FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
 
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
-                if(testSnapshot == null) {
-                    return FormValidation.error(Messages.InvalidConfigRepo());
-                }
 
                 String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
-            // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
-            //} catch (LoginException e) {
-            //    return FormValidation.error(Messages.AuthFailure());
+            } catch (TaskLog.TaskFailed e) {
+                ByteArrayOutputStream bout = new ByteArrayOutputStream();
+                try (OutputStreamWriter writer = new OutputStreamWriter(bout)) {
+                    writer.write("<pre>");
+                    e.getLog().getAnnotatedText().writeHtmlTo(0, writer);
+                    writer.write("</pre>");
+                }
+                return FormValidation.errorWithMarkup(bout.toString(Charset.defaultCharset().name()));
             } catch (Exception e) {
                 e.printStackTrace();
                 return FormValidation.error(e.getMessage(), e);
+            } finally {
+                testConfigRepoDir.deleteRecursive();
             }
         }
     }
