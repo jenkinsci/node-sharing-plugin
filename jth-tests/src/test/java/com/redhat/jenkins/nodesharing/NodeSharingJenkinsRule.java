@@ -62,6 +62,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     protected GitClient injectConfigRepo(GitClient repoClient) throws Exception {
         System.setProperty(CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
+System.out.println(repoClient.getWorkTree().getRemote());
         Pool.Updater.getInstance().doRun();
 
         return repoClient;

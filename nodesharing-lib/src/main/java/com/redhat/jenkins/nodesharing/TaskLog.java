@@ -24,12 +24,14 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.FilePath;
+import hudson.console.AnnotatedLargeText;
 import hudson.util.StreamTaskListener;
 
 import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 
 /**
  * Log progress of a task to file while marking error was reported.
@@ -55,6 +57,10 @@ public class TaskLog extends StreamTaskListener {
 
     public String readContent() throws IOException, InterruptedException {
         return new FilePath(target).readToString();
+    }
+
+    public AnnotatedLargeText<TaskLog> getAnnotatedText() {
+        return new AnnotatedLargeText<TaskLog>(target, Charset.defaultCharset(), false /*TODO*/, this);
     }
 
     public void println(String msg) {

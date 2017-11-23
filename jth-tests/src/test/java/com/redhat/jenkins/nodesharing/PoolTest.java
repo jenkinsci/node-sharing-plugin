@@ -43,6 +43,7 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -81,16 +82,12 @@ public class PoolTest {
         Pool.Updater.getInstance().doRun();
         Pool pool = Pool.getInstance();
         assertNull(pool.getConfig());
-        assertThat(getConfigTaskException().getMessage(), containsString("ERROR: Node sharing Config Repo not configured"));
+        assertReports("Node sharing Config Repo not configured");
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
     }
 
-    private String getConfigTaskLog() throws IOException, InterruptedException {
-        return ((TaskLog.TaskFailed) getConfigTaskException()).getLog().readContent();
-    }
-
-    private Throwable getConfigTaskException() throws IOException, InterruptedException {
-        return Pool.ADMIN_MONITOR.getErrors().get("config-repo");
+    private Throwable getConfigTaskException(String context) throws IOException, InterruptedException {
+        return Pool.ADMIN_MONITOR.getErrors().get(context);
     }
 
     @Test
@@ -112,7 +109,7 @@ public class PoolTest {
     @Test
     public void populateComputers() throws Exception {
         GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
-        assertNull(getConfigTaskException());
+        assertNull(getConfigTaskException("config-repo"));
         Node win1 = j.getNode("win1.orchestrator");
         assertEquals("windows w2k12", win1.getLabelString());
         assertTrue(win1.toComputer().isOnline());
@@ -221,7 +218,6 @@ public class PoolTest {
 
     @Test
     public void brokenConfig() throws Exception {
-        Pool pool = Pool.getInstance();
         Pool.Updater updater = Pool.Updater.getInstance();
 
         GitClient cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
@@ -229,31 +225,43 @@ public class PoolTest {
         cr.add("*");
         cr.commit("Break it!");
         updater.doRun();
-        assertThat(getConfigTaskLog(), containsString("No orchestrator.url specified by Config Repository"));
-        assertTrue(Pool.ADMIN_MONITOR.isActivated());
-        Pool.ADMIN_MONITOR.clear();
+        assertReports("ERROR: No orchestrator.url specified by Config Repository");
 
-        //cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        Pool.ADMIN_MONITOR.clear();
+        cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         cr.getWorkTree().child("config").delete();
         cr.add("*");
         cr.commit("Break it!");
         updater.doRun();
-        assertThat(getConfigTaskLog(), containsString("No file named 'config' found in Config Repository"));
-        assertTrue(Pool.ADMIN_MONITOR.isActivated());
+        assertReports("ERROR: No file named 'config' found in Config Repository");
 
+        Pool.ADMIN_MONITOR.clear();
         cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         cr.getWorkTree().child("jenkinses").delete();
         cr.add("*");
         cr.commit("Break it!");
         updater.doRun();
-        assertThat(pool.getError().getMessage(), startsWith("No file named 'jenkinses' found in Config Repository"));
-        assertTrue(pool.isActivated());
+        assertReports("ERROR: No file named 'jenkinses' found in Config Repository");
+
+        //j.interactiveBreak();
 
         // TODO many more to cover...
         // Executor URL/endpoint not reachable
         // Executor name can not be used for computer
         // Executor config defective
         // Multiple Executors with same URL / name
+    }
+
+    private void assertReports(String expected) throws IOException, InterruptedException, SAXException {
+        String logs = j.createWebClient().goTo(Pool.ADMIN_MONITOR.getUrl()).getWebResponse().getContentAsString();
+        assertThat(logs, containsString(expected));
+        Throwable ex = getConfigTaskException("Primary Config Repo");
+        if (ex instanceof TaskLog.TaskFailed) {
+            assertThat(((TaskLog.TaskFailed) ex).getLog().readContent(), containsString(expected));
+        } else {
+            assertThat(ex.getMessage(), containsString(expected));
+        }
+        assertTrue(Pool.ADMIN_MONITOR.isActivated());
     }
 
     @Test @Ignore

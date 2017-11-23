@@ -60,6 +60,11 @@ public class ConfigRepoAdminMonitor extends AdministrativeMonitor {
         return !errors.isEmpty();
     }
 
+    @Override
+    public @Nonnull String getDisplayName() {
+        return "Node Sharing Monitor";
+    }
+
     public void clear() {
         errors.clear();
     }

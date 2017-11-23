@@ -61,6 +61,7 @@ public class Pool {
 
     @Extension
     public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
+    private static final String MONITOR_CONTEXT = "Primary Config Repo";
 
     private final Object configLock = new Object();
 
@@ -77,7 +78,8 @@ public class Pool {
     public @CheckForNull String getConfigEndpoint() {
         String property = System.getProperty(CONFIG_REPO_PROPERTY_NAME);
         if (property == null) {
-            ADMIN_MONITOR.report("config-repo", new AbortException("Node sharing Config Repo not configured by " + CONFIG_REPO_PROPERTY_NAME));
+            String msg = "Node sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
         }
         return property;
     }
@@ -132,8 +134,6 @@ public class Pool {
         private static final File WORK_DIR = new File(Jenkins.getActiveInstance().getRootDir(), "node-sharing");
         private static final File CONFIG_DIR = new File(WORK_DIR, "config");
 
-        private @CheckForNull ConfigRepo repo;
-
         public static @Nonnull Updater getInstance() {
             ExtensionList<Updater> list = Jenkins.getInstance().getExtensionList(Updater.class);
             assert list.size() == 1;
@@ -151,15 +151,13 @@ public class Pool {
             String configEndpoint = pool.getConfigEndpoint();
             if (configEndpoint == null) return;
 
-            if (repo == null) {
-                repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
-            }
+            ConfigRepo repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
 
+            Pool.ADMIN_MONITOR.clear();
             try {
-                Pool.ADMIN_MONITOR.clear();
                 pool.updateConfig(repo.getSnapshot());
             } catch (IOException | TaskLog.TaskFailed ex) {
-                Pool.ADMIN_MONITOR.report("config-repo", ex);
+                Pool.ADMIN_MONITOR.report(MONITOR_CONTEXT, ex);
             }
         }
     }
