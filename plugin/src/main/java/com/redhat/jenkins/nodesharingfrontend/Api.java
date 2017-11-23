@@ -25,23 +25,23 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
+import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.Workload;
 import hudson.Extension;
+import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.RootAction;
-import org.codehaus.jackson.JsonNode;
+import jenkins.model.Jenkins;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.print.attribute.standard.Media;
 import javax.ws.rs.NotSupportedException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -50,7 +50,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -221,8 +220,13 @@ public class Api implements RootAction {
     @CheckForNull
     public Object nodeStatus(@Nonnull @QueryParameter("name") final String name) {
         // TODO Response to node status
-        throw new UnsupportedOperationException();
-//        return null;
+        Communication.NodeState status = Communication.NodeState.NOT_FOUND;
+        Node node = Jenkins.getActiveInstance().getNode(name);
+        if (node != null) {
+            // TODO Extract the current states
+            status = Communication.NodeState.FOUND;
+        }
+        return (Object) status.ordinal();
     }
 
     /**
