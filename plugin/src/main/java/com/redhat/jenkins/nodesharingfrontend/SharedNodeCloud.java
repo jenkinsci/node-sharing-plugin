@@ -3,6 +3,8 @@ package com.redhat.jenkins.nodesharingfrontend;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
+import com.redhat.jenkins.nodesharing.TaskLog;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
 import hudson.Extension;
@@ -24,10 +26,14 @@ import hudson.util.Secret;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectStreamException;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,6 +70,8 @@ public class SharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(SharedNodeCloud.class.getName());
 
     private static final int SSH_DEFAULT_PORT = 22;
+
+    public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
     /**
      * Git cloneable URL of config repository.
@@ -221,15 +229,23 @@ public class SharedNodeCloud extends Cloud {
     /**
      * Get latest config repo snapshot.
      *
-     * @return Snapshot or null when there are problem reading it.,
+     * @return Snapshot or null when there are problem reading it.
      */
     // TODO, are we OK throwing InterruptedException?
     @CheckForNull
     public ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
         if (latestConfig == null) {
-            latestConfig = getConfigRepo().getSnapshot();
+            updateConfigSnapshot();
         }
         return latestConfig;
+    }
+
+    private void updateConfigSnapshot() throws InterruptedException {
+        try {
+            latestConfig = getConfigRepo().getSnapshot();
+        } catch (IOException|TaskLog.TaskFailed ex) {
+            ADMIN_MONITOR.report(configRepoUrl, ex);
+        }
     }
 
     @Extension
@@ -240,10 +256,11 @@ public class SharedNodeCloud extends Cloud {
         }
 
         @Override protected void doRun() throws Exception {
+            ADMIN_MONITOR.clear();
             for (Cloud c : Jenkins.getActiveInstance().clouds) {
                 if (c instanceof SharedNodeCloud) {
                     SharedNodeCloud cloud = (SharedNodeCloud) c;
-                    cloud.latestConfig = cloud.getConfigRepo().getSnapshot();
+                    cloud.updateConfigSnapshot();
 
                     // TODO Check and fire cfg. was changed if necessary
                 }
@@ -436,31 +453,34 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
-        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl)
-                throws ServletException {
+        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl) throws Exception {
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
                 return FormValidation.error(Messages.InvalidURI(), e);
             }
 
+            FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
-                FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
 
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
-                if(testSnapshot == null) {
-                    return FormValidation.error(Messages.InvalidConfigRepo());
-                }
 
                 String version = new Api(testSnapshot.getOrchestratorUrl(), null).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
-            // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
-            //} catch (LoginException e) {
-            //    return FormValidation.error(Messages.AuthFailure());
+            } catch (TaskLog.TaskFailed e) {
+                ByteArrayOutputStream bout = new ByteArrayOutputStream();
+                try (OutputStreamWriter writer = new OutputStreamWriter(bout)) {
+                    writer.write("<pre>");
+                    e.getLog().getAnnotatedText().writeHtmlTo(0, writer);
+                    writer.write("</pre>");
+                }
+                return FormValidation.errorWithMarkup(bout.toString(Charset.defaultCharset().name()));
             } catch (Exception e) {
                 e.printStackTrace();
                 return FormValidation.error(e.getMessage(), e);
+            } finally {
+                testConfigRepoDir.deleteRecursive();
             }
         }
     }

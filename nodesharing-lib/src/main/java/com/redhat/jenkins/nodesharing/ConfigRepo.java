@@ -23,11 +23,9 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.google.common.base.Joiner;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.plugins.git.GitException;
-import hudson.util.LogTaskListener;
 import org.eclipse.jgit.lib.ObjectId;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -40,13 +38,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -81,78 +77,96 @@ public class ConfigRepo {
      * Get snapshot or remote repo state or the last working.
      *
      * @return Latest snapshot or the most recent working one if latest can not be get.
+     * @throws InterruptedException     When thread was interrupted while creating snapshot.
+     * @throws IOException              When failed to create the log file for the operation.
+     * @throws TaskLog.TaskFailed       When there ware problems reading the snapshot.
      */
-    // TODO reconsider null/Exception when there is no config read, fresh or still
-    public @CheckForNull Snapshot getSnapshot() throws InterruptedException {
+    public @Nonnull Snapshot getSnapshot() throws InterruptedException, IOException, TaskLog.TaskFailed {
+        Files.createDirectories(workingDir.toPath());
+        TaskLog taskLog = new TaskLog(new File(workingDir.getAbsolutePath() + ".log"));
         try {
-            ObjectId currentHead = getRemoteHead();
+            ObjectId currentHead = getRemoteHead(taskLog);
             synchronized (repoLock) {
                 if (snapshot != null && currentHead.equals(snapshot.source)) {
                     LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
                 } else {
-                    LOGGER.info("Nodesharing config changes discovered in " + url + ": " + currentHead.name());
-                    fetchChanges();
-                    ObjectId checkedOutHead = getClient().revParse("HEAD");
+                    taskLog.getLogger().printf("Node sharing config changes discovered %s%nPulling %s to %s%n", currentHead.name(), url, workingDir);
+                    fetchChanges(taskLog);
+                    ObjectId checkedOutHead = getClient(taskLog).revParse("HEAD");
                     assert currentHead.equals(checkedOutHead): "What was discovered was in fact checked out";
-                    snapshot = readConfig(currentHead);
+                    snapshot = readConfig(currentHead, taskLog);
                 }
             }
-        } catch (IOException|GitException|ConfigRepo.IllegalState ex) {
-            LOGGER.log(Level.SEVERE, "Failed to update config repo from " + url, ex);
+        } catch (IOException|GitException ex) {
+            taskLog.error(ex, "Unable to update config repo from %s", url);
         }
 
+        taskLog.throwIfFailed("Unable to read snapshot from " + url);
         return snapshot;
     }
 
-    private @Nonnull ObjectId getRemoteHead() throws InterruptedException, GitException {
-        return getClient().getHeadRev(url, "master");
+    private @Nonnull ObjectId getRemoteHead(@Nonnull TaskLog taskLog) throws InterruptedException, GitException {
+        return getClient(taskLog).getHeadRev(url, "master");
     }
 
-    private void fetchChanges() throws InterruptedException, GitException {
+    private void fetchChanges(@Nonnull TaskLog taskLog) throws InterruptedException, GitException {
         synchronized (repoLock) {
-            getClient().clone_().url(url).execute();
-            getClient().checkout().branch("master").ref("origin/master").execute();
+            getClient(taskLog).clone_().url(url).execute();
+            getClient(taskLog).checkout().branch("master").ref("origin/master").execute();
         }
     }
 
-    @Nonnull private Snapshot readConfig(ObjectId head) throws IOException, InterruptedException {
-        synchronized (repoLock) {
-            IllegalState problems = new IllegalState();
+    private @Nonnull GitClient getClient(@Nonnull TaskLog taskLog) throws InterruptedException {
+        if (client != null) return client;
+        try {
+            return client = Git.with(taskLog, new EnvVars())
+                    .in(workingDir)
+                    .using("git")
+                    .getClient()
+            ;
+        } catch (IOException e) {
+            throw new AssertionError("Creating local git client has failed", e);
+        }
+    }
 
+    private @Nonnull Snapshot readConfig(
+            @Nonnull ObjectId head, @Nonnull TaskLog taskLog
+    ) throws IOException, InterruptedException, TaskLog.TaskFailed {
+        synchronized (repoLock) {
             HashMap<String, String> config = null;
             Set<ExecutorJenkins> jenkinses = null;
             Map<String, NodeDefinition> hosts = null;
 
             FilePath configFile = new FilePath(workingDir).child("config");
             if (!configFile.exists()) {
-                problems.add("No file named 'config' found in Config Repository " + url);
+                taskLog.error("No file named 'config' found in Config Repository");
             } else {
                 config = getProperties(configFile);
                 String orchestratorUrl = config.get("orchestrator.url");
                 if (orchestratorUrl == null) {
-                    problems.add("No orchestrator.url specified by Config Repository " + url);
+                    taskLog.error("No orchestrator.url specified by Config Repository");
                 } else try { // Yep, an else-try statement
                     new URL(orchestratorUrl);
                 } catch (MalformedURLException e) {
-                    problems.add(orchestratorUrl + " is not valid url: " + e.getMessage());
+                    taskLog.error(e, "%s is not valid url", orchestratorUrl);
                 }
             }
 
             FilePath jenkinsesFile = new FilePath(workingDir).child("jenkinses");
             if (!jenkinsesFile.exists()) {
-                problems.add("No file named 'jenkinses' found in Config Repository " + url);
+                taskLog.error("No file named 'jenkinses' found in Config Repository");
             } else {
                 jenkinses = getJenkinses(jenkinsesFile);
             }
 
             FilePath nodesDir = new FilePath(workingDir).child("nodes");
             if (!jenkinsesFile.exists()) {
-                problems.add("No directory named 'nodes' found in Config Repository " + url);
+                taskLog.error("No directory named 'nodes' found in Config Repository");
             } else {
-                hosts = readNodes(nodesDir);
+                hosts = readNodes(nodesDir, taskLog);
             }
 
-            problems.throwIfProblemsFound();
+            taskLog.throwIfFailed("Unable to read config repository");
             return new Snapshot(head, config, jenkinses, hosts);
         }
     }
@@ -190,31 +204,21 @@ public class ConfigRepo {
         return c;
     }
 
-    private @Nonnull Map<String, NodeDefinition> readNodes(FilePath nodesDir) throws IOException, InterruptedException {
+    private @Nonnull Map<String, NodeDefinition> readNodes(FilePath nodesDir, TaskLog taskLog) throws IOException, InterruptedException {
         Map<String, NodeDefinition> nodes = new HashMap<>();
         for (FilePath entry : nodesDir.list()) {
-            if (entry.isDirectory()) throw new IllegalArgumentException("No directories expected in nodes dir");
+            if (entry.isDirectory()) {
+                taskLog.println("No directories expected in nodes dir " + entry);
+            }
 
             NodeDefinition nd = NodeDefinition.create(entry);
-            if (nd == null) throw new IllegalArgumentException("Unknown node definition in " + entry.getBaseName());
-
-            nodes.put(nd.getName(), nd);
+            if (nd == null) {
+                taskLog.error("Unknown node definition in " + entry.getBaseName());
+            } else {
+                nodes.put(nd.getName(), nd);
+            }
         }
         return nodes;
-    }
-
-    @Nonnull
-    private GitClient getClient() throws InterruptedException {
-        if (client != null) return client;
-        try {
-            return client = Git.with(new LogTaskListener(LOGGER, Level.FINE), new EnvVars())
-                    .in(workingDir)
-                    .using("git")
-                    .getClient()
-            ;
-        } catch (IOException e) {
-            throw new AssertionError("Creating local git client has failed", e);
-        }
     }
 
     /**
@@ -255,28 +259,5 @@ public class ConfigRepo {
 
         @CheckForNull
         public String getOrchestratorUrl() { return config.get(ORCHESTRATOR_URL); }
-    }
-
-    /**
-     * The state of config repo is considered illegal so it should not be used.
-     */
-    public static final class IllegalState extends RuntimeException {
-        private List<String> problems = new ArrayList<String>();
-
-        public IllegalState() {}
-
-        public IllegalState(String message) {
-            super(message);
-        }
-
-        public void add(@Nonnull String... problems) {
-            this.problems.addAll(Arrays.asList(problems));
-        }
-
-        public void throwIfProblemsFound() throws IllegalState {
-            if (!problems.isEmpty()) {
-                throw new IllegalState(Joiner.on("\n").join(problems));
-            }
-        }
     }
 }

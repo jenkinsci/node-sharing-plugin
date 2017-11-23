@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
+import hudson.FilePath;
 import hudson.model.Label;
 import hudson.model.Node;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -51,23 +52,20 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnection() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
-        final String configRepoUrl = gitClient.getWorkTree().getRemote();
+        final GitClient gitClient = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
+
         final Properties prop = new Properties();
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
-        final SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
+
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection(configRepoUrl).getMessage(),
+                descr.doTestConnection(gitClient.getWorkTree().getRemote()).getMessage(),
                 containsString("Orchestrator version is " + prop.getProperty("version"))
         );
-
     }
 
     @Test
     public void doTestConnectionInvalidUrl() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection("file:\\\\aaa").getMessage(),
@@ -77,23 +75,24 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnectionNonExistsUrl() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection("file://dummy_not_exists").getMessage(),
-                equalTo("Unrecognized config repo content")
+                containsString("Unable to update config repo from")
         );
     }
 
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        GitClient cr = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
+        FilePath workTree = cr.getWorkTree();
+        workTree.child("config").delete();
+        cr.add("*");
+        cr.commit("Hehehe");
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection("file:///tmp").getMessage(),
-                equalTo("Unrecognized config repo content")
+                descr.doTestConnection(workTree.getRemote()).getMessage(),
+                containsString("No file named 'config' found in Config Repository")
         );
     }
 

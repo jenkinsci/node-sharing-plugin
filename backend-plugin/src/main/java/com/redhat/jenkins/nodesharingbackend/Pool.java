@@ -25,26 +25,24 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
+import com.redhat.jenkins.nodesharing.TaskLog;
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
-import hudson.logging.LogRecorder;
-import hudson.logging.LogRecorderManager;
-import hudson.model.AdministrativeMonitor;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.plugins.git.GitException;
 import jenkins.model.Jenkins;
-import org.eclipse.jgit.lib.ObjectId;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -56,19 +54,20 @@ import java.util.logging.Logger;
  */
 @Restricted(NoExternalUse.class)
 @Extension
-public class Pool extends AdministrativeMonitor {
+public class Pool {
     private static final Logger LOGGER = Logger.getLogger(Pool.class.getName());
 
     public static final String CONFIG_REPO_PROPERTY_NAME = Pool.class.getCanonicalName() + ".ENDPOINT";
+
+    @Extension
+    public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
+    private static final String MONITOR_CONTEXT = "Primary Config Repo";
 
     private final Object configLock = new Object();
 
     // TODO consider persisting in case of crash with broken config in repo
     @GuardedBy("configLock")
     private @CheckForNull ConfigRepo.Snapshot config = null;
-
-    @GuardedBy("configLock")
-    private @CheckForNull ConfigError configError; // Null if no problem detected
 
     public static @Nonnull Pool getInstance() {
         ExtensionList<Pool> list = Jenkins.getInstance().getExtensionList(Pool.class);
@@ -79,29 +78,13 @@ public class Pool extends AdministrativeMonitor {
     public @CheckForNull String getConfigEndpoint() {
         String property = System.getProperty(CONFIG_REPO_PROPERTY_NAME);
         if (property == null) {
-            setError("Node sharing Config Repo not configured at " + CONFIG_REPO_PROPERTY_NAME);
+            String msg = "Node sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
         }
         return property;
     }
 
     public Pool() {}
-
-    @Override
-    public boolean isActivated() {
-        return configError != null;
-    }
-
-    public @CheckForNull ConfigError getError() {
-        synchronized (configLock) {
-            return configError;
-        }
-    }
-
-    private void setError(@Nullable String cause) {
-        synchronized (configLock) {
-            configError = new ConfigError(cause);
-        }
-    }
 
     @VisibleForTesting
     public @CheckForNull ConfigRepo.Snapshot getConfig() {
@@ -146,29 +129,10 @@ public class Pool extends AdministrativeMonitor {
         }
     }
 
-    public static final class ConfigError extends RuntimeException {
-        public ConfigError(String message) {
-            super(message);
-        }
-    }
-
     @Extension
     public static final class Updater extends PeriodicWork {
         private static final File WORK_DIR = new File(Jenkins.getActiveInstance().getRootDir(), "node-sharing");
         private static final File CONFIG_DIR = new File(WORK_DIR, "config");
-
-        private @CheckForNull ConfigRepo repo;
-
-        public Updater() {
-            // Configure UI logger for ease of maintenance
-            LogRecorderManager log = Jenkins.getInstance().getLog();
-            LogRecorder recorder = log.getLogRecorder("node-sharing");
-            if (recorder == null) {
-                recorder = new LogRecorder("node-sharing");
-                recorder.targets.add(new LogRecorder.Target(getClass().getPackage().getName(), Level.INFO));
-                log.logRecorders.put("node-sharing", recorder);
-            }
-        }
 
         public static @Nonnull Updater getInstance() {
             ExtensionList<Updater> list = Jenkins.getInstance().getExtensionList(Updater.class);
@@ -187,13 +151,13 @@ public class Pool extends AdministrativeMonitor {
             String configEndpoint = pool.getConfigEndpoint();
             if (configEndpoint == null) return;
 
-            if (repo == null) {
-                repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
-            }
+            ConfigRepo repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
 
-            ConfigRepo.Snapshot snapshot = repo.getSnapshot();
-            if (snapshot != null) {
-                pool.updateConfig(snapshot);
+            Pool.ADMIN_MONITOR.clear();
+            try {
+                pool.updateConfig(repo.getSnapshot());
+            } catch (IOException | TaskLog.TaskFailed ex) {
+                Pool.ADMIN_MONITOR.report(MONITOR_CONTEXT, ex);
             }
         }
     }
