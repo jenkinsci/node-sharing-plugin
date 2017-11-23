@@ -23,13 +23,17 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
+import hudson.model.Label;
 import org.jenkinsci.plugins.gitclient.GitClient;
+import hudson.model.Queue;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -94,11 +98,18 @@ public class SharedNodeCloudTest {
 
     @Ignore
     @Test
-    public void myTest() throws Exception {
-        GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(Pool.getInstance().getConfig().getConfig().get("orchestrator.url"));
-        System.out.println("Tady1");
-        System.out.println("Tady2");
-        Thread.sleep(1000000);
+    public void doReportWorkloadTest() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        j.jenkins.setCrumbIssuer(null);
+        List<Queue.Item> qli = new ArrayList<Queue.Item>();
+        MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
+        Queue.Item item = task.schedule();
+        qli.add(item);
+        qli.add(item);
+
+        System.out.println("Status: " + cloud.getApi().doReportWorkload(qli));
+
+//        Thread.sleep(1000000);
     }
 }

@@ -23,24 +23,29 @@
  */
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.google.gson.Gson;
+import com.redhat.jenkins.nodesharing.ActionFailed;
+import com.redhat.jenkins.nodesharing.Workload;
 import hudson.Extension;
 import hudson.model.Queue;
 import hudson.model.RootAction;
-import hudson.model.labels.LabelAtom;
-import jenkins.model.Jenkins;
+import org.codehaus.jackson.JsonNode;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.print.attribute.standard.Media;
 import javax.ws.rs.NotSupportedException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -48,8 +53,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.logging.Logger;
 
 /**
@@ -72,6 +75,9 @@ public class Api implements RootAction {
 
     private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
     private static final String ORCHESTRATOR_DISCOVER = "discover";
+    private static final String ORCHESTRATOR_DISCOVER_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_DISCOVER;
+    private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
+    private static final String ORCHESTRATOR_REPORTWORKLOAD_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_REPORTWORKLOAD;
 
     public Api() {}
 
@@ -139,6 +145,19 @@ public class Api implements RootAction {
      */
     @Nonnull
     public Response doGetRequest(@Nonnull final WebTarget target) {
+        return doGetRequest(target, Response.Status.OK);
+    }
+
+    /**
+     * Do GET HTTP request on target and throws if response doesn't match the expectation.
+     *
+     * @param target The request.
+     * @param status Expected status.
+     *
+     * @return Server response.
+     */
+    @Nonnull
+    public Response doGetRequest(@Nonnull final WebTarget target, @Nonnull final Response.Status status) {
         Response response = Response.serverError().entity("error").build();
         try {
             response = target.queryParam(PROPERTY_VERSION,
@@ -146,6 +165,9 @@ public class Api implements RootAction {
                     .request(MediaType.APPLICATION_JSON).get();
         } catch (Exception e) {
             LOGGER.severe(e.getMessage());
+            throw new ActionFailed.CommunicationError("Performing GET request '" + target.toString()
+                    + "' returns unexpected response status '" + response.getStatus()
+                    + "' [" + response.readEntity(String.class) + "]");
         }
         return response;
     }
@@ -154,11 +176,39 @@ public class Api implements RootAction {
      * Do POST HTTP request on target.
      *
      * @param target The request.
+     * @param json JSON string.
+     *
+     * @return Response from the server.
      */
     @Nonnull
-    public void doPostRequest(@Nonnull final WebTarget target) {
-        target.request(MediaType.APPLICATION_JSON_TYPE).post(null);
+    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final String json) {
+        return doPostRequest(target, json, Response.Status.OK);
+
     }
+
+    /**
+     * Do POST HTTP request on target and throws exception if response doesn't match the expectation.
+     *
+     * @param target The request.
+     * @param json JSON string.
+     * @param status Expected status.
+     *
+     * @return Response from the server.
+     */
+    @Nonnull
+    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final String json,
+                                        @Nonnull final Response.Status status) {
+        Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
+                .request(MediaType.APPLICATION_JSON_TYPE)
+                .post(Entity.text(json));
+        if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
+            throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
+                    + "' returns unexpected response status '" + response.getStatus()
+                    + "' [" + response.readEntity(String.class) + "]");
+        }
+        return response;
+    }
+
 
     //// Outgoing
 
@@ -170,7 +220,9 @@ public class Api implements RootAction {
      */
     @CheckForNull
     public Object nodeStatus(@Nonnull @QueryParameter("name") final String name) {
-        return null;
+        // TODO Response to node status
+        throw new UnsupportedOperationException();
+//        return null;
     }
 
     /**
@@ -181,13 +233,16 @@ public class Api implements RootAction {
      */
     @CheckForNull
     public Object runStatus(@Nonnull @QueryParameter("id") final String id) {
-        return null;
+        // TODO Response to workID status
+        throw new UnsupportedOperationException();
     }
 
     /**
      * Put the queue items to Orchestrator
      */
-    public void putBacklogToOrchestrator() {
+    public Response.Status doReportWorkload(@Nonnull final List <Queue.Item> items) {
+
+/*
         Set<LabelAtom> sla = new TreeSet<LabelAtom>();
 
         // TODO Get List of provided labels
@@ -211,10 +266,16 @@ public class Api implements RootAction {
                  qi.add(i);
             }
         }
+*/
 
-        // TODO Prepare the requests from qi
+        final Workload workItems = new Workload();
+        for(Queue.Item item : items) {
+            workItems.addItem(item);
+        }
 
-        // TODO Post the request to the Orchestrator
+        System.out.println("Frontend: " + new Gson().toJson(workItems));
+        return Response.Status.fromStatusCode(
+                doPostRequest(base.path(ORCHESTRATOR_REPORTWORKLOAD_URI), new Gson().toJson(workItems)).getStatus());
     }
 
     /**
@@ -223,7 +284,8 @@ public class Api implements RootAction {
      * @return Discovery result
      */
     public String doDiscover() {
-        Response response = doGetRequest(base.path(ORCHESTRATOR_URI+"/"+ORCHESTRATOR_DISCOVER));
+        // TODO Make a complex discovery
+        Response response = doGetRequest(base.path(ORCHESTRATOR_DISCOVER_URI));
 
         // TODO Do a complete discovery
         String responseAsString = response.readEntity(String.class);
@@ -232,7 +294,8 @@ public class Api implements RootAction {
 
     public String doRelease(@Nonnull final String name) {
         // TODO do release
-        return "";
+        throw new UnsupportedOperationException();
+//        return "";
     }
 
     //// Incoming
