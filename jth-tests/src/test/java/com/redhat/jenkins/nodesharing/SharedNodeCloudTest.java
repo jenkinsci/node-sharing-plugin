@@ -119,9 +119,9 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.setCrumbIssuer(null);
-//        for (Node n : j.jenkins.getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
+        for (Node n : j.jenkins.getNodes()) {
+            System.out.println(n.getNodeName());
+        }
         assertThat(
                 Communication.NodeState.getStatus((Integer) cloud.getApi().nodeStatus("foo")),
                 equalTo(Communication.NodeState.NOT_FOUND)

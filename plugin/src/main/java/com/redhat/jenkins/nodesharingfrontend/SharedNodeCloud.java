@@ -1,14 +1,17 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
@@ -101,7 +104,7 @@ public class SharedNodeCloud extends Cloud {
      *
      * @param configRepoUrl        ConfigRepo url
      * @param credentialsId        creds to use to connect to slave.
-     * @param sshConnectionTimeOut timeout for SSH connection in secs.
+* @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
     public SharedNodeCloud(String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
@@ -117,10 +120,12 @@ public class SharedNodeCloud extends Cloud {
 
     @Nonnull
     public final Api getApi() throws InterruptedException {
-        if(api == null) {
-            this.api = new Api(getLatestConfig().getOrchestratorUrl());
+        if (this.api == null) {
+            this.api = new Api(getLatestConfig().getOrchestratorUrl(), this);
+
+            System.out.println("Api was null");
         }
-        return api;
+        return this.api;
     }
 
     /**
@@ -390,6 +395,17 @@ public class SharedNodeCloud extends Cloud {
         return oldStatus;
     }
 
+    @Nonnull
+    public Communication.NodeState getNodeStatus(@Nonnull String nodeName) {
+        Communication.NodeState status = Communication.NodeState.NOT_FOUND;
+        Node node = Jenkins.getActiveInstance().getNode(nodeName);
+        if (node != null) {
+            // TODO Extract the current state
+            status = Communication.NodeState.FOUND;
+        }
+        return status;
+    }
+
     /**
      * Descriptor for Cloud.
      */
@@ -437,7 +453,7 @@ public class SharedNodeCloud extends Cloud {
                     return FormValidation.error(Messages.InvalidConfigRepo());
                 }
 
-                String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
+                String version = new Api(testSnapshot.getOrchestratorUrl(), null).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
             // TODO: Unreachable, this checked exception can not bubble here. Who is supposed to throw this? This was obscured by delegating to method that declared to throw the supertype.
             //} catch (LoginException e) {
