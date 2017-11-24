@@ -243,8 +243,16 @@ public class Api implements RootAction {
      */
     @CheckForNull
     public Object runStatus(@Nonnull @QueryParameter("id") final String id) {
-        // TODO Response to workID status
-        throw new UnsupportedOperationException();
+        if (id == null) {
+            throw new ActionFailed.CommunicationError("Work id cannot be 'null'!");
+        }
+        long runId;
+        try {
+            runId = new Long(id);
+        } catch (NumberFormatException e) {
+            throw new ActionFailed.CommunicationError("Invalid id value '" + id + "'", e);
+        }
+        return getCloud().getRunStatus(runId).ordinal();
     }
 
     /**

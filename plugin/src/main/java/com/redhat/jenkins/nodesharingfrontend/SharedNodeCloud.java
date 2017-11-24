@@ -15,6 +15,7 @@ import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
+import hudson.model.Queue;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -131,7 +132,7 @@ public class SharedNodeCloud extends Cloud {
         if (this.api == null) {
             this.api = new Api(getLatestConfig().getOrchestratorUrl(), this);
 
-            System.out.println("Api was null");
+//            System.out.println("Api was null");
         }
         return this.api;
     }
@@ -413,12 +414,22 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Nonnull
-    public Communication.NodeState getNodeStatus(@Nonnull String nodeName) {
+    public Communication.NodeState getNodeStatus(@Nonnull final String nodeName) {
         Communication.NodeState status = Communication.NodeState.NOT_FOUND;
         Node node = Jenkins.getActiveInstance().getNode(nodeName);
         if (node != null) {
             // TODO Extract the current state
             status = Communication.NodeState.FOUND;
+        }
+        return status;
+    }
+
+    @Nonnull public Communication.RunState getRunStatus(@Nonnull final long id) {
+        Communication.RunState status = Communication.RunState.NOT_FOUND;
+        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(id);
+        if (item != null) {
+            // TODO Extract run current state
+            status = Communication.RunState.FOUND;
         }
         return status;
     }
