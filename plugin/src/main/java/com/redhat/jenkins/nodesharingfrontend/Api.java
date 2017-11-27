@@ -230,7 +230,7 @@ public class Api implements RootAction {
     @CheckForNull
     public Object nodeStatus(@Nonnull @QueryParameter("name") final String name) {
         if(name == null) {
-            throw new ActionFailed.CommunicationError("Node name cannot be 'null'!");
+            throw new IllegalArgumentException("Node name cannot be 'null'!");
         }
         return getCloud().getNodeStatus(name).ordinal();
     }
@@ -244,13 +244,13 @@ public class Api implements RootAction {
     @CheckForNull
     public Object runStatus(@Nonnull @QueryParameter("id") final String id) {
         if (id == null) {
-            throw new ActionFailed.CommunicationError("Work id cannot be 'null'!");
+            throw new IllegalArgumentException("Work id cannot be 'null'!");
         }
         long runId;
         try {
             runId = new Long(id);
         } catch (NumberFormatException e) {
-            throw new ActionFailed.CommunicationError("Invalid id value '" + id + "'", e);
+            throw new IllegalArgumentException("Invalid id value '" + id + "'", e);
         }
         return getCloud().getRunStatus(runId).ordinal();
     }
