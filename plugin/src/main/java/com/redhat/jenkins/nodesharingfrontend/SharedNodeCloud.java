@@ -1,28 +1,24 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.TaskLog;
+import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Util;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.model.Queue;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.OneShotEvent;
-import hudson.util.Secret;
 
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
@@ -47,7 +43,6 @@ import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -460,8 +455,11 @@ public class SharedNodeCloud extends Cloud {
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
 
-                String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
-                return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
+                DiscoverResponse discover = new Api(testSnapshot.getOrchestratorUrl()).discover(configRepoUrl);
+                if (!discover.getDiagnosis().isEmpty()) {
+                    return FormValidation.warning(discover.getDiagnosis());
+                }
+                return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(discover.getVersion()) + "<strong>");
             } catch (TaskLog.TaskFailed e) {
                 ByteArrayOutputStream bout = new ByteArrayOutputStream();
                 try (OutputStreamWriter writer = new OutputStreamWriter(bout)) {
@@ -472,7 +470,7 @@ public class SharedNodeCloud extends Cloud {
                 return FormValidation.errorWithMarkup(bout.toString(Charset.defaultCharset().name()));
             } catch (Exception e) {
                 e.printStackTrace();
-                return FormValidation.error(e.getMessage(), e);
+                return FormValidation.error("Test failed", e);
             } finally {
                 testConfigRepoDir.deleteRecursive();
             }

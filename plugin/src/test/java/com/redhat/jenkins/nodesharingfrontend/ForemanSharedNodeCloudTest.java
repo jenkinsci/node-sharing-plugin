@@ -27,7 +27,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyIterableOf;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -45,7 +44,6 @@ import java.util.Random;
 
 import javax.servlet.ServletException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -70,7 +68,6 @@ import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
 import hudson.model.Cause.UserIdCause;
 import hudson.model.labels.LabelAtom;
-import hudson.util.Secret;
 import org.jvnet.hudson.test.TestBuilder;
 
 /**
@@ -313,24 +310,6 @@ public class ForemanSharedNodeCloudTest {
 //        } catch (ForemanAPI.CommunicationError ex) {
 //            assertThat(ex.getMessage(), containsString("500"));
 //        }
-    }
-
-    @Ignore
-    @Test
-    public void getVersion() throws Exception {
-        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
-        Api api = orig.getApi();
-
-        try {
-            api.doDiscover();
-            fail();
-        } catch (ForemanAPI.CommunicationError ex) {
-            // Expected
-        }
-
-        stubServiceStatus();
-
-        assertEquals("1.5.3", api.doDiscover());
     }
 
     @Ignore

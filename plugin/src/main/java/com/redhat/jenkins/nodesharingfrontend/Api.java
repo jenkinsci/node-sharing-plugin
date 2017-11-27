@@ -27,10 +27,10 @@ import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.Workload;
-import hudson.Extension;
+import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
+import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import hudson.model.Node;
 import hudson.model.Queue;
-import hudson.model.RootAction;
 import jenkins.model.Jenkins;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -50,6 +50,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -63,8 +64,6 @@ public class Api {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
 
-    private static final String HIDDEN = null;
-
     private WebTarget base = null;
 
     private static final String PROPERTIES_FILE = "nodesharingfrontend.properties";
@@ -72,12 +71,10 @@ public class Api {
     private Properties properties = null;
 
     private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
-    private static final String ORCHESTRATOR_DISCOVER = "discover";
-    private static final String ORCHESTRATOR_DISCOVER_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_DISCOVER;
     private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
     private static final String ORCHESTRATOR_REPORTWORKLOAD_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_REPORTWORKLOAD;
 
-    public Api(@Nonnull final String OrchestratorUrl) {
+    public Api(@Nonnull final String orchestratorUrl) {
         ClientConfig clientConfig = new ClientConfig();
 
         // TODO HTTP autentization
@@ -90,7 +87,7 @@ public class Api {
         // Define a quite defensive timeouts
         client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
         client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
-        base = client.target(OrchestratorUrl);
+        base = client.target(orchestratorUrl);
     }
 
     /**
@@ -134,9 +131,7 @@ public class Api {
     public Response doGetRequest(@Nonnull final WebTarget target, @Nonnull final Response.Status status) {
         Response response = Response.serverError().entity("error").build();
         try {
-            response = target.queryParam(PROPERTY_VERSION,
-                    getProperties().getProperty(PROPERTY_VERSION, ""))
-                    .request(MediaType.APPLICATION_JSON).get();
+            response = target.request(MediaType.APPLICATION_JSON).get();
         } catch (Exception e) {
             LOGGER.severe(e.getMessage());
             throw new ActionFailed.CommunicationError("Performing GET request '" + target.toString()
@@ -276,17 +271,20 @@ public class Api {
     }
 
     /**
-     * Request to Discover the state of the Orchestrator
+     * Request to discover the state of the Orchestrator.
      *
-     * @return Discovery result
+     * @return Discovery result.
      */
-    public String doDiscover() {
-        // TODO Make a complex discovery
-        Response response = doGetRequest(base.path(ORCHESTRATOR_DISCOVER_URI));
+    public DiscoverResponse discover(@Nonnull String configRepoUrl) {
+        DiscoverRequest request = new DiscoverRequest(configRepoUrl, getProperties().getProperty(PROPERTY_VERSION, ""));
+        Entity<String> text = Entity.text(request.toString());
+        InputStream response = base.path(ORCHESTRATOR_URI + "/discover")
+                .request(MediaType.APPLICATION_JSON_TYPE)
+                .post(text, InputStream.class)
+        ;
 
-        // TODO Do a complete discovery
-        String responseAsString = response.readEntity(String.class);
-        return responseAsString;
+        // TODO Check status code
+        return com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(response, DiscoverResponse.class);
     }
 
     public String doRelease(@Nonnull final String name) {

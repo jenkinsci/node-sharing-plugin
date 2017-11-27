@@ -26,6 +26,9 @@ package com.redhat.jenkins.nodesharingbackend;
 import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.Workload;
+import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
+import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
+import com.redhat.jenkins.nodesharing.transport.Entity;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -41,8 +44,10 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -52,13 +57,13 @@ import java.util.logging.Logger;
 @Extension
 @Restricted(NoExternalUse.class)
 // TODO Check permission
+// TODO Fail fast if there is no ConfigRepo.Snapshot - Broken orchestrator
 public class Api implements RootAction {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());;
 
     private static final String HIDDEN = null;
 
-    private static final String PROPERTIES_FILE = "nodesharingbackend.properties";
     private Properties properties = null;
 
     public static @Nonnull Api getInstance() {
@@ -89,7 +94,7 @@ public class Api implements RootAction {
         if(properties == null) {
             properties = new Properties();
             try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
+                properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
             } catch (IOException e) {
                 LOGGER.severe("Cannot load properties from ");
                 properties = new Properties();
@@ -144,12 +149,38 @@ public class Api implements RootAction {
     /**
      * Dummy request to test the connection/compatibility.
      */
-//    @RequirePOST
-    public String doDiscover() {
-        // TODO In  config-repo url and executor url for sanity check
-        // TODO Out error if sanity check failed, labels and TBD for success
+    public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
+        DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
+        Pool pool = Pool.getInstance();
+        String version = getProperties().getProperty("version", "");
 
-        return getProperties().getProperty("version", "");
+        // Sanity checking
+        StringBuilder diagnosisBuilder = new StringBuilder();
+        if (!request.getVersion().equals(version)) {
+            diagnosisBuilder.append("Orchestrator plugin version is ")
+                    .append(request.getVersion())
+                    .append(" but executor uses ")
+                    .append(version)
+                    .append(". ")
+            ;
+        }
+        String configEndpoint = pool.getConfigEndpoint();
+        if (!request.getConfigRepoUrl().equals(configEndpoint)) {
+            diagnosisBuilder.append("Orchestrator is configured from ")
+                    .append(request.getConfigRepoUrl())
+                    .append(" but executor uses ")
+                    .append(configEndpoint)
+                    .append(". ")
+            ;
+        }
+
+        String diagnosis = diagnosisBuilder.toString();
+        DiscoverResponse response = new DiscoverResponse(
+                configEndpoint, version, diagnosis, pool.getConfig().getNodes().values()
+        );
+
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
     }
 
     /**
