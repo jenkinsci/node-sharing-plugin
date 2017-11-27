@@ -135,7 +135,7 @@ public class ReservationTask extends AbstractQueueTask {
             }
         }
 
-        public void complete(String owner, String state) {
+        public void complete(String owner) {
             if (getParent().jenkins.getUrl().toExternalForm().equals(owner)) {
                 done.signal();
                 return;

@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
@@ -255,6 +256,16 @@ public class ConfigRepo {
 
         public @Nonnull Set<ExecutorJenkins> getJenkinses() {
             return jenkinses;
+        }
+
+        public @Nonnull ExecutorJenkins getJenkins(@Nonnull String needle) throws NoSuchElementException {
+            for (ExecutorJenkins jenkins : jenkinses) {
+                if (jenkins.getUrl().toExternalForm().equals(needle)) {
+                    return jenkins;
+                }
+            }
+
+            throw new NoSuchElementException("No Jenkins executor configured for " + needle);
         }
 
         @CheckForNull

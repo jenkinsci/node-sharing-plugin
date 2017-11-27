@@ -26,12 +26,16 @@ package com.redhat.jenkins.nodesharingfrontend;
 import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.Communication;
+import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.Workload;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
+import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
+import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.model.Node;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -63,6 +67,7 @@ import java.util.logging.Logger;
 public class Api {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
+    private final @Nonnull ExecutorEntity.Fingerprint fingerprint;
 
     private WebTarget base = null;
 
@@ -74,7 +79,13 @@ public class Api {
     private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
     private static final String ORCHESTRATOR_REPORTWORKLOAD_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_REPORTWORKLOAD;
 
-    public Api(@Nonnull final String orchestratorUrl) {
+    public Api(@Nonnull final ConfigRepo.Snapshot snapshot, @Nonnull final String configRepoUrl) {
+        this.fingerprint = new ExecutorEntity.Fingerprint(
+                configRepoUrl,
+                getProperties().getProperty("version"),
+                snapshot.getJenkins(JenkinsLocationConfiguration.get().getUrl()).getName()
+        );
+
         ClientConfig clientConfig = new ClientConfig();
 
         // TODO HTTP autentization
@@ -87,7 +98,7 @@ public class Api {
         // Define a quite defensive timeouts
         client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
         client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
-        base = client.target(orchestratorUrl);
+        base = client.target(snapshot.getOrchestratorUrl());
     }
 
     /**
@@ -275,8 +286,8 @@ public class Api {
      *
      * @return Discovery result.
      */
-    public DiscoverResponse discover(@Nonnull String configRepoUrl) {
-        DiscoverRequest request = new DiscoverRequest(configRepoUrl, getProperties().getProperty(PROPERTY_VERSION, ""));
+    public DiscoverResponse discover() {
+        DiscoverRequest request = new DiscoverRequest(fingerprint);
         Entity<String> text = Entity.text(request.toString());
         InputStream response = base.path(ORCHESTRATOR_URI + "/discover")
                 .request(MediaType.APPLICATION_JSON_TYPE)
@@ -287,10 +298,19 @@ public class Api {
         return com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(response, DiscoverResponse.class);
     }
 
-    public String doRelease(@Nonnull final String name) {
-        // TODO do release
-        throw new UnsupportedOperationException();
-//        return "";
+    /**
+     * Send request to return node. No response needed.
+     */
+    public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, name, status);
+
+        Entity<String> text = Entity.text(request.toString());
+        Response response = base.path(ORCHESTRATOR_URI + "/returnNode")
+                .request(MediaType.APPLICATION_JSON_TYPE)
+                .post(text)
+        ;
+
+        // TODO check status
     }
 
     //// Incoming

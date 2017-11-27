@@ -29,6 +29,7 @@ import com.redhat.jenkins.nodesharing.Workload;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -38,16 +39,13 @@ import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -60,7 +58,7 @@ import java.util.logging.Logger;
 // TODO Fail fast if there is no ConfigRepo.Snapshot - Broken orchestrator
 public class Api implements RootAction {
 
-    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());;
+    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
 
     private static final String HIDDEN = null;
 
@@ -132,7 +130,7 @@ public class Api implements RootAction {
      * Determine whether the host is still used by executor.
      *
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
-     * {@link #doReturnNode(String, String, String)} was received but in case of any of the requests failed to be delivered for some
+     * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
      * we can not rely on node-sharing API on Executor end.
      *
@@ -210,17 +208,11 @@ public class Api implements RootAction {
 
     /**
      * Return node to orchestrator when no longer needed.
-     *
-     * @param name Name of the node to be returned.
-     * @param owner Name of the owner.
-     * @param state
-     *      'OK' if the host was used successfully,
-     *      'FAILED' when executor failed to get the node onlin,
-     *      other values are ignored.
      */
     @RequirePOST
-    public void doReturnNode(@QueryParameter String name, @QueryParameter String owner, @QueryParameter String state) {
-        Computer c = Jenkins.getInstance().getComputer(name);
+    public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
+        Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
         if (!(c instanceof SharedComputer)) {
             // TODO computer not reservable
             return;
@@ -232,6 +224,7 @@ public class Api implements RootAction {
             return;
         }
         // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(owner, state);
+        executable.complete(request.getExecutorName());
+        // TODO Report status
     }
 }

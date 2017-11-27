@@ -25,10 +25,35 @@ package com.redhat.jenkins.nodesharing.transport;
 
 import javax.annotation.Nonnull;
 
-// Nothing but essential fields
-public class DiscoverRequest extends ExecutorEntity {
+/**
+ * @author ogondza.
+ */
+public class ReturnNodeRequest extends ExecutorEntity {
+    private final @Nonnull String nodeName;
+    @Nonnull private final Status status;
 
-    public DiscoverRequest(@Nonnull Fingerprint f) {
+    /**
+     * @param nodeName Name of the node to be returned.
+     * @param status
+     *      'OK' if the host was used successfully,
+     *      'FAILED' when executor failed to get the node onlin,
+     *      other values are ignored.
+     */
+    public ReturnNodeRequest(@Nonnull Fingerprint f, @Nonnull String nodeName, @Nonnull Status status) {
         super(f);
+        this.nodeName = nodeName;
+        this.status = status;
+    }
+
+    public @Nonnull String getNodeName() {
+        return nodeName;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public enum Status {
+        OK, FAILED;
     }
 }

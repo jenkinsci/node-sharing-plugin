@@ -15,10 +15,11 @@ public class DiscoverTest {
 
     @Test
     public void requestRoundtrip() throws Exception {
-        DiscoverRequest sent = new DiscoverRequest("configRepo", "4.2");
+        DiscoverRequest sent = new DiscoverRequest(new ExecutorEntity.Fingerprint("configRepo", "4.2", "my-executor"));
         DiscoverRequest received = Entity.fromString(sent.toString(), DiscoverRequest.class);
         assertEquals(sent.getConfigRepoUrl(), received.getConfigRepoUrl());
         assertEquals(sent.getVersion(), received.getVersion());
+        assertEquals(sent.getExecutorName(), received.getExecutorName());
     }
 
     @Test

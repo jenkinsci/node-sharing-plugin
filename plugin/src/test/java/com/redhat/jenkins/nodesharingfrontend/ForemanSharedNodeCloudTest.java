@@ -329,29 +329,6 @@ public class ForemanSharedNodeCloudTest {
 //        assertEquals(SUT_HOSTNAME, reservedHost.getName());
     }
 
-    @Ignore
-    @Test
-    public void releaseHost() throws Exception {
-        String reserveReason = ForemanAPI.getReserveReason();
-
-        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
-        Api api = orig.getApi();
-
-        stubReleaseScenario(reserveReason);
-
-//        assertEquals(reserveReason, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-        api.doRelease(SUT_HOSTNAME);
-//        assertEquals(null, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-
-        // Call should be idempotent
-        api.doRelease(SUT_HOSTNAME);
-//        assertEquals(null, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-
-        // And deal with host removal
-        api.doRelease("so_such_host");
-//        assertEquals(null, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-    }
-
     private void stubReserveScenario() {
         stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
                 .inScenario("reserveHost")

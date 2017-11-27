@@ -25,10 +25,38 @@ package com.redhat.jenkins.nodesharing.transport;
 
 import javax.annotation.Nonnull;
 
-// Nothing but essential fields
-public class DiscoverRequest extends ExecutorEntity {
+/**
+ * Entity sent from Executor to Orchestrator.
+ *
+ * Helper subclass to add initiator identity.
+ *
+ * @author ogondza.
+ */
+public class ExecutorEntity extends Entity {
+    @Nonnull private final String executorName;
 
-    public DiscoverRequest(@Nonnull Fingerprint f) {
-        super(f);
+    public ExecutorEntity(@Nonnull Fingerprint fingerprint) {
+        super(fingerprint.configRepoUrl, fingerprint.version);
+        this.executorName = fingerprint.executorName;
+    }
+
+    public @Nonnull String getExecutorName() {
+        return executorName;
+    }
+
+    /**
+     * Mandatory fields specified to every {@link ExecutorEntity}.
+     */
+    public static final class Fingerprint {
+        @Nonnull private final String configRepoUrl;
+        @Nonnull private final String version;
+        @Nonnull private final String executorName;
+
+        public Fingerprint(@Nonnull String configRepoUrl, @Nonnull String version, @Nonnull String executorName) {
+
+            this.configRepoUrl = configRepoUrl;
+            this.version = version;
+            this.executorName = executorName;
+        }
     }
 }

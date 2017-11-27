@@ -1,6 +1,8 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import java.util.logging.Logger;
+
+import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import org.jenkinsci.plugins.resourcedisposer.Disposable;
 
 import javax.annotation.CheckForNull;
@@ -27,7 +29,7 @@ public class DisposableImpl implements Disposable {
         if (cloud != null) {
             LOGGER.finer("Attempt to release the node: " + name);
             try {
-                cloud.getApi().doRelease(name);
+                cloud.getApi().returnNode(name, ReturnNodeRequest.Status.OK); // TODO specify status
             } catch (Exception e) {
                 // According Foreman Docs, 404 code means host doesn't exist or isn't reserved now
                 // We can destroy the Disposable item in that case

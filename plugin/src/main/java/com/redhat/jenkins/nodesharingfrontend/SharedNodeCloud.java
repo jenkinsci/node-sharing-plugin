@@ -125,7 +125,7 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public final Api getApi() {
         if (this.api == null) {
-            this.api = new Api(getLatestConfig().getOrchestratorUrl());
+            this.api = new Api(getLatestConfig(), configRepoUrl);
 
 //            System.out.println("Api was null");
         }
@@ -455,7 +455,7 @@ public class SharedNodeCloud extends Cloud {
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
 
-                DiscoverResponse discover = new Api(testSnapshot.getOrchestratorUrl()).discover(configRepoUrl);
+                DiscoverResponse discover = new Api(testSnapshot, configRepoUrl).discover();
                 if (!discover.getDiagnosis().isEmpty()) {
                     return FormValidation.warning(discover.getDiagnosis());
                 }
