@@ -231,7 +231,7 @@ public class Api {
             // TODO Extract run current state
             status = Communication.RunState.FOUND;
         }
-        return status;
+        return status.ordinal();
     }
 
     /**
