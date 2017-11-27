@@ -128,7 +128,7 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Nonnull
-    public final Api getApi() throws InterruptedException {
+    public final Api getApi() {
         if (this.api == null) {
             this.api = new Api(getLatestConfig().getOrchestratorUrl(), this);
 
@@ -230,13 +230,17 @@ public class SharedNodeCloud extends Cloud {
     /**
      * Get latest config repo snapshot.
      *
-     * @return Snapshot or null when there are problem reading it.
+     * @return Snapshot or null when there are problems reading it.
      */
-    // TODO, are we OK throwing InterruptedException?
     @CheckForNull
-    public ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
+    public ConfigRepo.Snapshot getLatestConfig() {
         if (latestConfig == null) {
-            updateConfigSnapshot();
+            try {
+                updateConfigSnapshot();
+            } catch (InterruptedException e) {
+                // Set interruption bit for later
+                Thread.currentThread().interrupt();
+            }
         }
         return latestConfig;
     }
