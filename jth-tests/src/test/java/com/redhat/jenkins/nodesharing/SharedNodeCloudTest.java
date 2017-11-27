@@ -27,6 +27,7 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;
 import hudson.model.Label;
+import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import hudson.model.Queue;
 import org.junit.Ignore;
@@ -40,6 +41,7 @@ import java.util.Properties;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.fail;
 
 public class SharedNodeCloudTest {
@@ -52,7 +54,8 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnection() throws Exception {
-        final GitClient gitClient = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
+        j.jenkins.setCrumbIssuer(null); // TODO
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
 
         final Properties prop = new Properties();
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
@@ -94,6 +97,18 @@ public class SharedNodeCloudTest {
                 descr.doTestConnection(workTree.getRemote()).getMessage(),
                 containsString("No file named 'config' found in Config Repository")
         );
+    }
+
+    @Test
+    public void doTestConnectionConfigRepoUrlMismatch() throws Exception {
+        j.jenkins.setCrumbIssuer(null); // TODO
+        j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
+
+        final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
+        FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote());
+        assertThat(validation.kind, equalTo(FormValidation.Kind.WARNING));
+        assertThat(validation.getMessage(), startsWith("Orchestrator is configured from"));
     }
 
     // TODO Implementation isn't completed

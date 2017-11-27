@@ -42,6 +42,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -65,9 +66,12 @@ public class ReservationTest {
         j.jenkins.setCrumbIssuer(null); // TODO
         GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
 
+        final Properties prop = new Properties();
+        prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
+
         SharedNodeCloud.DescriptorImpl descriptor = (SharedNodeCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(SharedNodeCloud.class);
         FormValidation validation = descriptor.doTestConnection(cr.getWorkTree().getRemote());
-        assertThat(validation.renderHtml(), containsString("Orchestrator version is 2."));
+        assertThat(validation.renderHtml(), containsString("Orchestrator version is " + prop.getProperty("version")));
     }
 
     @Test @Ignore // TODO Keep hacking until this passes
