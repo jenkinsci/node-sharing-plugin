@@ -57,12 +57,11 @@ import java.util.logging.Logger;
 /**
  * Receive and send REST commands from/to Orchestrator Jenkins.
  */
-@Extension
 @Restricted(NoExternalUse.class)
 // TODO Check permission
-public class Api implements RootAction {
+public class Api {
 
-    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());;
+    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
 
     private static final String HIDDEN = null;
 
@@ -110,28 +109,6 @@ public class Api implements RootAction {
             }
         }
         return properties;
-    }
-
-//    @Nonnull
-//    public static Api getInstance() {
-//        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
-//        assert list.size() == 1;
-//        return list.iterator().next();
-//    }
-
-    @Override
-    public String getIconFileName() {
-        return HIDDEN;
-    }
-
-    @Override
-    public String getDisplayName() {
-        return HIDDEN;
-    }
-
-    @Override
-    public String getUrlName() {
-        return "node-sharing-executor";
     }
 
     /**
