@@ -4,6 +4,9 @@ public class Communication {
     public static enum NodeState {
         INVALID,
         FOUND,
+        IDLE,
+        CONNECTING,
+        OFFLINE,
         NOT_FOUND;
 
         final static NodeState getStatus(final int status) {
@@ -19,6 +22,9 @@ public class Communication {
     public static enum RunState {
         INVALID,
         FOUND,
+        BLOCKED,
+        STUCK,
+        DONE,
         NOT_FOUND;
 
         final static RunState getStatus(final int status) {

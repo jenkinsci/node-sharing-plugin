@@ -27,10 +27,8 @@ import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.Workload;
-import hudson.Extension;
 import hudson.model.Node;
 import hudson.model.Queue;
-import hudson.model.RootAction;
 import jenkins.model.Jenkins;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -203,6 +201,15 @@ public class Api {
         if (node != null) {
             // TODO Extract the current state
             status = Communication.NodeState.FOUND;
+            if (node.toComputer().isIdle()) {
+                status = Communication.NodeState.IDLE;
+            }
+            if (node.toComputer().isConnecting()) {
+                status = Communication.NodeState.CONNECTING;
+            }
+            if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+                status = Communication.NodeState.OFFLINE;
+            }
         }
         return status.ordinal();
     }
@@ -228,8 +235,17 @@ public class Api {
         Communication.RunState status = Communication.RunState.NOT_FOUND;
         Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
         if (item != null) {
-            // TODO Extract run current state
             status = Communication.RunState.FOUND;
+            if (item.isBlocked()) {
+                status = Communication.RunState.BLOCKED;
+            }
+            if (item.isStuck()) {
+                status = Communication.RunState.STUCK;
+            }
+            if (item.getFuture().isDone()) {
+                status = Communication.RunState.DONE;
+            }
+            // TODO Extract EXECUTING
         }
         return status.ordinal();
     }
