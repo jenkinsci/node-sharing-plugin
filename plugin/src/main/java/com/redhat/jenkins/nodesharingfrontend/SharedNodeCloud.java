@@ -1,6 +1,7 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.TaskLog;
@@ -9,9 +10,12 @@ import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.PeriodicWork;
+import hudson.model.Queue;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -109,7 +113,7 @@ public class SharedNodeCloud extends Cloud {
      *
      * @param configRepoUrl        ConfigRepo url
      * @param credentialsId        creds to use to connect to slave.
-     * @param sshConnectionTimeOut timeout for SSH connection in secs.
+* @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
     public SharedNodeCloud(String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
@@ -125,10 +129,12 @@ public class SharedNodeCloud extends Cloud {
 
     @Nonnull
     public final Api getApi() throws InterruptedException {
-        if(api == null) {
-            this.api = new Api(getLatestConfig().getOrchestratorUrl());
+        if (this.api == null) {
+            this.api = new Api(getLatestConfig().getOrchestratorUrl(), this);
+
+//            System.out.println("Api was null");
         }
-        return api;
+        return this.api;
     }
 
     /**
@@ -407,6 +413,27 @@ public class SharedNodeCloud extends Cloud {
         return oldStatus;
     }
 
+    @Nonnull
+    public Communication.NodeState getNodeStatus(@Nonnull final String nodeName) {
+        Communication.NodeState status = Communication.NodeState.NOT_FOUND;
+        Node node = Jenkins.getActiveInstance().getNode(nodeName);
+        if (node != null) {
+            // TODO Extract the current state
+            status = Communication.NodeState.FOUND;
+        }
+        return status;
+    }
+
+    @Nonnull public Communication.RunState getRunStatus(@Nonnull final long id) {
+        Communication.RunState status = Communication.RunState.NOT_FOUND;
+        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(id);
+        if (item != null) {
+            // TODO Extract run current state
+            status = Communication.RunState.FOUND;
+        }
+        return status;
+    }
+
     /**
      * Descriptor for Cloud.
      */
@@ -450,7 +477,7 @@ public class SharedNodeCloud extends Cloud {
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
 
-                String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
+                String version = new Api(testSnapshot.getOrchestratorUrl(), null).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
             } catch (TaskLog.TaskFailed e) {
                 ByteArrayOutputStream bout = new ByteArrayOutputStream();

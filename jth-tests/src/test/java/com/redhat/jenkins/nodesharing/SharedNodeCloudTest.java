@@ -27,7 +27,6 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;
 import hudson.model.Label;
-import hudson.model.Node;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import hudson.model.Queue;
 import org.junit.Ignore;
@@ -41,6 +40,7 @@ import java.util.Properties;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.fail;
 
 public class SharedNodeCloudTest {
 
@@ -112,7 +112,6 @@ public class SharedNodeCloudTest {
         System.out.println("Status: " + cloud.getApi().doReportWorkload(qli));
     }
 
-
     @Test
     public void nodeStatusTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
@@ -128,6 +127,38 @@ public class SharedNodeCloudTest {
         assertThat(
                 Communication.NodeState.getStatus((Integer) cloud.getApi().nodeStatus("solaris1.orchestrator")),
                 equalTo(Communication.NodeState.FOUND)
+        );
+    }
+
+    @Test
+    public void runStatusTest() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        j.jenkins.setCrumbIssuer(null);
+        MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
+        Queue.Item item = task.schedule();
+//        for (Queue.Item i : j.jenkins.getQueue().getItems()) {
+//            System.out.println(i.getId());
+//        }
+        assertThat(
+                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
+                equalTo(Communication.RunState.NOT_FOUND)
+        );
+        assertThat(
+                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
+                equalTo(Communication.RunState.FOUND)
+        );
+
+        boolean ex_thrown = false;
+        try {
+            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
+            fail("Expected thrown exception!");
+        } catch (ActionFailed.CommunicationError e) {
+            ex_thrown = true;
+        }
+        assertThat(
+                ex_thrown,
+                equalTo(true)
         );
     }
 }

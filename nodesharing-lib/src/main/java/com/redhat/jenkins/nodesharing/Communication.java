@@ -18,6 +18,7 @@ public class Communication {
 
     public static enum RunState {
         INVALID,
+        FOUND,
         NOT_FOUND;
 
         final static RunState getStatus(final int status) {

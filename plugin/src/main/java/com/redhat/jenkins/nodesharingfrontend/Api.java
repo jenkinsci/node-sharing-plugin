@@ -67,6 +67,7 @@ public class Api implements RootAction {
     private static final String HIDDEN = null;
 
     private WebTarget base = null;
+    private SharedNodeCloud cloud = null;
 
     private static final String PROPERTIES_FILE = "nodesharingfrontend.properties";
     private static final String PROPERTY_VERSION = "version";
@@ -80,7 +81,9 @@ public class Api implements RootAction {
 
     public Api() {}
 
-    public Api(String OrchestratorUrl) {
+    public Api(@Nonnull final String OrchestratorUrl, final SharedNodeCloud cloud) {
+        this.cloud = cloud;
+
         ClientConfig clientConfig = new ClientConfig();
 
         // TODO HTTP autentization
@@ -94,6 +97,13 @@ public class Api implements RootAction {
         client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
         client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
         base = client.target(OrchestratorUrl);
+    }
+
+    private SharedNodeCloud getCloud() {
+        if (cloud == null) {
+            throw new ActionFailed.CommunicationError("Cloud isn't set!");
+        }
+        return cloud;
     }
 
     /**
@@ -219,14 +229,10 @@ public class Api implements RootAction {
      */
     @CheckForNull
     public Object nodeStatus(@Nonnull @QueryParameter("name") final String name) {
-        // TODO Response to node status
-        Communication.NodeState status = Communication.NodeState.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(name);
-        if (node != null) {
-            // TODO Extract the current states
-            status = Communication.NodeState.FOUND;
+        if(name == null) {
+            throw new ActionFailed.CommunicationError("Node name cannot be 'null'!");
         }
-        return (Object) status.ordinal();
+        return getCloud().getNodeStatus(name).ordinal();
     }
 
     /**
@@ -237,8 +243,16 @@ public class Api implements RootAction {
      */
     @CheckForNull
     public Object runStatus(@Nonnull @QueryParameter("id") final String id) {
-        // TODO Response to workID status
-        throw new UnsupportedOperationException();
+        if (id == null) {
+            throw new ActionFailed.CommunicationError("Work id cannot be 'null'!");
+        }
+        long runId;
+        try {
+            runId = new Long(id);
+        } catch (NumberFormatException e) {
+            throw new ActionFailed.CommunicationError("Invalid id value '" + id + "'", e);
+        }
+        return getCloud().getRunStatus(runId).ordinal();
     }
 
     /**
