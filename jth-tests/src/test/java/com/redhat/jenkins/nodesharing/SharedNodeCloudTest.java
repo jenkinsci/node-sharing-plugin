@@ -153,7 +153,7 @@ public class SharedNodeCloudTest {
         try {
             Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
             fail("Expected thrown exception!");
-        } catch (ActionFailed.CommunicationError e) {
+        } catch (IllegalArgumentException e) {
             ex_thrown = true;
         }
         assertThat(
