@@ -128,9 +128,9 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Nonnull
-    public final Api getApi() throws InterruptedException {
+    public final Api getApi() {
         if (this.api == null) {
-            this.api = new Api(getLatestConfig().getOrchestratorUrl(), this);
+            this.api = new Api(getLatestConfig().getOrchestratorUrl());
 
 //            System.out.println("Api was null");
         }
@@ -230,13 +230,17 @@ public class SharedNodeCloud extends Cloud {
     /**
      * Get latest config repo snapshot.
      *
-     * @return Snapshot or null when there are problem reading it.
+     * @return Snapshot or null when there are problems reading it.
      */
-    // TODO, are we OK throwing InterruptedException?
     @CheckForNull
-    public ConfigRepo.Snapshot getLatestConfig() throws InterruptedException {
+    public ConfigRepo.Snapshot getLatestConfig() {
         if (latestConfig == null) {
-            updateConfigSnapshot();
+            try {
+                updateConfigSnapshot();
+            } catch (InterruptedException e) {
+                // Set interruption bit for later
+                Thread.currentThread().interrupt();
+            }
         }
         return latestConfig;
     }
@@ -413,27 +417,6 @@ public class SharedNodeCloud extends Cloud {
         return oldStatus;
     }
 
-    @Nonnull
-    public Communication.NodeState getNodeStatus(@Nonnull final String nodeName) {
-        Communication.NodeState status = Communication.NodeState.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(nodeName);
-        if (node != null) {
-            // TODO Extract the current state
-            status = Communication.NodeState.FOUND;
-        }
-        return status;
-    }
-
-    @Nonnull public Communication.RunState getRunStatus(@Nonnull final long id) {
-        Communication.RunState status = Communication.RunState.NOT_FOUND;
-        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(id);
-        if (item != null) {
-            // TODO Extract run current state
-            status = Communication.RunState.FOUND;
-        }
-        return status;
-    }
-
     /**
      * Descriptor for Cloud.
      */
@@ -477,7 +460,7 @@ public class SharedNodeCloud extends Cloud {
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
 
-                String version = new Api(testSnapshot.getOrchestratorUrl(), null).doDiscover();
+                String version = new Api(testSnapshot.getOrchestratorUrl()).doDiscover();
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(version) + "<strong>");
             } catch (TaskLog.TaskFailed e) {
                 ByteArrayOutputStream bout = new ByteArrayOutputStream();
