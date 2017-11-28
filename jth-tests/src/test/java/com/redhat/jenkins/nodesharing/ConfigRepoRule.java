@@ -44,7 +44,12 @@ import java.util.List;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Create fake config repo from resources directory stub.
+ * Create fake upstream config repo from resources directory stub.
+ *
+ * Manipulating {@link GitClient} session mimics changes to actual remote config repo. Not to be confused by a clone, local
+ * to each Jenkins, that is supposed to receive the changes pulling them.
+ *
+ * Use <tt>gitClient.getWorkTree().getRemote()</tt> to refer to this repo remotely.
  */
 public class ConfigRepoRule implements TestRule {
 

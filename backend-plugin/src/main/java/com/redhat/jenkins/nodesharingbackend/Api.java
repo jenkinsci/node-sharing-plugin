@@ -26,6 +26,10 @@ package com.redhat.jenkins.nodesharingbackend;
 import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.Workload;
+import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
+import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
+import com.redhat.jenkins.nodesharing.transport.Entity;
+import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -35,7 +39,6 @@ import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -52,13 +55,13 @@ import java.util.logging.Logger;
 @Extension
 @Restricted(NoExternalUse.class)
 // TODO Check permission
+// TODO Fail fast if there is no ConfigRepo.Snapshot - Broken orchestrator
 public class Api implements RootAction {
 
-    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());;
+    private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
 
     private static final String HIDDEN = null;
 
-    private static final String PROPERTIES_FILE = "nodesharingbackend.properties";
     private Properties properties = null;
 
     public static @Nonnull Api getInstance() {
@@ -89,7 +92,7 @@ public class Api implements RootAction {
         if(properties == null) {
             properties = new Properties();
             try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
+                properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
             } catch (IOException e) {
                 LOGGER.severe("Cannot load properties from ");
                 properties = new Properties();
@@ -127,7 +130,7 @@ public class Api implements RootAction {
      * Determine whether the host is still used by executor.
      *
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
-     * {@link #doReturnNode(String, String, String)} was received but in case of any of the requests failed to be delivered for some
+     * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
      * we can not rely on node-sharing API on Executor end.
      *
@@ -144,12 +147,38 @@ public class Api implements RootAction {
     /**
      * Dummy request to test the connection/compatibility.
      */
-//    @RequirePOST
-    public String doDiscover() {
-        // TODO In  config-repo url and executor url for sanity check
-        // TODO Out error if sanity check failed, labels and TBD for success
+    public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
+        DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
+        Pool pool = Pool.getInstance();
+        String version = getProperties().getProperty("version", "");
 
-        return getProperties().getProperty("version", "");
+        // Sanity checking
+        StringBuilder diagnosisBuilder = new StringBuilder();
+        if (!request.getVersion().equals(version)) {
+            diagnosisBuilder.append("Orchestrator plugin version is ")
+                    .append(request.getVersion())
+                    .append(" but executor uses ")
+                    .append(version)
+                    .append(". ")
+            ;
+        }
+        String configEndpoint = pool.getConfigEndpoint();
+        if (!request.getConfigRepoUrl().equals(configEndpoint)) {
+            diagnosisBuilder.append("Orchestrator is configured from ")
+                    .append(request.getConfigRepoUrl())
+                    .append(" but executor uses ")
+                    .append(configEndpoint)
+                    .append(". ")
+            ;
+        }
+
+        String diagnosis = diagnosisBuilder.toString();
+        DiscoverResponse response = new DiscoverResponse(
+                configEndpoint, version, diagnosis, pool.getConfig().getNodes().values()
+        );
+
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
     }
 
     /**
@@ -179,17 +208,11 @@ public class Api implements RootAction {
 
     /**
      * Return node to orchestrator when no longer needed.
-     *
-     * @param name Name of the node to be returned.
-     * @param owner Name of the owner.
-     * @param state
-     *      'OK' if the host was used successfully,
-     *      'FAILED' when executor failed to get the node onlin,
-     *      other values are ignored.
      */
     @RequirePOST
-    public void doReturnNode(@QueryParameter String name, @QueryParameter String owner, @QueryParameter String state) {
-        Computer c = Jenkins.getInstance().getComputer(name);
+    public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
+        Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
         if (!(c instanceof SharedComputer)) {
             // TODO computer not reservable
             return;
@@ -201,6 +224,7 @@ public class Api implements RootAction {
             return;
         }
         // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(owner, state);
+        executable.complete(request.getExecutorName());
+        // TODO Report status
     }
 }

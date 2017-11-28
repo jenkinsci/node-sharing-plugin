@@ -23,21 +23,30 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.gargoylesoftware.htmlunit.WebResponse;
+import com.redhat.jenkins.nodesharingbackend.Api;
+import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.Descriptor;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
+import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -51,6 +60,19 @@ public class ReservationTest {
 
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
+
+    @Test
+    public void doTestConnection() throws Exception {
+        j.jenkins.setCrumbIssuer(null); // TODO
+        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+
+        final Properties prop = new Properties();
+        prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
+
+        SharedNodeCloud.DescriptorImpl descriptor = (SharedNodeCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(SharedNodeCloud.class);
+        FormValidation validation = descriptor.doTestConnection(cr.getWorkTree().getRemote());
+        assertThat(validation.renderHtml(), containsString("Orchestrator version is " + prop.getProperty("version")));
+    }
 
     @Test @Ignore // TODO Keep hacking until this passes
     public void runBuildSuccessfully() throws Exception {

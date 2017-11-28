@@ -27,7 +27,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.emptyIterableOf;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -45,7 +44,6 @@ import java.util.Random;
 
 import javax.servlet.ServletException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -70,7 +68,6 @@ import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
 import hudson.model.Cause.UserIdCause;
 import hudson.model.labels.LabelAtom;
-import hudson.util.Secret;
 import org.jvnet.hudson.test.TestBuilder;
 
 /**
@@ -317,24 +314,6 @@ public class ForemanSharedNodeCloudTest {
 
     @Ignore
     @Test
-    public void getVersion() throws Exception {
-        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
-        Api api = orig.getApi();
-
-        try {
-            api.doDiscover();
-            fail();
-        } catch (ForemanAPI.CommunicationError ex) {
-            // Expected
-        }
-
-        stubServiceStatus();
-
-        assertEquals("1.5.3", api.doDiscover());
-    }
-
-    @Ignore
-    @Test
     public void reserveHost() throws Exception {
 //        HostInfo freeHost = new ObjectMapper().readerFor(HostInfo.class).readValue(String.format(TestUtils.readFile(hostInfoResponseFile), "false"));
 //
@@ -348,29 +327,6 @@ public class ForemanSharedNodeCloudTest {
 //        HostInfo reservedHost = api.reserveHost(freeHost);
 //        assertEquals(ForemanAPI.getReserveReason(), reservedHost.getReservedFor());
 //        assertEquals(SUT_HOSTNAME, reservedHost.getName());
-    }
-
-    @Ignore
-    @Test
-    public void releaseHost() throws Exception {
-        String reserveReason = ForemanAPI.getReserveReason();
-
-        SharedNodeCloud orig = j.addForemanCloud("mycloud", URL);
-        Api api = orig.getApi();
-
-        stubReleaseScenario(reserveReason);
-
-//        assertEquals(reserveReason, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-        api.doRelease(SUT_HOSTNAME);
-//        assertEquals(null, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-
-        // Call should be idempotent
-        api.doRelease(SUT_HOSTNAME);
-//        assertEquals(null, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
-
-        // And deal with host removal
-        api.doRelease("so_such_host");
-//        assertEquals(null, api.getHostInfo(SUT_HOSTNAME).getReservedFor());
     }
 
     private void stubReserveScenario() {
