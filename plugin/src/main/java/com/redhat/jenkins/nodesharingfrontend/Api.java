@@ -27,10 +27,10 @@ import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.Communication;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
-import com.redhat.jenkins.nodesharing.Workload;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -289,7 +289,7 @@ public class Api {
         }
 */
 
-        final Workload workItems = new Workload();
+        final ReportWorkloadRequest.Workload workItems = new ReportWorkloadRequest.Workload();
         for(Queue.Item item : items) {
             workItems.addItem(item);
         }

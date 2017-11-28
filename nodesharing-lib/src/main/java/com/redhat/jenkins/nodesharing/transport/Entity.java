@@ -42,8 +42,8 @@ import java.nio.charset.Charset;
  * By convention, the implementations are immutable for the advantage of the receiver and valid / fully initialized after
  * constructed by sender to make sure necessary invariants are met before the entity is transmitted.
  *
- * Preferred way to serialize/deserialize object is to use automagic stream based methods which subclasses can override
- * if needed. The String based methods are for mare convenience. The implementations are expected to preserve the existing
+ * Preferred way to serialize/deserialize object is to use automatic stream based methods which subclasses can override
+ * if needed. The String based methods are for more convenience. The implementations are expected to preserve the existing
  * invariant that guarantees the serialized object will be "equivalent" to the source one after deserialized.
  *
  * @author ogondza.

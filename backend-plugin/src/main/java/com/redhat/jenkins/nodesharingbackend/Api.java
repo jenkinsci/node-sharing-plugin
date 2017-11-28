@@ -25,10 +25,10 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
-import com.redhat.jenkins.nodesharing.Workload;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
@@ -194,11 +194,11 @@ public class Api implements RootAction {
             throw HttpResponses.error(e);
         }
 
-        Workload items = new Gson().fromJson(json, Workload.class);
+        ReportWorkloadRequest.Workload items = new Gson().fromJson(json, ReportWorkloadRequest.Workload.class);
 
         System.out.println("doReportWorkload(): Backend got this request: ");
 
-        for (Workload.WorkloadItem item : items.getItems()) {
+        for (ReportWorkloadRequest.Workload.WorkloadItem item : items.getItems()) {
             System.out.println("Id: " + item.getId() + ", Name: '" + item.getName() + "'");
         }
         // TODO Process the workload
