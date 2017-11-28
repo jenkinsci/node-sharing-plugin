@@ -34,6 +34,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
+import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -112,7 +113,6 @@ public class SharedNodeCloudTest {
     }
 
     // TODO Implementation isn't completed
-    @Ignore
     @Test
     public void doReportWorkloadTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
@@ -120,11 +120,12 @@ public class SharedNodeCloudTest {
         j.jenkins.setCrumbIssuer(null);
         List<Queue.Item> qli = new ArrayList<Queue.Item>();
         MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
-        Queue.Item item = task.schedule();
-        qli.add(item);
-        qli.add(item);
-
-        System.out.println("Status: " + cloud.getApi().doReportWorkload(qli));
+        qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
+        qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
+        assertThat(
+                cloud.getApi().doReportWorkload(qli),
+                equalTo(Response.Status.OK)
+        );
     }
 
     @Test

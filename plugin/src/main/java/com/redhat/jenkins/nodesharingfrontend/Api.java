@@ -156,13 +156,13 @@ public class Api {
      * Do POST HTTP request on target.
      *
      * @param target The request.
-     * @param json JSON string.
+     * @param entity JSON string.
      *
      * @return Response from the server.
      */
     @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final String json) {
-        return doPostRequest(target, json, Response.Status.OK);
+    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
+        return doPostRequest(target, entity, Response.Status.OK);
 
     }
 
@@ -170,17 +170,17 @@ public class Api {
      * Do POST HTTP request on target and throws exception if response doesn't match the expectation.
      *
      * @param target The request.
-     * @param json JSON string.
+     * @param entity POSTed entity.
      * @param status Expected status.
      *
      * @return Response from the server.
      */
     @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final String json,
+    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
                                         @Nonnull final Response.Status status) {
         Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
                 .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(Entity.text(json));
+                .post(Entity.json(entity));
         if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
             throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
                     + "' returns unexpected response status '" + response.getStatus()
@@ -289,14 +289,15 @@ public class Api {
         }
 */
 
-        final ReportWorkloadRequest.Workload workItems = new ReportWorkloadRequest.Workload();
+        final ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload();
         for(Queue.Item item : items) {
-            workItems.addItem(item);
+            workload.addItem(item);
         }
 
-        System.out.println("Frontend: " + new Gson().toJson(workItems));
+        System.out.println("Frontend: " + new Gson().toJson(workload));
+        final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
         return Response.Status.fromStatusCode(
-                doPostRequest(base.path(ORCHESTRATOR_REPORTWORKLOAD_URI), new Gson().toJson(workItems)).getStatus());
+                doPostRequest(base.path(ORCHESTRATOR_REPORTWORKLOAD_URI), request).getStatus());
     }
 
     /**

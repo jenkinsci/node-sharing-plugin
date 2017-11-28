@@ -185,20 +185,11 @@ public class Api implements RootAction {
      * Report workload to be executed on orchestrator for particular executor master.
      */
     @RequirePOST
-    public void doReportWorkload(@Nonnull final StaplerRequest request, @Nonnull final StaplerResponse response) {
-        String json = null;
-        try {
-            json = IOUtils.toString(request.getReader());
-            System.out.println("Backend: " + json);
-        } catch (IOException e) {
-            throw HttpResponses.error(e);
-        }
-
-        ReportWorkloadRequest.Workload items = new Gson().fromJson(json, ReportWorkloadRequest.Workload.class);
+    public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
 
         System.out.println("doReportWorkload(): Backend got this request: ");
-
-        for (ReportWorkloadRequest.Workload.WorkloadItem item : items.getItems()) {
+        for (ReportWorkloadRequest.Workload.WorkloadItem item : request.getWorkload().getItems()) {
             System.out.println("Id: " + item.getId() + ", Name: '" + item.getName() + "'");
         }
         // TODO Process the workload
