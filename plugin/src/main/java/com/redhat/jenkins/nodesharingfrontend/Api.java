@@ -30,6 +30,8 @@ import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
+import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
+import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.model.Node;
@@ -42,6 +44,8 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
@@ -194,32 +198,32 @@ public class Api {
 
     /**
      * Query Executor Jenkins to report the status of shared node.
-     *
-     * @param name Name of the node to be queried.
-     * @return Node status.
      */
-    @CheckForNull
     // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-    public Object nodeStatus(@Nonnull @QueryParameter("name") final String name) {
-        if(name == null) {
-            throw new IllegalArgumentException("Node name cannot be 'null'!");
-        }
-        Communication.NodeState status = Communication.NodeState.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(name);
+    public void doNodeStatus(StaplerRequest req, StaplerResponse rsp) throws IOException {
+        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+                req.getInputStream(), NodeStatusRequest.class);
+
+        NodeStatusResponse.Status state = NodeStatusResponse.Status.NOT_FOUND;
+        Node node = Jenkins.getActiveInstance().getNode(request.getNodeName());
         if (node != null) {
-            // TODO Extract the current state
-            status = Communication.NodeState.FOUND;
+            state = NodeStatusResponse.Status.FOUND;
             if (node.toComputer().isIdle()) {
-                status = Communication.NodeState.IDLE;
+                state = NodeStatusResponse.Status.IDLE;
             }
             if (node.toComputer().isConnecting()) {
-                status = Communication.NodeState.CONNECTING;
+                state = NodeStatusResponse.Status.CONNECTING;
             }
+
+            // Offline but BUSY
             if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
-                status = Communication.NodeState.OFFLINE;
+                state = NodeStatusResponse.Status.OFFLINE;
             }
+            // TODO Extract if BUSY
         }
-        return status.ordinal();
+        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), state);
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
     }
 
     /**
