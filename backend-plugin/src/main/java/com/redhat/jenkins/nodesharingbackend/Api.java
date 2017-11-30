@@ -23,20 +23,19 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
-import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
+import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.model.RootAction;
-import hudson.util.HttpResponses;
 import jenkins.model.Jenkins;
-import org.apache.commons.io.IOUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -217,5 +216,16 @@ public class Api implements RootAction {
         // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
         executable.complete(request.getExecutorName());
         // TODO Report status
+    }
+
+    @Nonnull
+    public NodeStatusResponse.Status nodeStatus(@Nonnull final String nodeName) {
+        NodeStatusRequest request = new NodeStatusRequest(
+                Pool.getInstance().getConfigEndpoint(),
+                getProperties().getProperty("version", ""),
+                nodeName
+        );
+        // TODO Do an client call to ExecutorJenkins
+        return NodeStatusResponse.Status.INVALID;
     }
 }
