@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;
@@ -129,7 +130,7 @@ public class SharedNodeCloudTest {
         qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
         qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
         assertThat(
-                cloud.getApi().doReportWorkload(qli),
+                cloud.getApi().reportWorkload(qli),
                 equalTo(Response.Status.OK)
         );
     }
@@ -139,17 +140,18 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.setCrumbIssuer(null);
-//        for (Node n : j.jenkins.getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
-//        assertThat(
-//                Communication.NodeState.getStatus((Integer) cloud.getApi().nodeStatus("foo")),
-//                equalTo(Communication.NodeState.NOT_FOUND)
-//        );
-//        assertThat(
-//                Communication.NodeState.getStatus((Integer) cloud.getApi().nodeStatus("solaris1.orchestrator")),
-//                equalTo(Communication.NodeState.FOUND)
-//        );
+        System.out.println(cloud.getName());
+        assertThat(
+                cloud.getNodeStatus("foo"),
+                equalTo(NodeStatusResponse.Status.NOT_FOUND)
+        );
+        assertThat(
+                cloud.getNodeStatus("solaris1.orchestrator"),
+                equalTo(NodeStatusResponse.Status.IDLE)
+        );
+
+        Thread.sleep(1000000);
+        // TODO Make a request through the Api
     }
 
     @Test

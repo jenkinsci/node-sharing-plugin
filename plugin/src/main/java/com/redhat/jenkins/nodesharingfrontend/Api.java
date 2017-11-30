@@ -34,6 +34,7 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
+import hudson.Util;
 import hudson.model.Node;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
@@ -75,6 +76,8 @@ public class Api {
 
     private WebTarget base = null;
 
+    private final SharedNodeCloud cloud;
+
     private static final String PROPERTIES_FILE = "nodesharingfrontend.properties";
     private static final String PROPERTY_VERSION = "version";
     private Properties properties = null;
@@ -83,7 +86,10 @@ public class Api {
     private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
     private static final String ORCHESTRATOR_REPORTWORKLOAD_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_REPORTWORKLOAD;
 
-    public Api(@Nonnull final ConfigRepo.Snapshot snapshot, @Nonnull final String configRepoUrl) {
+    public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
+               @Nonnull final String configRepoUrl,
+               @Nonnull final SharedNodeCloud cloud
+    ) {
         this.fingerprint = new ExecutorEntity.Fingerprint(
                 configRepoUrl,
                 getProperties().getProperty("version"),
@@ -103,6 +109,8 @@ public class Api {
         client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
         client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
         base = client.target(snapshot.getOrchestratorUrl());
+
+        this.cloud = cloud;
     }
 
     /**
@@ -203,25 +211,11 @@ public class Api {
     public void doNodeStatus(StaplerRequest req, StaplerResponse rsp) throws IOException {
         NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
                 req.getInputStream(), NodeStatusRequest.class);
-
-        NodeStatusResponse.Status state = NodeStatusResponse.Status.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(request.getNodeName());
-        if (node != null) {
-            state = NodeStatusResponse.Status.FOUND;
-            if (node.toComputer().isIdle()) {
-                state = NodeStatusResponse.Status.IDLE;
-            }
-            if (node.toComputer().isConnecting()) {
-                state = NodeStatusResponse.Status.CONNECTING;
-            }
-
-            // Offline but BUSY
-            if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
-                state = NodeStatusResponse.Status.OFFLINE;
-            }
-            // TODO Extract if BUSY
-        }
-        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), state);
+        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
+        if (nodeName != null)
+            status = cloud.getNodeStatus(request.getNodeName());
+        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
         rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());
     }
@@ -265,7 +259,7 @@ public class Api {
     /**
      * Put the queue items to Orchestrator
      */
-    public Response.Status doReportWorkload(@Nonnull final List <Queue.Item> items) {
+    public Response.Status reportWorkload(@Nonnull final List <Queue.Item> items) {
 
 /*
         Set<LabelAtom> sla = new TreeSet<LabelAtom>();

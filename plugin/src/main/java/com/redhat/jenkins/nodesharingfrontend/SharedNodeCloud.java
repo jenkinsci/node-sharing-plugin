@@ -5,6 +5,7 @@ import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
+import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
 import hudson.Extension;
@@ -12,6 +13,7 @@ import hudson.FilePath;
 import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
@@ -125,7 +127,7 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public final Api getApi() {
         if (this.api == null) {
-            this.api = new Api(getLatestConfig(), configRepoUrl);
+            this.api = new Api(getLatestConfig(), configRepoUrl, this);
 
 //            System.out.println("Api was null");
         }
@@ -266,6 +268,27 @@ public class SharedNodeCloud extends Cloud {
                 }
             }
         }
+    }
+
+    public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
+        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
+        Node node = Jenkins.getActiveInstance().getNode(nodeName);
+        if (node != null) {
+            status = NodeStatusResponse.Status.FOUND;
+            if (node.toComputer().isIdle()) {
+                status = NodeStatusResponse.Status.IDLE;
+            }
+            if (node.toComputer().isConnecting()) {
+                status = NodeStatusResponse.Status.CONNECTING;
+            }
+
+            // Offline but BUSY
+            if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+                status = NodeStatusResponse.Status.OFFLINE;
+            }
+            // TODO Extract if BUSY
+        }
+        return status;
     }
 
     @Override
@@ -455,7 +478,7 @@ public class SharedNodeCloud extends Cloud {
                 ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
                 ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
 
-                DiscoverResponse discover = new Api(testSnapshot, configRepoUrl).discover();
+                DiscoverResponse discover = new Api(testSnapshot, configRepoUrl, null).discover();
                 if (!discover.getDiagnosis().isEmpty()) {
                     return FormValidation.warning(discover.getDiagnosis());
                 }
