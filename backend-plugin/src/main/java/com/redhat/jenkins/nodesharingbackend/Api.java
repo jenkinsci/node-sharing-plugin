@@ -219,7 +219,7 @@ public class Api implements RootAction {
     }
 
     @Nonnull
-    public NodeStatusResponse.Status nodeStatus(@Nonnull final String nodeName) {
+    public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
         NodeStatusRequest request = new NodeStatusRequest(
                 Pool.getInstance().getConfigEndpoint(),
                 getProperties().getProperty("version", ""),

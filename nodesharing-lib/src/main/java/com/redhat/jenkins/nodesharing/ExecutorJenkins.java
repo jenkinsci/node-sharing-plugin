@@ -71,7 +71,7 @@ public class ExecutorJenkins {
      */
     public @Nonnull URL getEndpointUrl() {
         try {
-            return new URL(url.toExternalForm() + "/node-sharing-executor");
+            return new URL(url.toExternalForm());
         } catch (MalformedURLException e) {
             throw new Error(e); // base url was validated
         }

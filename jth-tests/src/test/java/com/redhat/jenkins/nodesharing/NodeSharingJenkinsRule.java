@@ -35,11 +35,17 @@ import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.util.OneShotEvent;
 import jenkins.model.queue.AsynchronousExecution;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.jackson.JacksonFeature;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
 import java.io.IOException;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
@@ -121,4 +127,23 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return cloud;
     }
 
+    @Nonnull
+    public WebTarget getCloudWebClient(@Nonnull final SharedNodeCloud cloud) {
+        ClientConfig clientConfig = new ClientConfig();
+
+        // TODO HTTP autentization
+        //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
+        //clientConfig.register(feature);
+
+        clientConfig.register(JacksonFeature.class);
+        Client client = ClientBuilder.newClient(clientConfig);
+
+        // Define a quite defensive timeouts
+        client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
+        client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
+
+//        String jenkins = Pool.getInstance().getConfig().getJenkinses().iterator().next().getEndpointUrl().toExternalForm();
+//        jenkins += "cloud/" + cloud.getName() + "/api";
+        return client.target(jenkins.getRootUrl() + "cloud/" + cloud.getName() + "/api");
+    }
 }

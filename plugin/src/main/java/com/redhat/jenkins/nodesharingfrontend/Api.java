@@ -35,7 +35,6 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.Util;
-import hudson.model.Node;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -113,23 +112,7 @@ public class Api {
         this.cloud = cloud;
     }
 
-    /**
-     * Get properties.
-     *
-     * @return Properties.
-     */
-    @Nonnull
-    private Properties getProperties() {
-        if(properties == null) {
-            properties = new Properties();
-            try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
-            } catch (IOException e) {
-                properties = new Properties();
-            }
-        }
-        return properties;
-    }
+    //// Helper methods
 
     /**
      * Do GET HTTP request on target.
@@ -150,6 +133,7 @@ public class Api {
      *
      * @return Server response.
      */
+
     @Nonnull
     public Response doGetRequest(@Nonnull final WebTarget target, @Nonnull final Response.Status status) {
         Response response = Response.serverError().entity("error").build();
@@ -173,7 +157,7 @@ public class Api {
      * @return Response from the server.
      */
     @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
+    private Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
         return doPostRequest(target, entity, Response.Status.OK);
 
     }
@@ -188,8 +172,8 @@ public class Api {
      * @return Response from the server.
      */
     @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
-                                        @Nonnull final Response.Status status) {
+    private Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
+                                   @Nonnull final Response.Status status) {
         Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
                 .request(MediaType.APPLICATION_JSON_TYPE)
                 .post(Entity.json(entity));
@@ -201,6 +185,23 @@ public class Api {
         return response;
     }
 
+    /**
+     * Get properties.
+     *
+     * @return Properties.
+     */
+    @Nonnull
+    private Properties getProperties() {
+        if(properties == null) {
+            properties = new Properties();
+            try {
+                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
+            } catch (IOException e) {
+                properties = new Properties();
+            }
+        }
+        return properties;
+    }
 
     //// Outgoing
 
@@ -215,6 +216,7 @@ public class Api {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
         if (nodeName != null)
             status = cloud.getNodeStatus(request.getNodeName());
+//        System.out.println("doNodeStatus(): nodeName='" + nodeName + "', response=" + status);
         NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
         rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());

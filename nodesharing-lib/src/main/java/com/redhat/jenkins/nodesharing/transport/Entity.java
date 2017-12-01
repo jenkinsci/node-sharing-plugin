@@ -56,6 +56,11 @@ public abstract class Entity {
     private final @Nonnull String configRepoUrl;
     private final @Nonnull String version;
 
+//    public Entity() {
+//        this.configRepoUrl = null;
+//        this.version = null;
+//    }
+
     public Entity(@Nonnull String configRepoUrl, @Nonnull String version) {
         this.configRepoUrl = configRepoUrl;
         this.version = version;
