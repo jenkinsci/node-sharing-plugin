@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
@@ -210,8 +211,16 @@ public class SharedNodeCloudTest {
                 equalTo(NodeStatusResponse.Status.IDLE)
         );
 
-        // TODO Make a request through the Api backend
-//        Thread.sleep(1000000);
+        assertThat(
+                Api.getInstance().nodeStatus(
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), "foo"),
+                equalTo(NodeStatusResponse.Status.NOT_FOUND)
+        );
+        assertThat(
+                Api.getInstance().nodeStatus(
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), "solaris1.orchestrator"),
+                equalTo(NodeStatusResponse.Status.IDLE)
+        );
     }
 
     @Nonnull
