@@ -55,6 +55,8 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
 
+    private static Client webClient = null;
+
     protected @Nonnull SharedComputer getComputer(String name) {
         return (SharedComputer) getNode(name).toComputer();
     }
@@ -129,21 +131,22 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     @Nonnull
     public WebTarget getCloudWebClient(@Nonnull final SharedNodeCloud cloud) {
-        ClientConfig clientConfig = new ClientConfig();
+        if (webClient == null) {
+            ClientConfig clientConfig = new ClientConfig();
 
-        // TODO HTTP autentization
-        //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
-        //clientConfig.register(feature);
+            // TODO HTTP autentization
+            //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
+            //clientConfig.register(feature);
 
-        clientConfig.register(JacksonFeature.class);
-        Client client = ClientBuilder.newClient(clientConfig);
+            clientConfig.register(JacksonFeature.class);
+            webClient = ClientBuilder.newClient(clientConfig);
 
-        // Define a quite defensive timeouts
-        client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
-        client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
-
+            // Define a quite defensive timeouts
+            webClient.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
+            webClient.property(ClientProperties.READ_TIMEOUT, 300000);  // 5m
+        }
 //        String jenkins = Pool.getInstance().getConfig().getJenkinses().iterator().next().getEndpointUrl().toExternalForm();
 //        jenkins += "cloud/" + cloud.getName() + "/api";
-        return client.target(jenkins.getRootUrl() + "cloud/" + cloud.getName() + "/api");
+        return webClient.target(jenkins.getRootUrl() + "cloud/" + cloud.getName() + "/api");
     }
 }

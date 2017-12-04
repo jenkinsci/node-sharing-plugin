@@ -31,27 +31,39 @@ import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.util.FormValidation;
+import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import hudson.model.Queue;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.Nonnull;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -103,6 +115,20 @@ public class SharedNodeCloudTest {
         }
         return response;
     }
+
+    private static final class BlockingBuilder extends TestBuilder {
+        private OneShotEvent start = new OneShotEvent();
+        private OneShotEvent end = new OneShotEvent();
+
+        @Override
+        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+            start.signal();
+            end.block();
+            return true;
+        }
+    }
+
+    ////
 
     @Test
     public void doTestConnection() throws Exception {
@@ -192,49 +218,73 @@ public class SharedNodeCloudTest {
 //            System.out.println(n.getNodeName());
 //        }
 
-        assertThat(
-                cloud.getNodeStatus("foo"),
-                equalTo(NodeStatusResponse.Status.NOT_FOUND)
-        );
-        assertThat(
-                cloud.getNodeStatus("solaris1.orchestrator"),
-                equalTo(NodeStatusResponse.Status.IDLE)
-        );
+        // NOT_FOUND status
+        assertNull(j.jenkins.getComputer("foo"));
+        checkNodeStatus(cloud, "foo", NodeStatusResponse.Status.NOT_FOUND);
 
-        WebTarget base = j.getCloudWebClient(cloud);
-        assertThat(
-                makeNodeStatusRequest(base, "foo").getStatus(),
-                equalTo(NodeStatusResponse.Status.NOT_FOUND)
-        );
-        assertThat(
-                makeNodeStatusRequest(base, "solaris1.orchestrator").getStatus(),
-                equalTo(NodeStatusResponse.Status.IDLE)
-        );
+        // IDLE status
+        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isIdle());
+        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.IDLE);
 
-        assertThat(
-                Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), "foo"),
-                equalTo(NodeStatusResponse.Status.NOT_FOUND)
-        );
-        assertThat(
-                Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), "solaris1.orchestrator"),
-                equalTo(NodeStatusResponse.Status.IDLE)
-        );
+        // still IDLE status although offline
+        j.jenkins.getComputer("solaris1.orchestrator").setTemporarilyOffline(true);
+        j.jenkins.getComputer("solaris1.orchestrator").waitUntilOffline();
+        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOffline());
+        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.IDLE);
+        j.jenkins.getComputer("solaris1.orchestrator").setTemporarilyOffline(false);
+        j.jenkins.getComputer("solaris1.orchestrator").waitUntilOnline();
+        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOnline());
+
+        // TODO CONNECTING status
+
+        // BUSY status
+        // TODO Wait until a run starts and the node is busy
+//        FreeStyleProject job = j.createFreeStyleProject();
+//        job.setAssignedLabel(Label.get("solaris11"));
+//        BlockingBuilder builder = new BlockingBuilder();
+//        job.getBuildersList().add(builder);
+//        Future<FreeStyleBuild> scheduledRun = job.scheduleBuild2(0).getStartCondition();
+//        builder.start.block();
+//        assertFalse(scheduledRun.isDone());
+//        assertFalse(j.jenkins.getComputer("solaris1.orchestrator").isIdle());
+//        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.BUSY);
+
+        // OFFLINE status
+        // TODO Check offline status - we need the node is busy
+//        assertFalse(j.jenkins.getComputer("solaris1.orchestrator").isIdle());
+//        j.jenkins.getComputer("solaris1.orchestrator").setTemporarilyOffline(true);
+//        j.jenkins.getComputer("solaris1.orchestrator").waitUntilOffline();
+//        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOffline());
+//        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.OFFLINE);
+
+//        builder.end.signal();
     }
 
-    @Nonnull
-    private final NodeStatusResponse makeNodeStatusRequest(@Nonnull final WebTarget base, @Nonnull final String nodeName) {
-        NodeStatusRequest request = new NodeStatusRequest(
-                Pool.getInstance().getConfigEndpoint(),
-                "4.2",
-                nodeName);
-        Response resp = doPostRequest(base.path("/nodeStatus"), request);
-        return Entity.fromInputStream(
-                (InputStream) doPostRequest(base.path("/nodeStatus"), request).getEntity(),
-                NodeStatusResponse.class
+    private void checkNodeStatus(
+            @Nonnull SharedNodeCloud cloud,
+            @Nonnull final String nodeName,
+            @Nonnull final NodeStatusResponse.Status nodeStatus
+    ) {
+        assertThat(
+                cloud.getNodeStatus(nodeName),
+                equalTo(nodeStatus)
         );
-
+        assertThat(
+                Entity.fromInputStream(
+                        (InputStream) doPostRequest(
+                                j.getCloudWebClient(cloud).path("/nodeStatus"),
+                                new NodeStatusRequest(
+                                    Pool.getInstance().getConfigEndpoint(),
+                                    "4.2",
+                                    nodeName
+                                )).getEntity(),
+                        NodeStatusResponse.class).getStatus(),
+                equalTo(nodeStatus)
+        );
+        assertThat(
+                Api.getInstance().nodeStatus(new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), nodeName),
+                equalTo(nodeStatus)
+        );
     }
 
     @Test

@@ -277,14 +277,13 @@ public class SharedNodeCloud extends Cloud {
             status = NodeStatusResponse.Status.FOUND;
             if (node.toComputer().isIdle()) {
                 status = NodeStatusResponse.Status.IDLE;
-            }
-            if (node.toComputer().isConnecting()) {
+            } else  if (node.toComputer().isConnecting()) {
                 status = NodeStatusResponse.Status.CONNECTING;
-            }
-
-            // Offline but BUSY
-            if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+            } else if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+                // Offline but BUSY
                 status = NodeStatusResponse.Status.OFFLINE;
+            } if (!node.toComputer().isIdle()) {
+                status = NodeStatusResponse.Status.BUSY;
             }
             // TODO Extract if BUSY
         }
