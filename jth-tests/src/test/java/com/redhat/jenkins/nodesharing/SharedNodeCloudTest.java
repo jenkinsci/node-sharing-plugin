@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.RunState;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -35,7 +36,6 @@ import hudson.model.Label;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import hudson.model.Queue;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -251,17 +251,17 @@ public class SharedNodeCloudTest {
 //        }
 
         assertThat(
-                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
-                equalTo(Communication.RunState.NOT_FOUND)
+                RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
+                equalTo(RunState.NOT_FOUND)
         );
         assertThat(
-                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
-                equalTo(Communication.RunState.DONE)
+                RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
+                equalTo(RunState.DONE)
         );
 
         boolean ex_thrown = false;
         try {
-            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
+            RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
             fail("Expected thrown exception!");
         } catch (IllegalArgumentException e) {
             ex_thrown = true;
