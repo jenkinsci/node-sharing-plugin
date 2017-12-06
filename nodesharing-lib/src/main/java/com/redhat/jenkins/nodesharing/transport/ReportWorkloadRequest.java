@@ -3,7 +3,6 @@ package com.redhat.jenkins.nodesharing.transport;
 import hudson.model.Queue;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -28,7 +27,6 @@ public class ReportWorkloadRequest extends ExecutorEntity {
 
         public Workload() {}
 
-        @DataBoundConstructor
         public Workload(List<WorkloadItem> items) {
             this.items = items;
         }
@@ -57,7 +55,6 @@ public class ReportWorkloadRequest extends ExecutorEntity {
                 this.name = name;
             }
 
-            @DataBoundConstructor
             public WorkloadItem(@Nonnull final Queue.Item item) {
                 this.id = item.getId();
                 this.name = item.getDisplayName();
