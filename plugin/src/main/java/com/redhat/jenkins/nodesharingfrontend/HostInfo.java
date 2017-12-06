@@ -45,6 +45,11 @@ import java.util.Set;
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class HostInfo {
 
+    /*package*/ static final String JENKINS_LABEL = "JENKINS_LABEL";
+    /*package*/ static final String JENKINS_SLAVE_REMOTEFS_ROOT = "JENKINS_SLAVE_REMOTEFS_ROOT";
+    /*package*/ static final String JENKINS_SLAVE_JAVA_PATH = "JENKINS_SLAVE_JAVA_PATH";
+    /*package*/ static final String FOREMAN_SEARCH_RESERVEDPARAMNAME = "RESERVED";
+
     private final String name;
     private final String labels;
     private final String remoteFs;
@@ -60,10 +65,10 @@ public class HostInfo {
         for (Parameter parameter : parameters) {
             params.put(parameter.name, parameter.value);
         }
-        labels = Util.fixEmptyAndTrim(params.get(ForemanAPI.JENKINS_LABEL));
-        remoteFs = Util.fixEmptyAndTrim(params.get(ForemanAPI.JENKINS_SLAVE_REMOTEFS_ROOT));
-        javaPath = Util.fixEmptyAndTrim(params.get(ForemanAPI.JENKINS_SLAVE_JAVA_PATH));
-        String r = Util.fixEmptyAndTrim(params.get(ForemanAPI.FOREMAN_SEARCH_RESERVEDPARAMNAME));
+        labels = Util.fixEmptyAndTrim(params.get(JENKINS_LABEL));
+        remoteFs = Util.fixEmptyAndTrim(params.get(JENKINS_SLAVE_REMOTEFS_ROOT));
+        javaPath = Util.fixEmptyAndTrim(params.get(JENKINS_SLAVE_JAVA_PATH));
+        String r = Util.fixEmptyAndTrim(params.get(FOREMAN_SEARCH_RESERVEDPARAMNAME));
         reserved = "false".equals(r) ? null : r;
     }
 
