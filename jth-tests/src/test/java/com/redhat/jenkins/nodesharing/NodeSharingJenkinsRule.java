@@ -28,7 +28,6 @@ import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.SharedComputer;
 import com.redhat.jenkins.nodesharingbackend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharingfrontend.launcher.DummyComputerLauncherFactory;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -121,7 +120,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     @Nonnull
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
         SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", null);
-        cloud.setLauncherFactory(new DummyComputerLauncherFactory());
         jenkins.clouds.add(cloud);
         cloud.setOperational();
         return cloud;
