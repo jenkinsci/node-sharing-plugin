@@ -36,7 +36,6 @@ import hudson.util.OneShotEvent;
 import jenkins.model.queue.AsynchronousExecution;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.jvnet.hudson.test.JenkinsRule;
 
@@ -133,7 +132,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
         //clientConfig.register(feature);
 
-        clientConfig.register(JacksonFeature.class);
         Client client = ClientBuilder.newClient(clientConfig);
 
         // Define a quite defensive timeouts

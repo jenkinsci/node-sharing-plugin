@@ -40,7 +40,6 @@ import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
@@ -101,7 +100,6 @@ public class Api {
         //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
         //clientConfig.register(feature);
 
-        clientConfig.register(JacksonFeature.class);
         Client client = ClientBuilder.newClient(clientConfig);
 
         // Define a quite defensive timeouts
@@ -176,7 +174,7 @@ public class Api {
                                    @Nonnull final Response.Status status) {
         Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
                 .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(Entity.json(entity));
+                .post(Entity.text(entity.toString()));
         if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
             throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
                     + "' returns unexpected response status '" + response.getStatus()

@@ -39,7 +39,6 @@ import hudson.model.RootAction;
 import jenkins.model.Jenkins;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -117,7 +116,6 @@ public class Api implements RootAction {
     private WebTarget getWebClient(@Nonnull final String url) {
         if (webClient == null) {
             ClientConfig clientConfig = new ClientConfig();
-            clientConfig.register(JacksonFeature.class);
             webClient = ClientBuilder.newClient(clientConfig);
 
             // TODO HTTP autentization
@@ -160,7 +158,7 @@ public class Api implements RootAction {
                                    @Nonnull final Response.Status status) {
         Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
                 .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(javax.ws.rs.client.Entity.json(entity));
+                .post(javax.ws.rs.client.Entity.text(entity.toString()));
         if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
             throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
                     + "' returns unexpected response status '" + response.getStatus()

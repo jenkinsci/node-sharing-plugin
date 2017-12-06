@@ -77,7 +77,7 @@ public class SharedNodeCloudTest {
      * @return Response from the server.
      */
     @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
+    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Entity entity) {
         return doPostRequest(target, entity, Response.Status.OK);
     }
 
@@ -91,11 +91,14 @@ public class SharedNodeCloudTest {
      * @return Response from the server.
      */
     @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
-                                               @Nonnull final Response.Status status) {
+    public Response doPostRequest(
+            @Nonnull final WebTarget target,
+            @Nonnull final Entity entity,
+            @Nonnull final Response.Status status
+    ) {
         Response response = target.queryParam(PROPERTY_VERSION, "4.2")
                 .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(javax.ws.rs.client.Entity.json(entity));
+                .post(javax.ws.rs.client.Entity.text(entity.toString()));
         if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
             throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
                     + "' returns unexpected response status '" + response.getStatus()
