@@ -34,9 +34,19 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
-import hudson.model.FreeStyleBuild;
+import hudson.model.Descriptor;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Slave;
+import hudson.model.TaskListener;
+import hudson.slaves.CommandLauncher;
+import hudson.slaves.ComputerLauncher;
+import hudson.slaves.DumbSlave;
+import hudson.slaves.EphemeralNode;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.RetentionStrategy;
+import hudson.slaves.SlaveComputer;
 import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -53,9 +63,9 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -64,7 +74,6 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * @author pjanouse
@@ -235,29 +244,40 @@ public class SharedNodeCloudTest {
         j.jenkins.getComputer("solaris1.orchestrator").waitUntilOnline();
         assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOnline());
 
-        // TODO CONNECTING status
-
         // BUSY status
-        // TODO Wait until a run starts and the node is busy
-//        FreeStyleProject job = j.createFreeStyleProject();
-//        job.setAssignedLabel(Label.get("solaris11"));
-//        BlockingBuilder builder = new BlockingBuilder();
-//        job.getBuildersList().add(builder);
-//        Future<FreeStyleBuild> scheduledRun = job.scheduleBuild2(0).getStartCondition();
-//        builder.start.block();
-//        assertFalse(scheduledRun.isDone());
-//        assertFalse(j.jenkins.getComputer("solaris1.orchestrator").isIdle());
-//        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.BUSY);
+        DumbSlave slave = j.createSlave("aNode", "", null);
+        slave.toComputer().waitUntilOnline();
+        assertTrue(slave.toComputer().isOnline());
+        FreeStyleProject job = j.createFreeStyleProject();
+        job.setAssignedNode(slave);
+        BlockingBuilder builder = new BlockingBuilder();
+        job.getBuildersList().add(builder);
+        job.scheduleBuild2(0).getStartCondition();
+        builder.start.block();
+        assertTrue(job.isBuilding());
+        assertFalse(slave.toComputer().isIdle());
+        checkNodeStatus(cloud, "aNode", NodeStatusResponse.Status.BUSY);
 
         // OFFLINE status
-        // TODO Check offline status - we need the node is busy
-//        assertFalse(j.jenkins.getComputer("solaris1.orchestrator").isIdle());
-//        j.jenkins.getComputer("solaris1.orchestrator").setTemporarilyOffline(true);
-//        j.jenkins.getComputer("solaris1.orchestrator").waitUntilOffline();
-//        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOffline());
-//        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.OFFLINE);
+        assertFalse(slave.toComputer().isIdle());
+        slave.toComputer().setTemporarilyOffline(true);
+        slave.toComputer().waitUntilOffline();
+        assertTrue(slave.toComputer().isOffline());
+        checkNodeStatus(cloud, "aNode", NodeStatusResponse.Status.OFFLINE);
 
-//        builder.end.signal();
+        builder.end.signal();
+
+        // CONNECTING status
+        BlockingCommandLauncher blockingLauncher = new BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
+        ConnectingSlave connectingSlave = new ConnectingSlave("aConnectingNode", "dummy",
+                j.createTmpDir().getPath(), "1", Node.Mode.NORMAL, "",
+                blockingLauncher, RetentionStrategy.NOOP, Collections.EMPTY_LIST);
+        j.jenkins.addNode(connectingSlave);
+        blockingLauncher.start.block();
+        assertTrue(connectingSlave.toComputer().isConnecting());
+        checkNodeStatus(cloud, "aConnectingNode", NodeStatusResponse.Status.CONNECTING);
+        blockingLauncher.end.signal();
+        connectingSlave.toComputer().waitUntilOnline();
     }
 
     private void checkNodeStatus(
@@ -272,7 +292,7 @@ public class SharedNodeCloudTest {
         assertThat(
                 Entity.fromInputStream(
                         (InputStream) doPostRequest(
-                                j.getCloudWebClient(cloud).path("/nodeStatus"),
+                                j.getCloudWebClient(cloud).path(NodeStatusRequest.REQUEST_URI),
                                 new NodeStatusRequest(
                                     Pool.getInstance().getConfigEndpoint(),
                                     "4.2",
@@ -287,6 +307,45 @@ public class SharedNodeCloudTest {
         );
     }
 
+    private class BlockingCommandLauncher extends CommandLauncher {
+        private OneShotEvent start = new OneShotEvent();
+        private OneShotEvent end = new OneShotEvent();
+
+        public BlockingCommandLauncher(String command) {
+            super(command);
+        }
+
+        @Override
+        public void launch(SlaveComputer computer, final TaskListener listener) {
+            start.signal();
+            try {
+                end.block();
+            } catch (InterruptedException e) { }
+            super.launch(computer, listener);
+        }
+    }
+
+    private class ConnectingSlave extends Slave implements EphemeralNode {
+        public ConnectingSlave(String name,
+                               String nodeDescription,
+                               String remoteFS,
+                               String numExecutors,
+                               Mode mode,
+                               String labelString,
+                               ComputerLauncher launcher,
+                               RetentionStrategy retentionStrategy,
+                               List<? extends NodeProperty<?>> nodeProperties
+        ) throws IOException, Descriptor.FormException {
+            super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher,
+                    retentionStrategy, nodeProperties);
+        }
+
+        @Override
+        public ConnectingSlave asNode() {
+            return this;
+        }
+    }
+
     @Test
     public void runStatusTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
@@ -299,25 +358,25 @@ public class SharedNodeCloudTest {
 //            System.out.println(i.getId());
 //        }
 
-        assertThat(
-                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
-                equalTo(Communication.RunState.NOT_FOUND)
-        );
-        assertThat(
-                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
-                equalTo(Communication.RunState.DONE)
-        );
-
-        boolean ex_thrown = false;
-        try {
-            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
-            fail("Expected thrown exception!");
-        } catch (IllegalArgumentException e) {
-            ex_thrown = true;
-        }
-        assertThat(
-                ex_thrown,
-                equalTo(true)
-        );
+//        assertThat(
+//                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
+//                equalTo(Communication.RunState.NOT_FOUND)
+//        );
+//        assertThat(
+//                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
+//                equalTo(Communication.RunState.DONE)
+//        );
+//
+//        boolean ex_thrown = false;
+//        try {
+//            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
+//            fail("Expected thrown exception!");
+//        } catch (IllegalArgumentException e) {
+//            ex_thrown = true;
+//        }
+//        assertThat(
+//                ex_thrown,
+//                equalTo(true)
+//        );
     }
 }

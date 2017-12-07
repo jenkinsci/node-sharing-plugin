@@ -6,6 +6,7 @@ import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.CopyOnWrite;
 import hudson.Extension;
@@ -15,6 +16,7 @@ import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
+import hudson.model.Queue;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -270,22 +272,52 @@ public class SharedNodeCloud extends Cloud {
         }
     }
 
+    /**
+     * Get the node status.
+     *
+     * @param nodeName The node name.
+     * @return The node status.
+     */
+    @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
         Node node = Jenkins.getActiveInstance().getNode(nodeName);
         if (node != null) {
             status = NodeStatusResponse.Status.FOUND;
-            if (node.toComputer().isIdle()) {
+            if (node.toComputer().isIdle() && !node.toComputer().isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
-            } else  if (node.toComputer().isConnecting()) {
-                status = NodeStatusResponse.Status.CONNECTING;
             } else if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
                 // Offline but BUSY
                 status = NodeStatusResponse.Status.OFFLINE;
-            } if (!node.toComputer().isIdle()) {
+            } else if (!node.toComputer().isIdle()) {
                 status = NodeStatusResponse.Status.BUSY;
+            } else  if (node.toComputer().isConnecting()) {
+                status = NodeStatusResponse.Status.CONNECTING;
             }
-            // TODO Extract if BUSY
+        }
+        return status;
+    }
+
+    /**
+     * Get the run status.
+     *
+     * @param runId The run id.
+     * @return The run status.
+     */
+    @Nonnull
+    public RunStatusResponse.Status getRunStatus(final long runId) {
+        RunStatusResponse.Status status = RunStatusResponse.Status.NOT_FOUND;
+        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
+        if (item != null) {
+            status = RunStatusResponse.Status.FOUND;
+            if (item.isBlocked()) {
+                status = RunStatusResponse.Status.BLOCKED;
+            } else if (item.isStuck()) {
+                status = RunStatusResponse.Status.STUCK;
+            } else if (item.getFuture().isDone()) {
+                status = RunStatusResponse.Status.DONE;
+            }
+            // TODO Extract EXECUTING
         }
         return status;
     }
