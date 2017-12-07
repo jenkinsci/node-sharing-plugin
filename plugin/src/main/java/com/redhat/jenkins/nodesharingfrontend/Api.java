@@ -23,9 +23,9 @@
  */
 package com.redhat.jenkins.nodesharingfrontend;
 
-import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
@@ -57,7 +57,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -73,6 +72,7 @@ public class Api {
     private final @Nonnull ExecutorEntity.Fingerprint fingerprint;
 
     private WebTarget base = null;
+    private final RestEndpoint rest;
 
     private final SharedNodeCloud cloud;
 
@@ -105,6 +105,7 @@ public class Api {
         // Define a quite defensive timeouts
         client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
         client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl());
         base = client.target(snapshot.getOrchestratorUrl());
 
         this.cloud = cloud;
@@ -204,57 +205,6 @@ public class Api {
     //// Outgoing
 
     /**
-     * Query Executor Jenkins to report the status of shared node.
-     */
-    public void doNodeStatus(StaplerRequest req, StaplerResponse rsp) throws IOException {
-        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), NodeStatusRequest.class);
-        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
-        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        if (nodeName != null)
-            status = cloud.getNodeStatus(request.getNodeName());
-        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
-        rsp.setContentType("application/json");
-        response.toOutputStream(rsp.getOutputStream());
-    }
-
-    /**
-     * Query Executor Jenkins to report the status of executed item.
-     *
-     * @param id ID of the run to be queried.
-     * @return Item status.
-     */
-    @CheckForNull
-    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-    public Object runStatus(@Nonnull @QueryParameter("id") final String id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Work id cannot be 'null'!");
-        }
-        long runId;
-        try {
-            runId = Long.parseLong(id);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid id value '" + id + "'", e);
-        }
-        RunState status = RunState.NOT_FOUND;
-        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
-        if (item != null) {
-            status = RunState.FOUND;
-            if (item.isBlocked()) {
-                status = RunState.BLOCKED;
-            }
-            if (item.isStuck()) {
-                status = RunState.STUCK;
-            }
-            if (item.getFuture().isDone()) {
-                status = RunState.DONE;
-            }
-            // TODO Extract EXECUTING
-        }
-        return status.ordinal();
-    }
-
-    /**
      * Put the queue items to Orchestrator
      */
     public Response.Status reportWorkload(@Nonnull final List <Queue.Item> items) {
@@ -290,8 +240,8 @@ public class Api {
             workload.addItem(item);
         }
 
-        System.out.println("Frontend: " + new Gson().toJson(workload));
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
+
         return Response.Status.fromStatusCode(
                 doPostRequest(base.path(ORCHESTRATOR_REPORTWORKLOAD_URI), request).getStatus());
     }
@@ -301,30 +251,20 @@ public class Api {
      *
      * @return Discovery result.
      */
-    public DiscoverResponse discover() {
-        DiscoverRequest request = new DiscoverRequest(fingerprint);
-        Entity<String> text = Entity.text(request.toString());
-        InputStream response = base.path(ORCHESTRATOR_URI + "/discover")
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(text, InputStream.class)
-        ;
-
+    public DiscoverResponse discover() throws ActionFailed {
         // TODO Check status code
-        return com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(response, DiscoverResponse.class);
+        return rest.executeRequest(
+                rest.post("discover"),
+                DiscoverResponse.class,
+                new DiscoverRequest(fingerprint)
+        );
     }
 
     /**
      * Send request to return node. No response needed.
      */
     public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
-        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, name, status);
-
-        Entity<String> text = Entity.text(request.toString());
-        Response response = base.path(ORCHESTRATOR_URI + "/returnNode")
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(text)
-        ;
-
+        rest.executeRequest(rest.post("returnNode"), null, new ReturnNodeRequest(fingerprint, name, status));
         // TODO check status
     }
 
@@ -337,6 +277,7 @@ public class Api {
     public void doExecution(@Nonnull @QueryParameter final String nodeName,
                             @Nonnull @QueryParameter final String id) {
         // TODO Create a Node based on the info and execute the Item
+        throw new NotSupportedException();
     }
 
     /**
@@ -362,5 +303,57 @@ public class Api {
         // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
         executable.complete(owner, state);
 */
+    }
+
+    /**
+     * Query Executor Jenkins to report the status of shared node.
+     */
+    public void doNodeStatus(StaplerRequest req, StaplerResponse rsp) throws IOException {
+        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+                req.getInputStream(), NodeStatusRequest.class);
+        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
+        if (nodeName != null)
+            status = cloud.getNodeStatus(request.getNodeName());
+        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
+    }
+
+    /**
+     * Query Executor Jenkins to report the status of executed item.
+     *
+     * @param id ID of the run to be queried.
+     * @return Item status.
+     */
+    @CheckForNull
+    @RequirePOST
+    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
+    public Object doRunStatus(@Nonnull @QueryParameter("id") final String id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Work id cannot be 'null'!");
+        }
+        long runId;
+        try {
+            runId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid id value '" + id + "'", e);
+        }
+        RunState status = RunState.NOT_FOUND;
+        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
+        if (item != null) {
+            status = RunState.FOUND;
+            if (item.isBlocked()) {
+                status = RunState.BLOCKED;
+            }
+            if (item.isStuck()) {
+                status = RunState.STUCK;
+            }
+            if (item.getFuture().isDone()) {
+                status = RunState.DONE;
+            }
+            // TODO Extract EXECUTING
+        }
+        return status.ordinal();
     }
 }

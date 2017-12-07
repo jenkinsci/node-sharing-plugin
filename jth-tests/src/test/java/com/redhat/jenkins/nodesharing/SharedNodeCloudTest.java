@@ -251,17 +251,17 @@ public class SharedNodeCloudTest {
 //        }
 
         assertThat(
-                RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
+                RunState.getStatus((Integer) cloud.getApi().doRunStatus("-1")),
                 equalTo(RunState.NOT_FOUND)
         );
         assertThat(
-                RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
+                RunState.getStatus((Integer) cloud.getApi().doRunStatus(((Long) item.getId()).toString())),
                 equalTo(RunState.DONE)
         );
 
         boolean ex_thrown = false;
         try {
-            RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
+            RunState.getStatus((Integer) cloud.getApi().doRunStatus("Invalid"));
             fail("Expected thrown exception!");
         } catch (IllegalArgumentException e) {
             ex_thrown = true;
