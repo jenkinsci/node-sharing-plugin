@@ -127,7 +127,7 @@ public class SharedNodeCloudTest {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection("file:\\\\aaa").getMessage(),
-                equalTo("Invalid config repo url")
+                startsWith("Invalid config repo url")
         );
     }
 

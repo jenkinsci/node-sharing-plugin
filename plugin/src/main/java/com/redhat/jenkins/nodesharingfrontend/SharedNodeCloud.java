@@ -424,7 +424,7 @@ public class SharedNodeCloud extends Cloud {
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
-                return FormValidation.error(Messages.InvalidURI(), e);
+                return FormValidation.error(e, Messages.InvalidURI());
             }
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
@@ -448,7 +448,7 @@ public class SharedNodeCloud extends Cloud {
                 return FormValidation.errorWithMarkup(bout.toString(Charset.defaultCharset().name()));
             } catch (Exception e) {
                 e.printStackTrace();
-                return FormValidation.error("Test failed", e);
+                return FormValidation.error(e, "Test failed");
             } finally {
                 testConfigRepoDir.deleteRecursive();
             }
