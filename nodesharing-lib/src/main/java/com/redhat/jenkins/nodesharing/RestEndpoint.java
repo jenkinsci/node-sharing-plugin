@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpPost;
@@ -65,6 +66,7 @@ public class RestEndpoint {
      * @param returnType Type the response should be converted at.
      * @param requestEntity Entity to be sent in request body.
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
+     * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
      */
     public <T extends Entity> T executeRequest(
             @Nonnull HttpEntityEnclosingRequestBase method,
@@ -77,7 +79,17 @@ public class RestEndpoint {
                 method.setEntity(new WrappingEntity(requestEntity));
             }
             CloseableHttpResponse response = client.execute(method);
-            // TODO check result
+
+            // Check exit code
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode != 200) {
+                try (InputStream is = response.getEntity().getContent()) {
+                    String message = "Failed (" + statusCode + ") executing REST call " + method + ":\n" + IOUtils.toString(is);
+                    LOGGER.info(message);
+                    throw new ActionFailed.CommunicationError(message);
+                }
+            }
+
             try {
                 if (returnType == null) {
                     return null;
@@ -107,7 +119,7 @@ public class RestEndpoint {
     }
 
     // Wrap transport.Entity into HttpEntity
-    private static final class WrappingEntity  extends AbstractHttpEntity {
+    private static final class WrappingEntity extends AbstractHttpEntity {
 
         private final @Nonnull Entity entity;
 
