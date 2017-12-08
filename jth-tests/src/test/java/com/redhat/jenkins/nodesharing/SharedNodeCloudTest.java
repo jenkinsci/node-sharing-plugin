@@ -214,12 +214,12 @@ public class SharedNodeCloudTest {
 
         assertThat(
                 Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), "foo"),
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), ""), "foo"),
                 equalTo(NodeStatusResponse.Status.NOT_FOUND)
         );
         assertThat(
                 Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), "solaris1.orchestrator"),
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), ""), "solaris1.orchestrator"),
                 equalTo(NodeStatusResponse.Status.IDLE)
         );
     }

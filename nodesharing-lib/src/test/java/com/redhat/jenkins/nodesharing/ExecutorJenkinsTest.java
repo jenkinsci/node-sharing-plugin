@@ -33,20 +33,21 @@ public class ExecutorJenkinsTest {
 
     private static final String VALID_URL = "https://as.df:8080/orchestrator";
     private static final String VALID_NAME = "as.df";
+    private static final String VALID_CONFIG_REPO_URL = "/tmp/config-repo";
 
     @Test(expected = IllegalArgumentException.class)
     public void notAnUrl() throws Exception {
-        new ExecutorJenkins("not an URL", VALID_NAME);
+        new ExecutorJenkins("not an URL", VALID_NAME, VALID_CONFIG_REPO_URL);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void unsafeName() throws Exception {
-        new ExecutorJenkins(VALID_URL, "Robert'; drop table STUDENTS;--");
+        new ExecutorJenkins(VALID_URL, "Robert'; drop table STUDENTS;--", VALID_CONFIG_REPO_URL);
     }
 
     @Test
     public void basics() throws Exception {
-        ExecutorJenkins ej = new ExecutorJenkins(VALID_URL, VALID_NAME);
+        ExecutorJenkins ej = new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL);
 
         assertEquals(VALID_NAME, ej.getName());
         assertEquals(new URL(VALID_URL), ej.getUrl());

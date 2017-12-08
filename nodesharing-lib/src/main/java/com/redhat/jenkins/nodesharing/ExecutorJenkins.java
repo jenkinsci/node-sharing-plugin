@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import hudson.model.Failure;
 import jenkins.model.Jenkins;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -41,8 +42,9 @@ public class ExecutorJenkins {
 
     private final @Nonnull URL url;
     private final @Nonnull String name;
+    private final @Nonnull RestEndpoint rest;
 
-    public ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
+    public ExecutorJenkins(@Nonnull String url, @Nonnull String name, String configRepoUrl) {
         try {
             Jenkins.checkGoodName(name);
             this.name = name;
@@ -54,6 +56,11 @@ public class ExecutorJenkins {
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);
         }
+        rest = new RestEndpoint(url + "/cloud/" + inferCloudName(configRepoUrl));
+    }
+
+    public static final String inferCloudName(String url) {
+        return DigestUtils.md5Hex(url);
     }
 
     public @Nonnull String getName() {
@@ -75,6 +82,10 @@ public class ExecutorJenkins {
         } catch (MalformedURLException e) {
             throw new Error(e); // base url was validated
         }
+    }
+
+    public @Nonnull RestEndpoint getRest() {
+        return rest;
     }
 
     @Override

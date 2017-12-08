@@ -2,6 +2,7 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
@@ -95,7 +96,7 @@ public class SharedNodeCloud extends Cloud {
      */
     @DataBoundConstructor
     public SharedNodeCloud(@Nonnull String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
-        super(DigestUtils.md5Hex(configRepoUrl));
+        super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
         this.configRepo = getConfigRepo();
@@ -109,8 +110,6 @@ public class SharedNodeCloud extends Cloud {
     public final Api getApi() {
         if (this.api == null) {
             this.api = new Api(getLatestConfig(), configRepoUrl, this);
-
-//            System.out.println("Api was null");
         }
         return this.api;
     }

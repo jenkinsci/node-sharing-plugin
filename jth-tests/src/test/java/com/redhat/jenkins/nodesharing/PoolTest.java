@@ -99,8 +99,8 @@ public class PoolTest {
         assertEquals("https://dummy.test", config.get("orchestrator.url"));
 
         assertThat(pool.getConfig().getJenkinses(), containsInAnyOrder(
-                new ExecutorJenkins("https://jenkins1.acme.com", "jenkins1"),
-                new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2")
+                new ExecutorJenkins("https://jenkins1.acme.com", "jenkins1", ""),
+                new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2", "")
         ));
 
         assertFalse(Pool.ADMIN_MONITOR.isActivated());
@@ -275,7 +275,7 @@ public class PoolTest {
                 for (;;) {
                     String ownerUrl = owners.get(rand.nextInt(owners.size()));
                     new ReservationTask(
-                            new ExecutorJenkins(ownerUrl, ownerUrl.replaceAll("\\W", "")),
+                            new ExecutorJenkins(ownerUrl, ownerUrl.replaceAll("\\W", ""), ""),
                             Label.get(
                                     labels.get(rand.nextInt(labels.size()))
                             )

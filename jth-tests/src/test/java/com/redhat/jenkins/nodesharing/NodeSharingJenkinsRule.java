@@ -51,7 +51,7 @@ import static org.junit.Assert.assertNotNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
-    public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
+    public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42", "/tmp/configRepo");
 
     protected @Nonnull SharedComputer getComputer(String name) {
         return (SharedComputer) getNode(name).toComputer();

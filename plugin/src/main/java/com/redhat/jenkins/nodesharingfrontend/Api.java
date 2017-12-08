@@ -105,9 +105,9 @@ public class Api {
         // Define a quite defensive timeouts
         client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
         client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
-        rest = new RestEndpoint(snapshot.getOrchestratorUrl());
         base = client.target(snapshot.getOrchestratorUrl());
 
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl() + ORCHESTRATOR_URI);
         this.cloud = cloud;
     }
 
