@@ -23,27 +23,22 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.redhat.jenkins.nodesharing.transport.Entity;
+import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.RunState;
-import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;
 import hudson.model.Label;
+import hudson.model.Queue;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import hudson.model.Queue;
 import org.junit.Rule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import java.io.InputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -67,45 +62,6 @@ public class SharedNodeCloudTest {
 
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
-
-    /**
-     * Do POST HTTP request on target.
-     *
-     * @param target The request.
-     * @param entity JSON string.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Entity entity) {
-        return doPostRequest(target, entity, Response.Status.OK);
-    }
-
-    /**
-     * Do POST HTTP request on target and throws exception if response doesn't match the expectation.
-     *
-     * @param target The request.
-     * @param entity POSTed entity.
-     * @param status Expected status.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    public Response doPostRequest(
-            @Nonnull final WebTarget target,
-            @Nonnull final Entity entity,
-            @Nonnull final Response.Status status
-    ) {
-        Response response = target.queryParam(PROPERTY_VERSION, "4.2")
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(javax.ws.rs.client.Entity.text(entity.toString()));
-        if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
-            throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
-                    + "' returns unexpected response status '" + response.getStatus()
-                    + "' [" + response.readEntity(String.class) + "]");
-        }
-        return response;
-    }
 
     @Test
     public void doTestConnection() throws Exception {
@@ -177,10 +133,7 @@ public class SharedNodeCloudTest {
         MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
         qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
         qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
-        assertThat(
-                cloud.getApi().reportWorkload(qli),
-                equalTo(Response.Status.OK)
-        );
+        cloud.getApi().reportWorkload(qli); // 200 response enforced
     }
 
     @Test
@@ -189,9 +142,7 @@ public class SharedNodeCloudTest {
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.setCrumbIssuer(null);
 
-//        for (Node n : j.jenkins.getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm() + "cloud/" + cloud.name + "/api");
 
         assertThat(
                 cloud.getNodeStatus("foo"),
@@ -202,40 +153,24 @@ public class SharedNodeCloudTest {
                 equalTo(NodeStatusResponse.Status.IDLE)
         );
 
-        WebTarget base = j.getCloudWebClient(cloud);
         assertThat(
-                makeNodeStatusRequest(base, "foo").getStatus(),
+                makeNodeStatusRequest(rest, "foo").getStatus(),
                 equalTo(NodeStatusResponse.Status.NOT_FOUND)
         );
         assertThat(
-                makeNodeStatusRequest(base, "solaris1.orchestrator").getStatus(),
-                equalTo(NodeStatusResponse.Status.IDLE)
-        );
-
-        assertThat(
-                Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), ""), "foo"),
-                equalTo(NodeStatusResponse.Status.NOT_FOUND)
-        );
-        assertThat(
-                Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), ""), "solaris1.orchestrator"),
+                makeNodeStatusRequest(rest, "solaris1.orchestrator").getStatus(),
                 equalTo(NodeStatusResponse.Status.IDLE)
         );
     }
 
     @Nonnull
-    private final NodeStatusResponse makeNodeStatusRequest(@Nonnull final WebTarget base, @Nonnull final String nodeName) {
+    private NodeStatusResponse makeNodeStatusRequest(RestEndpoint rest, @Nonnull final String nodeName) throws IOException {
         NodeStatusRequest request = new NodeStatusRequest(
                 Pool.getInstance().getConfigEndpoint(),
                 "4.2",
-                nodeName);
-        Response resp = doPostRequest(base.path("/nodeStatus"), request);
-        return Entity.fromInputStream(
-                (InputStream) doPostRequest(base.path("/nodeStatus"), request).getEntity(),
-                NodeStatusResponse.class
+                nodeName
         );
-
+        return rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, request);
     }
 
     @Test
