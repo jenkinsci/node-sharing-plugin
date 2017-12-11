@@ -68,10 +68,6 @@
    <artifactId>wiremock</artifactId>
    <scope>test</scope>
   </dependency>
-  <dependency>
-   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-   <artifactId>node-sharing-orchestrator</artifactId>
-  </dependency>
  </dependencies>
 
  <build>
