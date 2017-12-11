@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
@@ -36,6 +37,7 @@ import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
+import hudson.model.Queue;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
@@ -205,17 +207,22 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
-
-        System.out.println("doReportWorkload(): Backend got this request: ");
-        for (ReportWorkloadRequest.Workload.WorkloadItem item : request.getWorkload().getItems()) {
-            System.out.println("Id: " + item.getId() + ", Name: '" + item.getName() + "'");
-        }
-        // TODO Process the workload
-        // TODO In set of queue items to be build
-        // TODO Out nothing or OK
+        final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
 
         Pool pool = Pool.getInstance();
+        final ConfigRepo.Snapshot config = pool.getConfig();
+
+        final ExecutorJenkins executor = config.getJenkinsByName(request.getExecutorName());
+        Queue.withLock(new Runnable() {
+            @Override public void run() {
+                Queue queue = Jenkins.getActiveInstance().getQueue();
+                for (ReportWorkloadRequest.Workload.WorkloadItem item : request.getWorkload().getItems()) {
+                    ReservationTask reservationTask = new ReservationTask(executor, item.getLabel());
+                    queue.schedule2(reservationTask, 0);
+                }
+            }
+        });
+
         String version = getProperties().getProperty("version", "");
         new ReportWorkloadResponse(pool.getConfigEndpoint(), version).toOutputStream(rsp.getOutputStream());
     }

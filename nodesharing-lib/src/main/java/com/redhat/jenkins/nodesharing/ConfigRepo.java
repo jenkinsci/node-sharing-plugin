@@ -262,9 +262,9 @@ public class ConfigRepo {
             return jenkinses;
         }
 
-        public @Nonnull ExecutorJenkins getJenkins(@Nonnull String needle) throws NoSuchElementException {
+        public @Nonnull ExecutorJenkins getJenkinsByUrl(@Nonnull String url) throws NoSuchElementException {
             try {
-                URI uri = new URI(needle);
+                URI uri = new URI(url);
                 for (ExecutorJenkins jenkins : jenkinses) {
                     if (jenkins.getUrl().toURI().equals(uri)) {
                         return jenkins;
@@ -274,10 +274,19 @@ public class ConfigRepo {
                 throw new AssertionError(e);
             }
 
-            throw new NoSuchElementException("No Jenkins executor configured for " + needle);
+            throw new NoSuchElementException("No Jenkins executor configured for url: " + url);
         }
 
-        @CheckForNull
-        public String getOrchestratorUrl() { return config.get(ORCHESTRATOR_URL); }
+        public @Nonnull ExecutorJenkins getJenkinsByName(@Nonnull String name) throws NoSuchElementException {
+            for (ExecutorJenkins jenkins : jenkinses) {
+                if (jenkins.getName().equals(name)) {
+                    return jenkins;
+                }
+            }
+
+            throw new NoSuchElementException("No Jenkins executor configured for url: " + name);
+        }
+
+        public @CheckForNull String getOrchestratorUrl() { return config.get(ORCHESTRATOR_URL); }
     }
 }

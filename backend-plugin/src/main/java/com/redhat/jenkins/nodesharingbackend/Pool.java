@@ -34,6 +34,7 @@ import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
+import hudson.model.Queue;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -102,24 +103,29 @@ public class Pool {
     }
 
     // TODO Queue.withLock?
-    private void updateNodes(Map<String, NodeDefinition> nodes) {
-        Jenkins j = Jenkins.getInstance();
-        for (NodeDefinition nodeDefinition : nodes.values()) {
-            SharedNode existing = (SharedNode) j.getNode(nodeDefinition.getName());
-            if (existing == null) {
-                // Add new ones
-                try {
-                    SharedNode node = SharedNode.get(nodeDefinition);
-                    j.addNode(node);
-                } catch (Exception ex) {
-                    // Continue with other changes - this will be reattempted
-                    LOGGER.log(Level.WARNING, "Unable to add node " + nodeDefinition.getName(), ex);
+    private void updateNodes(final Map<String, NodeDefinition> nodes) {
+        final Jenkins j = Jenkins.getActiveInstance();
+        // Use queue lock so pool changes appear atomic from perspective of Queue#maintian and Api#doReportWorkload
+        Queue.withLock(new Runnable() {
+            @Override public void run() {
+                for (NodeDefinition nodeDefinition : nodes.values()) {
+                    SharedNode existing = (SharedNode) j.getNode(nodeDefinition.getName());
+                    if (existing == null) {
+                        // Add new ones
+                        try {
+                            SharedNode node = SharedNode.get(nodeDefinition);
+                            j.addNode(node);
+                        } catch (Exception ex) {
+                            // Continue with other changes - this will be reattempted
+                            LOGGER.log(Level.WARNING, "Unable to add node " + nodeDefinition.getName(), ex);
+                        }
+                    } else {
+                        // Update existing
+                        existing.updateBy(nodeDefinition);
+                    }
                 }
-            } else {
-                // Update existing
-                existing.updateBy(nodeDefinition);
             }
-        }
+        });
 
         // Delete removed
         for (Node node : j.getNodes()) {

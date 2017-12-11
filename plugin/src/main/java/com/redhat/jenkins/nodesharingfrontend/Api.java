@@ -49,7 +49,6 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -80,7 +79,7 @@ public class Api {
         this.fingerprint = new ExecutorEntity.Fingerprint(
                 configRepoUrl,
                 getProperties().getProperty("version"),
-                snapshot.getJenkins(JenkinsLocationConfiguration.get().getUrl()).getName()
+                snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
         rest = new RestEndpoint(snapshot.getOrchestratorUrl() + ORCHESTRATOR_URI);
         this.cloud = cloud;
@@ -111,11 +110,9 @@ public class Api {
     /**
      * Put the queue items to Orchestrator
      */
+    // TODO Response never used as there is likely nothing to report - consider async request
     public ReportWorkloadResponse reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
-        System.out.println(workload.size());
-        System.out.println(workload.getItems());
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
-        System.out.println(request.toString());
         return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
     }
 
