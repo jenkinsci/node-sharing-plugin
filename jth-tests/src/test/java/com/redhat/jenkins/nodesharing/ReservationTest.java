@@ -39,6 +39,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -57,6 +58,16 @@ public class ReservationTest {
 
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
+
+    @Test
+    public void configRepoIsolation() throws Exception {
+        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        StringWriter capture = new StringWriter();
+        cr.changelog().to(capture).execute();
+        String output = capture.toString();
+        assertThat(output, containsString("author Pool Maintainer <pool.maintainer@acme.com>"));
+        assertThat(output, containsString("committer Pool Maintainer <pool.maintainer@acme.com>"));
+    }
 
     @Test
     public void doTestConnection() throws Exception {
