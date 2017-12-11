@@ -88,28 +88,17 @@ public class ConfigRepoRule implements TestRule {
         repos.add(repo);
 
         StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
-        GitClient git = Git.with(listener, new EnvVars()).in(repo).using("git").getClient();
+        // To make it work with no gitconfig
+        EnvVars env = new EnvVars("GIT_AUTHOR_NAME", "Pool Maintainer", "GIT_COMMITTER_NAME", "pool.maintainer@acme.com");
+        GitClient git = Git.with(listener, env).in(repo).using("git").getClient();
         git.init();
         git.add("*");
         git.commit("Init");
-
         return git;
     }
 
     protected GitClient createReal(URL repoSources, Jenkins j) throws Exception {
-        File orig = new File(repoSources.toURI());
-        assertTrue(orig.isDirectory());
-        File repo = File.createTempFile("jenkins.nodesharing.real", getClass().getSimpleName());
-        assert repo.delete();
-        assert repo.mkdir();
-        FileUtils.copyDirectory(orig, repo);
-        repos.add(repo);
-
-        StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
-        GitClient git = Git.with(listener, new EnvVars()).in(repo).using("git").getClient();
-        git.init();
-        git.add("*");
-        git.commit("Init");
+        GitClient git = create(repoSources);
 
         FilePath config = git.getWorkTree().child("config");
         // TODO replase Jenkins URL
