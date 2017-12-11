@@ -26,6 +26,8 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
+import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -351,12 +353,17 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.setCrumbIssuer(null);
+
+        // NOT_FOUND status
+        assertNull(j.jenkins.getQueue().getItem(-1));
+        checkRunStatus(cloud, -1, RunStatusResponse.Status.NOT_FOUND);
+
         MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
         Queue.Item item = task.schedule();
 
-//        for (Queue.Item i : j.jenkins.getQueue().getItems()) {
-//            System.out.println(i.getId());
-//        }
+        for (Queue.Item i : j.jenkins.getQueue().getItems()) {
+            System.out.println(i.getId() + ": " + cloud.getRunStatus(i.getId()) + i.isBuildable());
+        }
 
 //        assertThat(
 //                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
@@ -378,5 +385,32 @@ public class SharedNodeCloudTest {
 //                ex_thrown,
 //                equalTo(true)
 //        );
+    }
+
+    private void checkRunStatus(
+            @Nonnull SharedNodeCloud cloud,
+            @Nonnull final long runId,
+            @Nonnull final RunStatusResponse.Status runStatus
+    ) {
+        assertThat(
+                cloud.getRunStatus(runId),
+                equalTo(runStatus)
+        );
+        assertThat(
+                Entity.fromInputStream(
+                        (InputStream) doPostRequest(
+                                j.getCloudWebClient(cloud).path(RunStatusRequest.REQUEST_URI),
+                                new RunStatusRequest(
+                                        Pool.getInstance().getConfigEndpoint(),
+                                        "4.2",
+                                        runId
+                                )).getEntity(),
+                        RunStatusResponse.class).getStatus(),
+                equalTo(runStatus)
+        );
+        assertThat(
+                Api.getInstance().runStatus(new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), runId),
+                equalTo(runStatus)
+        );
     }
 }

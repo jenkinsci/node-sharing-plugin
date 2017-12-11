@@ -28,25 +28,26 @@ import javax.annotation.Nonnull;
 /**
  * @author pjanouse.
  */
-public class NodeStatusRequest extends Entity {
-    private final @Nonnull String nodeName;
+public class RunStatusRequest extends Entity {
+    private final @Nonnull long runId;
 
-    public final static String REQUEST_URI = "/nodeStatus";
-
+    public final static String REQUEST_URI = "/runStatus";
     /**
-     * @param nodeName Name of the node to be returned.
+     * @param runId ID of the run to be returned.
      */
-    public NodeStatusRequest(
+    public RunStatusRequest(
             @Nonnull String configRepoUrl,
             @Nonnull String version,
-            @Nonnull String nodeName
+            long runId
     ) {
         super(configRepoUrl, version);
-        this.nodeName = nodeName;
+        this.runId = runId;
     }
 
-    @Nonnull
-    public String getNodeName() {
-        return nodeName;
+    /**
+     * @return Run ID.
+     */
+    public long getRunId() {
+        return runId;
     }
 }

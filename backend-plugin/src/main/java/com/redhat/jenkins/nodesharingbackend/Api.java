@@ -32,6 +32,8 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
+import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -292,7 +294,7 @@ public class Api implements RootAction {
         final String version = getProperties().getProperty("version", "");
 
         WebTarget target = getWebClient(jenkins.getEndpointUrl().toString())
-                .path("cloud/" + jenkins.getName() + "/api/nodeStatus");
+                .path("cloud/" + jenkins.getName() + "/api" + NodeStatusRequest.REQUEST_URI);
         NodeStatusRequest request = new NodeStatusRequest(
                 Pool.getInstance().getConfigEndpoint(),
                 version,
@@ -301,6 +303,25 @@ public class Api implements RootAction {
         NodeStatusResponse response = Entity.fromInputStream(
                 (InputStream) doPostRequest(target, request).getEntity(),
                 NodeStatusResponse.class
+        );
+
+        return response.getStatus();
+    }
+
+    @Nonnull
+    public RunStatusResponse.Status runStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final long id) {
+        final String version = getProperties().getProperty("version", "");
+
+        WebTarget target = getWebClient(jenkins.getEndpointUrl().toString())
+                .path("cloud/" + jenkins.getName() + "/api" + RunStatusRequest.REQUEST_URI);
+        RunStatusRequest request = new RunStatusRequest(
+                Pool.getInstance().getConfigEndpoint(),
+                version,
+                id
+        );
+        RunStatusResponse response = Entity.fromInputStream(
+                (InputStream) doPostRequest(target, request).getEntity(),
+                RunStatusResponse.class
         );
 
         return response.getStatus();
