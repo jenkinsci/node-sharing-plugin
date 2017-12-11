@@ -33,6 +33,7 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.FilePath;
 import hudson.model.Label;
 import hudson.model.Queue;
+import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
@@ -40,8 +41,6 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -55,9 +54,6 @@ import static org.junit.Assert.fail;
  */
 public class SharedNodeCloudTest {
 
-    private static final String PROPERTY_VERSION = "version";
-    private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
-
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
@@ -66,7 +62,6 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnection() throws Exception {
-        j.jenkins.setCrumbIssuer(null); // TODO
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
 
         final Properties prop = new Properties();
@@ -77,6 +72,18 @@ public class SharedNodeCloudTest {
                 descr.doTestConnection(gitClient.getWorkTree().getRemote()).getMessage(),
                 containsString("Orchestrator version is " + prop.getProperty("version"))
         );
+    }
+
+    @Test
+    public void testConnectionWithoutCrumbIssuer() throws Exception {
+        j.jenkins.setCrumbIssuer(null);
+        doTestConnection();
+    }
+
+    @Test
+    public void testConnectionWithDefaultCrumbIssuer() throws Exception {
+        j.jenkins.setCrumbIssuer(new DefaultCrumbIssuer(false));
+        doTestConnection();
     }
 
     @Test
@@ -114,7 +121,6 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnectionConfigRepoUrlMismatch() throws Exception {
-        j.jenkins.setCrumbIssuer(null); // TODO
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
 
@@ -129,7 +135,6 @@ public class SharedNodeCloudTest {
     public void doReportWorkloadTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        j.jenkins.setCrumbIssuer(null);
         ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload();
         // TODO avoid using ReservationTask to simulate executor workload as that is meant for orchestrator
         workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
@@ -142,9 +147,8 @@ public class SharedNodeCloudTest {
     public void nodeStatusTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        j.jenkins.setCrumbIssuer(null);
 
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm() + "cloud/" + cloud.name + "/api");
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
 
         assertThat(
                 cloud.getNodeStatus("foo"),
@@ -179,7 +183,6 @@ public class SharedNodeCloudTest {
     public void runStatusTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        j.jenkins.setCrumbIssuer(null);
         MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
         Queue.Item item = task.schedule();
 

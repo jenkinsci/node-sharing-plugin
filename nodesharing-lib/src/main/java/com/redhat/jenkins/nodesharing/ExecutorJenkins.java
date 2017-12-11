@@ -58,7 +58,7 @@ public class ExecutorJenkins {
         } catch (MalformedURLException|URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
-        rest = new RestEndpoint(url + "/cloud/" + inferCloudName(configRepoUrl) + "/api");
+        rest = new RestEndpoint(url,  "/cloud/" + inferCloudName(configRepoUrl) + "/api");
     }
 
     public static final String inferCloudName(String url) {

@@ -78,7 +78,6 @@ public class ReservationTest {
 
     @Test
     public void doTestConnection() throws Exception {
-        j.jenkins.setCrumbIssuer(null); // TODO
         GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
 
         final Properties prop = new Properties();
@@ -91,7 +90,6 @@ public class ReservationTest {
 
     @Test @Ignore // TODO Keep hacking until this passes
     public void runBuildSuccessfully() throws Exception {
-        j.jenkins.setCrumbIssuer(null); // TODO
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
 

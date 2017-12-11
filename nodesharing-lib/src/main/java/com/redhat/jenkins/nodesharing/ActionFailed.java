@@ -1,5 +1,8 @@
 package com.redhat.jenkins.nodesharing;
 
+import org.apache.http.StatusLine;
+import org.apache.http.client.methods.HttpRequestBase;
+
 /**
  * Action performed by the library has failed.
  *
@@ -34,6 +37,23 @@ public abstract class ActionFailed extends RuntimeException {
 
         public CommunicationError(Throwable cause) {
             super(cause);
+        }
+    }
+
+    /**
+     * The request has failed by reporting non-success status code.
+     */
+    public static class RequestFailed extends CommunicationError {
+
+        private final StatusLine statusLine;
+
+        public RequestFailed(HttpRequestBase method, StatusLine statusLine, String body) {
+            super("Failed executing REST call " + method + ":\n" + body);
+            this.statusLine = statusLine;
+        }
+
+        public int getStatusCode() {
+            return statusLine.getStatusCode();
         }
     }
 

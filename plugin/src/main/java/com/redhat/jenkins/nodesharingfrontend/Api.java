@@ -70,8 +70,6 @@ public class Api {
     private static final String PROPERTY_VERSION = "version";
     private Properties properties = null;
 
-    private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
-
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
                @Nonnull final SharedNodeCloud cloud
@@ -81,7 +79,7 @@ public class Api {
                 getProperties().getProperty("version"),
                 snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
-        rest = new RestEndpoint(snapshot.getOrchestratorUrl() + ORCHESTRATOR_URI);
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
         this.cloud = cloud;
     }
 

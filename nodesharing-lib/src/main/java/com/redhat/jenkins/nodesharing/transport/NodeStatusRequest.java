@@ -2,7 +2,7 @@ package com.redhat.jenkins.nodesharing.transport;
 
 import javax.annotation.Nonnull;
 
-public class NodeStatusRequest extends Entity {
+public class NodeStatusRequest extends AbstractEntity {
     private final @Nonnull String nodeName;
 
     /**
