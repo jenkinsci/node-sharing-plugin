@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.model.labels.LabelAtom;
 import hudson.plugins.git.GitException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.jenkinsci.plugins.gitclient.Git;
@@ -37,6 +38,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.Collections;
@@ -260,10 +263,15 @@ public class ConfigRepo {
         }
 
         public @Nonnull ExecutorJenkins getJenkins(@Nonnull String needle) throws NoSuchElementException {
-            for (ExecutorJenkins jenkins : jenkinses) {
-                if (jenkins.getUrl().toExternalForm().equals(needle)) {
-                    return jenkins;
+            try {
+                URI uri = new URI(needle);
+                for (ExecutorJenkins jenkins : jenkinses) {
+                    if (jenkins.getUrl().toURI().equals(uri)) {
+                        return jenkins;
+                    }
                 }
+            } catch (URISyntaxException e) {
+                throw new AssertionError(e);
             }
 
             throw new NoSuchElementException("No Jenkins executor configured for " + needle);

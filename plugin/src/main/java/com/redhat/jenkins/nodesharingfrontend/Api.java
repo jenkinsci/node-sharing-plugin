@@ -72,7 +72,6 @@ public class Api {
     private Properties properties = null;
 
     private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
-    private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
 
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
@@ -112,40 +111,11 @@ public class Api {
     /**
      * Put the queue items to Orchestrator
      */
-    public ReportWorkloadResponse reportWorkload(@Nonnull final List <Queue.Item> items) {
-
-/*
-        Set<LabelAtom> sla = new TreeSet<LabelAtom>();
-
-        // TODO Get List of provided labels
-        Set<LabelAtom> sla_tmp = new TreeSet<LabelAtom>();
-        sla_tmp.add(new LabelAtom("foo"));
-        sla_tmp.add(new LabelAtom("bar"));
-        for(LabelAtom la : sla_tmp) {
-            sla.add(la);
-        }
-        sla_tmp = new TreeSet<LabelAtom>();
-        sla_tmp.add(new LabelAtom("test"));
-        for(LabelAtom la : sla_tmp) {
-            sla.add(la);
-        }
-        // TODO Remove above with proper impl.
-
-        List<Queue.Item> qi = new ArrayList<Queue.Item>();
-
-        for(Queue.Item i : Jenkins.getInstance().getQueue().getItems()) {
-            if(i.getAssignedLabel().matches(sla)) {
-                 qi.add(i);
-            }
-        }
-*/
-
-        final ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload();
-        for(Queue.Item item : items) {
-            workload.addItem(item);
-        }
-
+    public ReportWorkloadResponse reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
+        System.out.println(workload.size());
+        System.out.println(workload.getItems());
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
+        System.out.println(request.toString());
         return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
     }
 

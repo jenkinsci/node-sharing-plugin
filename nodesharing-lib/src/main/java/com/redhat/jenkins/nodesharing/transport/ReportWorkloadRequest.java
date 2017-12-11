@@ -21,6 +21,7 @@ public class ReportWorkloadRequest extends ExecutorEntity {
         return this.workload;
     }
 
+    // TODO not immutable - change to request builder?
     public static final class Workload {
 
         private List<WorkloadItem> items = new ArrayList<>();
@@ -57,7 +58,7 @@ public class ReportWorkloadRequest extends ExecutorEntity {
 
             public WorkloadItem(@Nonnull final Queue.Item item) {
                 this.id = item.getId();
-                this.name = item.getDisplayName();
+                this.name = item.task.getFullDisplayName();
             }
             public long getId() {
                 return id;

@@ -3,6 +3,7 @@ package com.redhat.jenkins.nodesharingfrontend;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
@@ -35,12 +36,16 @@ import java.util.Collection;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
+import jenkins.util.Timer;
 import org.apache.commons.codec.digest.DigestUtils;
 
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -81,11 +86,8 @@ public class SharedNodeCloud extends Cloud {
 
     private transient Api api = null;
 
-    private transient OneShotEvent startOperations = null;
-    private transient Object startLock = null;
-
-    private transient volatile ConfigRepo configRepo;
-    private transient ConfigRepo.Snapshot latestConfig;
+    private transient @Nullable ConfigRepo configRepo; // Null after deserialization until getConfigRepo is called
+    private transient @CheckForNull ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
 
     /**
      * Constructor for Config Page.
@@ -102,14 +104,18 @@ public class SharedNodeCloud extends Cloud {
         this.configRepo = getConfigRepo();
         this.credentialsId = credentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
-
-        setOperational();
     }
 
-    @Nonnull
-    public final Api getApi() {
+    /**
+     * Get associated API object.
+     *
+     * @throws IllegalStateException In case cloud is not able to obtain the config.
+     */
+    public final @Nonnull Api getApi() throws IllegalStateException {
         if (this.api == null) {
-            this.api = new Api(getLatestConfig(), configRepoUrl, this);
+            ConfigRepo.Snapshot latestConfig = getLatestConfig();
+            if (latestConfig == null) throw new IllegalStateException("No latest config found");
+            this.api = new Api(latestConfig, configRepoUrl, this);
         }
         return this.api;
     }
@@ -184,8 +190,7 @@ public class SharedNodeCloud extends Cloud {
         this.credentialsId = credentialsId;
     }
 
-    @Nonnull
-    private ConfigRepo getConfigRepo() {
+    private @Nonnull ConfigRepo getConfigRepo() {
         synchronized (this) { // Prevent several ConfigRepo instances to be created over same directory
             if (configRepo != null) return configRepo;
 
@@ -258,49 +263,24 @@ public class SharedNodeCloud extends Cloud {
         return status;
     }
 
+    // Rely on content of ConfigRepo and not what Orchestrator advertises simply as it is less fragile. No strong preference otherwise.
     @Override
     public boolean canProvision(Label label) {
-        long time = System.currentTimeMillis();
-        LOGGER.finer("canProvision() asked for label '" + (label == null ? "" : label) + "'");
+        ConfigRepo.Snapshot latestConfig = getLatestConfig();
+        if (latestConfig == null) return false;
 
-        // TODO implement
+        for (NodeDefinition node : latestConfig.getNodes().values()) {
+            if (label.matches(node.getLabelAtoms())) return true;
+        }
         return false;
     }
 
-    @Nonnull
     @Override
-    public Collection<PlannedNode> provision(@CheckForNull final Label label, final int excessWorkload) {
-        Collection<NodeProvisioner.PlannedNode> result = new ArrayList<NodeProvisioner.PlannedNode>();
-        return result;
+    public @Nonnull Collection<PlannedNode> provision(@CheckForNull final Label label, final int excessWorkload) {
+        // The nodes are not delivered through PlannedNodes so this is always empty.
+        // TODO other clouds will try to deliver this while we are trying as well.
+        return Collections.emptyList();
     }
-
-    /**
-     * Get the list of hosts available for reservation for the label.
-     *
-     * Since we are working with outdated data, client needs to check if hosts are free before allocating them.
-     *
-     * @param label Label to reserve for.
-     * @return list of hosts that may be free for reservation.
-     */
-//    @Nonnull
-//    private List<HostInfo> getHostsToReserve(@CheckForNull Label label) {
-//        ArrayList<HostInfo> free = new ArrayList<HostInfo>();
-//        ArrayList<HostInfo> used = new ArrayList<HostInfo>();
-//        for (Map.Entry<String, HostInfo> h : hostsMap.entrySet()) {
-//            if (h.getValue().satisfies(label)) {
-//                HostInfo host = h.getValue();
-//                if (host.isReserved()) {
-//                    used.add(host);
-//                } else {
-//                    free.add(host);
-//                }
-//            }
-//        }
-//
-//        // Get free hosts first, reserved last. We should not remove them altogether as they might not be reserved any longer.
-//        free.addAll(used);
-//        return free;
-//    }
 
     /**
      * Get Cloud using provided name.
@@ -348,54 +328,11 @@ public class SharedNodeCloud extends Cloud {
         return disposable;
     }
 
-//    @Restricted(DoNotUse.class) // index.jelly
-//    public Collection<HostInfo> getAllHosts() {
-//        return hostsMap.values();
-//    }
-
-    private synchronized Object getStartLock() {
-        if (startLock == null) {
-            startLock = new Object();
-        }
-        return startLock;
-    }
-
     /**
-     * @return current Operational state.
+     * The cloud is considered operational once it can get data from Config Repo and talk to orchestrator.
      */
     public boolean isOperational() {
-        synchronized (getStartLock()) {
-            if (startOperations == null) {
-                startOperations = new OneShotEvent();
-            }
-        }
-        return startOperations.isSignaled();
-    }
-
-    /**
-     * Set the SharedNodeCloud to Operational state (Operational == true).
-     *
-     * @return previous state.
-     */
-    public boolean setOperational() {
-        return setOperational(true);
-    }
-
-    /**
-     * Set the SharedNodeCloud to desired Operation state (Operation == status).
-     *
-     * @param status desired Operational state.
-     * @return previous Operational state.
-     */
-    public boolean setOperational(final boolean status) {
-        boolean oldStatus;
-        synchronized (getStartLock()) {
-            oldStatus = isOperational();
-            if(!oldStatus && status) {
-                startOperations.signal();
-            }
-        }
-        return oldStatus;
+        return latestConfig != null;
     }
 
     /**

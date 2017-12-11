@@ -25,10 +25,12 @@ package com.redhat.jenkins.nodesharing;
 
 import hudson.FilePath;
 import hudson.model.Label;
+import hudson.model.labels.LabelAtom;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +50,10 @@ public abstract class NodeDefinition {
      * @return Labels of the node.
      */
     public abstract @Nonnull String getLabel();
+
+    public @Nonnull Collection<LabelAtom> getLabelAtoms() {
+        return LabelAtom.parse(getLabel());
+    }
 
     public static @CheckForNull NodeDefinition create(@Nonnull FilePath file) throws IOException, InterruptedException {
         String name = file.getName();

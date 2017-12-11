@@ -102,18 +102,10 @@ public class ConfigRepoRule implements TestRule {
     protected GitClient createReal(URL repoSources, Jenkins j) throws Exception {
         GitClient git = create(repoSources);
 
-        FilePath config = git.getWorkTree().child("config");
-        // TODO replase Jenkins URL
-        String newConfig = config.readToString().replace("orchestrator.url=",
-                "orchestrator.url=" + j.getRootUrl());
-        config.write(newConfig, Charset.defaultCharset().name());
+        git.getWorkTree().child("config").write("orchestrator.url=" + j.getRootUrl(), "UTF-8");
         git.add("config");
 
-        FilePath jenkinses = git.getWorkTree().child("jenkinses");
-        // TODO replase Jenkins URL
-        String newJenkinses = jenkinses.readToString().replace("jenkins1=",
-                "jenkins1=" + j.getRootUrl());
-        jenkinses.write(newJenkinses, Charset.defaultCharset().name());
+        git.getWorkTree().child("jenkinses").write("jenkins1=" + j.getRootUrl(), "UTF-8");
         git.add("jenkinses");
 
         // TODO create and store real Slave

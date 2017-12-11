@@ -31,6 +31,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Objects;
 
@@ -53,7 +54,8 @@ public class ExecutorJenkins {
         }
         try {
             this.url = new URL(url);
-        } catch (MalformedURLException e) {
+            this.url.toURI();
+        } catch (MalformedURLException|URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
         rest = new RestEndpoint(url + "/cloud/" + inferCloudName(configRepoUrl) + "/api");

@@ -23,15 +23,21 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharingbackend.Pool;
+import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.queue.QueueTaskFuture;
 import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
+import jenkins.model.Jenkins;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -40,6 +46,7 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -61,7 +68,7 @@ public class ReservationTest {
 
     @Test
     public void configRepoIsolation() throws Exception {
-        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         StringWriter capture = new StringWriter();
         cr.changelog().to(capture).execute();
         String output = capture.toString();
@@ -72,7 +79,7 @@ public class ReservationTest {
     @Test
     public void doTestConnection() throws Exception {
         j.jenkins.setCrumbIssuer(null); // TODO
-        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
 
         final Properties prop = new Properties();
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
@@ -84,23 +91,34 @@ public class ReservationTest {
 
     @Test @Ignore // TODO Keep hacking until this passes
     public void runBuildSuccessfully() throws Exception {
-        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        j.jenkins.setCrumbIssuer(null); // TODO
+        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
 
-        // When I schedule a bunch of tasks
+        // When I schedule a bunch of tasks on executor
         Label winLabel = Label.get("w2k12");
-        FreeStyleProject winJob = j.createFreeStyleProject();
+        FreeStyleProject winJob = j.createFreeStyleProject("win");
         winJob.setAssignedLabel(winLabel);
         BlockingBuilder winBuilder = new BlockingBuilder();
         winJob.getBuildersList().add(winBuilder);
         Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
-        FreeStyleProject solarisJob = j.createFreeStyleProject();
+        FreeStyleProject solarisJob = j.createFreeStyleProject("sol");
         solarisJob.setAssignedLabel(solarisLabel);
         BlockingBuilder solarisBuilder = new BlockingBuilder();
         solarisJob.getBuildersList().add(solarisBuilder);
-
-        winJob.scheduleBuild2(0).getStartCondition().get();
-        solarisJob.scheduleBuild2(0).getStartCondition().get();
+        Future<FreeStyleBuild> winStart = winJob.scheduleBuild2(0).getStartCondition();
+        Future<FreeStyleBuild> solarisStart = solarisJob.scheduleBuild2(0).getStartCondition();
         Future<FreeStyleBuild> scheduledSoalrisRun = solarisJob.scheduleBuild2(0).getStartCondition();
+
+        // Trigger workload update now from executor
+        WorkloadReporter.all().get(WorkloadReporter.class).doRun();
+
+        // Then there should be reservation tasks on orchestrator
+        List<ReservationTask> scheduledReservations = j.getScheduledReservations();
+        assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
+
+        winStart.get();
+        solarisStart.get();
         assertFalse(scheduledSoalrisRun.isDone());
 
         // They start occupying real computers or they stay in the queue

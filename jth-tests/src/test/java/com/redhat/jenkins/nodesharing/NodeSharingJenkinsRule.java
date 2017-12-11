@@ -40,6 +40,8 @@ import org.jvnet.hudson.test.JenkinsRule;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.junit.Assert.assertNotNull;
@@ -65,6 +67,16 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return repoClient;
     }
 
+    protected List<ReservationTask> getScheduledReservations() {
+        ArrayList<ReservationTask> out = new ArrayList<>();
+        for (Queue.Item item : jenkins.getQueue().getItems()) {
+            if (item.task instanceof ReservationTask) {
+                out.add((ReservationTask) item.task);
+            }
+        }
+        return out;
+    }
+
     protected static class BlockingTask extends MockTask {
         final OneShotEvent running = new OneShotEvent();
         final OneShotEvent done = new OneShotEvent();
@@ -83,6 +95,9 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         }
     }
 
+    /**
+     * Mock task to represent fake reservation task. To be run on orchestrator only.
+     */
     protected static class MockTask extends ReservationTask {
         final SharedComputer actuallyRunOn[] = new SharedComputer[1];
         public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
@@ -115,7 +130,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
         SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", null);
         jenkins.clouds.add(cloud);
-        cloud.setOperational();
         return cloud;
     }
 }
