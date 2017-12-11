@@ -229,13 +229,10 @@ public class SharedNodeCloud extends Cloud {
 
         @Override protected void doRun() throws Exception {
             ADMIN_MONITOR.clear();
-            for (Cloud c : Jenkins.getActiveInstance().clouds) {
-                if (c instanceof SharedNodeCloud) {
-                    SharedNodeCloud cloud = (SharedNodeCloud) c;
-                    cloud.updateConfigSnapshot();
+            for (SharedNodeCloud cloud : getAll()) {
+                cloud.updateConfigSnapshot();
 
-                    // TODO Check and fire cfg. was changed if necessary
-                }
+                // TODO Check and fire cfg. was changed if necessary
             }
         }
     }
@@ -310,7 +307,7 @@ public class SharedNodeCloud extends Cloud {
      *
      * @param name Cloud name.
      * @return a Sharing node Cloud.
-     * @throws IllegalArgumentException if occurs.
+     * @throws IllegalArgumentException if given cloud does not exist or is not a {@link SharedNodeCloud}.
      */
     @CheckForNull
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
@@ -318,7 +315,7 @@ public class SharedNodeCloud extends Cloud {
         if (name == null) {
             return null;
         }
-        Jenkins instance = Jenkins.getInstance();
+        Jenkins instance = Jenkins.getActiveInstance();
         if (instance.clouds != null) {
             Cloud cloud = instance.clouds.getByName(name);
             if (cloud == null) {
@@ -331,6 +328,18 @@ public class SharedNodeCloud extends Cloud {
         throw new IllegalArgumentException(name + " is not a Foreman Shared Node cloud");
     }
 
+    /**
+     * Get all configured {@link SharedNodeCloud}s.
+     */
+    public static @Nonnull Collection<SharedNodeCloud> getAll() {
+        ArrayList<SharedNodeCloud> out = new ArrayList<>();
+        for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
+            if (cloud instanceof SharedNodeCloud) {
+                out.add((SharedNodeCloud) cloud);
+            }
+        }
+        return out;
+    }
 
     public static DisposableImpl addDisposableEvent(final String cloudName, final String hostName) {
         LOGGER.finer("Adding the host '" + hostName + "' to the disposable queue.");
