@@ -270,29 +270,29 @@ public class SharedNodeCloud extends Cloud {
         return status;
     }
 
-    /**
-     * Get the run status.
-     *
-     * @param runId The run id.
-     * @return The run status.
-     */
-    @Nonnull
-    public RunStatusResponse.Status getRunStatus(final long runId) {
-        RunStatusResponse.Status status = RunStatusResponse.Status.NOT_FOUND;
-        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
-        if (item != null) {
-            status = RunStatusResponse.Status.FOUND;
-            if (item.isBlocked()) {
-                status = RunStatusResponse.Status.BLOCKED;
-            } else if (item.isStuck()) {
-                status = RunStatusResponse.Status.STUCK;
-            } else if (item.getFuture().isDone()) {
-                status = RunStatusResponse.Status.DONE;
-            }
-            // TODO Extract EXECUTING
-        }
-        return status;
-    }
+//    /**
+//     * Get the run status.
+//     *
+//     * @param runId The run id.
+//     * @return The run status.
+//     */
+//    @Nonnull
+//    public RunStatusResponse.Status getRunStatus(final long runId) {
+//        RunStatusResponse.Status status = RunStatusResponse.Status.NOT_FOUND;
+//        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
+//        if (item != null) {
+//            status = RunStatusResponse.Status.FOUND;
+//            if (item.isBlocked()) {
+//                status = RunStatusResponse.Status.BLOCKED;
+//            } else if (item.isStuck()) {
+//                status = RunStatusResponse.Status.STUCK;
+//            } else if (item.getFuture().isDone()) {
+//                status = RunStatusResponse.Status.DONE;
+//            }
+//            // TODO Extract EXECUTING
+//        }
+//        return status;
+//    }
 
     // Rely on content of ConfigRepo and not what Orchestrator advertises simply as it is less fragile. No strong preference otherwise.
     @Override

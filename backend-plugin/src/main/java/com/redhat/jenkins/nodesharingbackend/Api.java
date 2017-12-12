@@ -160,17 +160,17 @@ public class Api implements RootAction {
         return nodeStatus.getStatus();
     }
 
-    @Nonnull
-    public RunStatusResponse.Status runStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final long id) {
-        RunStatusRequest request = new RunStatusRequest(
-                Pool.getInstance().getConfigEndpoint(),
-                getProperties().getProperty("version", ""),
-                id
-        );
-        RestEndpoint rest = jenkins.getRest();
-        RunStatusResponse response = rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, request);
-        return response.getStatus();
-    }
+//    @Nonnull
+//    public RunStatusResponse.Status runStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final long id) {
+//        RunStatusRequest request = new RunStatusRequest(
+//                Pool.getInstance().getConfigEndpoint(),
+//                getProperties().getProperty("version", ""),
+//                id
+//        );
+//        RestEndpoint rest = jenkins.getRest();
+//        RunStatusResponse response = rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, request);
+//        return response.getStatus();
+//    }
 
     //// Incoming
 

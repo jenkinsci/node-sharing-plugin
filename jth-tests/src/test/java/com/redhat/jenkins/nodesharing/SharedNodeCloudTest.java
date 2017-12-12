@@ -305,78 +305,78 @@ public class SharedNodeCloudTest {
         }
     }
 
-    @Test
-    public void runStatusTest() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-//        j.jenkins.setCrumbIssuer(null);
-
-        // NOT_FOUND status
-        assertNull(j.jenkins.getQueue().getItem(-1));
-        checkRunStatus(cloud, -1, RunStatusResponse.Status.NOT_FOUND);
-
-        MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
-        Queue.Item item = task.schedule();
-
-        for (Queue.Item i : j.jenkins.getQueue().getItems()) {
-            System.out.println(i.getId() + ": " + cloud.getRunStatus(i.getId()) + i.isBuildable());
-        }
-
-//        RunState.getStatus((Integer) cloud.getApi().doRunStatus("-1")),
-//                equalTo(RunState.NOT_FOUND)
+//    @Test
+//    public void runStatusTest() throws Exception {
+//        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+//        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+////        j.jenkins.setCrumbIssuer(null);
 //
-//        boolean ex_thrown = false;
-//        try {
-//            RunState.getStatus((Integer) cloud.getApi().doRunStatus("Invalid"));
-//            fail("Expected thrown exception!");
-//        } catch (IllegalArgumentException e) {
-//            ex_thrown = true;
-//        }
-//        assertThat(
-//                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
-//                equalTo(Communication.RunState.NOT_FOUND)
-//        );
-//        assertThat(
-//                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
-//                equalTo(Communication.RunState.DONE)
-//        );
+//        // NOT_FOUND status
+//        assertNull(j.jenkins.getQueue().getItem(-1));
+//        checkRunStatus(cloud, -1, RunStatusResponse.Status.NOT_FOUND);
 //
-//        boolean ex_thrown = false;
-//        try {
-//            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
-//            fail("Expected thrown exception!");
-//        } catch (IllegalArgumentException e) {
-//            ex_thrown = true;
+//        MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
+//        Queue.Item item = task.schedule();
+//
+//        for (Queue.Item i : j.jenkins.getQueue().getItems()) {
+//            System.out.println(i.getId() + ": " + cloud.getRunStatus(i.getId()) + i.isBuildable());
 //        }
+//
+////        RunState.getStatus((Integer) cloud.getApi().doRunStatus("-1")),
+////                equalTo(RunState.NOT_FOUND)
+////
+////        boolean ex_thrown = false;
+////        try {
+////            RunState.getStatus((Integer) cloud.getApi().doRunStatus("Invalid"));
+////            fail("Expected thrown exception!");
+////        } catch (IllegalArgumentException e) {
+////            ex_thrown = true;
+////        }
+////        assertThat(
+////                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
+////                equalTo(Communication.RunState.NOT_FOUND)
+////        );
+////        assertThat(
+////                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
+////                equalTo(Communication.RunState.DONE)
+////        );
+////
+////        boolean ex_thrown = false;
+////        try {
+////            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
+////            fail("Expected thrown exception!");
+////        } catch (IllegalArgumentException e) {
+////            ex_thrown = true;
+////        }
+////        assertThat(
+////                ex_thrown,
+////                equalTo(true)
+////        );
+//    }
+//
+//    private void checkRunStatus(
+//            @Nonnull SharedNodeCloud cloud,
+//            @Nonnull final long runId,
+//            @Nonnull final RunStatusResponse.Status runStatus
+//    ) throws Exception {
 //        assertThat(
-//                ex_thrown,
-//                equalTo(true)
+//                cloud.getRunStatus(runId),
+//                equalTo(runStatus)
 //        );
-    }
-
-    private void checkRunStatus(
-            @Nonnull SharedNodeCloud cloud,
-            @Nonnull final long runId,
-            @Nonnull final RunStatusResponse.Status runStatus
-    ) throws Exception {
-        assertThat(
-                cloud.getRunStatus(runId),
-                equalTo(runStatus)
-        );
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
-        assertThat(
-                rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, new RunStatusRequest(
-                        Pool.getInstance().getConfigEndpoint(),
-                        "4.2",
-                        runId
-                )).getStatus(),
-                equalTo(runStatus)
-        );
-        assertThat(
-                Api.getInstance().runStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
-                        runId),
-                equalTo(runStatus)
-        );
-    }
+//        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+//        assertThat(
+//                rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, new RunStatusRequest(
+//                        Pool.getInstance().getConfigEndpoint(),
+//                        "4.2",
+//                        runId
+//                )).getStatus(),
+//                equalTo(runStatus)
+//        );
+//        assertThat(
+//                Api.getInstance().runStatus(
+//                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
+//                        runId),
+//                equalTo(runStatus)
+//        );
+//    }
 }

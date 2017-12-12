@@ -120,21 +120,21 @@ public class Api {
         response.toOutputStream(rsp.getOutputStream());
     }
 
-    /**
-     * Query Executor Jenkins to report the status of executed item.
-     */
-    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), RunStatusRequest.class);
-        RunStatusResponse response = new RunStatusResponse(
-                fingerprint,
-                request.getRunId(),
-                cloud.getRunStatus(request.getRunId())
-        );
-        rsp.setContentType("application/json");
-        response.toOutputStream(rsp.getOutputStream());
-    }
+//    /**
+//     * Query Executor Jenkins to report the status of executed item.
+//     */
+//    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
+//    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+//        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+//                req.getInputStream(), RunStatusRequest.class);
+//        RunStatusResponse response = new RunStatusResponse(
+//                fingerprint,
+//                request.getRunId(),
+//                cloud.getRunStatus(request.getRunId())
+//        );
+//        rsp.setContentType("application/json");
+//        response.toOutputStream(rsp.getOutputStream());
+//    }
 
     /**
      * Put the queue items to Orchestrator
