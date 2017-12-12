@@ -298,10 +298,14 @@ public class SharedNodeCloud extends Cloud {
     @Override
     public boolean canProvision(Label label) {
         ConfigRepo.Snapshot latestConfig = getLatestConfig();
-        if (latestConfig == null) return false;
+        if (latestConfig == null) {
+            return false;
+        }
 
         for (NodeDefinition node : latestConfig.getNodes().values()) {
-            if (label.matches(node.getLabelAtoms())) return true;
+            if (label.matches(node.getLabelAtoms())) {
+                return true;
+            }
         }
         return false;
     }
@@ -314,29 +318,21 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Get Cloud using provided name.
+     * Get Shared node cloud using provided name.
      *
      * @param name Cloud name.
-     * @return a Sharing node Cloud.
-     * @throws IllegalArgumentException if given cloud does not exist or is not a {@link SharedNodeCloud}.
+     * @return a Shared node cloud or null if not found.
      */
     @CheckForNull
-    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
-    public static SharedNodeCloud getByName(final String name) throws IllegalArgumentException {
-        if (name == null) {
-            return null;
-        }
-        Jenkins instance = Jenkins.getActiveInstance();
-        if (instance.clouds != null) {
-            Cloud cloud = instance.clouds.getByName(name);
-            if (cloud == null) {
-                return null;
-            }
+//    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
+    public static SharedNodeCloud getByName(@Nonnull final String name) throws IllegalArgumentException {
+        if (name != null && Jenkins.getInstance().clouds != null) {
+            Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
             if (cloud instanceof SharedNodeCloud) {
                 return (SharedNodeCloud) cloud;
             }
         }
-        throw new IllegalArgumentException(name + " is not a Foreman Shared Node cloud");
+        return null;
     }
 
     /**
