@@ -28,7 +28,7 @@ import javax.annotation.Nonnull;
 /**
  * @author pjanouse.
  */
-public class RunStatusRequest extends Entity {
+public class RunStatusRequest extends AbstractEntity {
     private final @Nonnull long runId;
 
     public final static String REQUEST_URI = "/runStatus";

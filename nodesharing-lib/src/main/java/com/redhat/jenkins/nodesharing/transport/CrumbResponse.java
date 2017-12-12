@@ -23,13 +23,32 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
+import org.eclipse.jgit.annotations.NonNull;
+
 import javax.annotation.Nonnull;
 
 /**
+ * Response returned by crumb issuer.
+ *
+ * This is for reading Jenkins API output.
+ *
  * @author ogondza.
  */
-public class ReportWorkloadResponse extends AbstractEntity {
-    public ReportWorkloadResponse(@Nonnull String configRepoUrl, @Nonnull String version) {
-        super(configRepoUrl, version);
+public class CrumbResponse extends Entity {
+
+    private final @Nonnull String crumb;
+    private final @Nonnull String crumbRequestField;
+
+    public CrumbResponse(@Nonnull String crumb, @Nonnull String crumbRequestField) {
+        this.crumb = crumb;
+        this.crumbRequestField = crumbRequestField;
+    }
+
+    public @Nonnull String getCrumb() {
+        return crumb;
+    }
+
+    public @Nonnull String getCrumbRequestField() {
+        return crumbRequestField;
     }
 }

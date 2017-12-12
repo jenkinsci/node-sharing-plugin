@@ -37,53 +37,13 @@ import java.io.PrintStream;
 import java.nio.charset.Charset;
 
 /**
- * Abstract entity transmitted over wire.
- *
- * By convention, the implementations are immutable for the advantage of the receiver and valid / fully initialized after
- * constructed by sender to make sure necessary invariants are met before the entity is transmitted.
- *
- * Preferred way to serialize/deserialize object is to use automatic stream based methods which subclasses can override
- * if needed. The String based methods are for more convenience. The implementations are expected to preserve the existing
- * invariant that guarantees the serialized object will be "equivalent" to the source one after deserialized.
+ * JSON sent or consumed payload.
  *
  * @author ogondza.
  */
 public abstract class Entity {
     protected static final Charset TRANSPORT_CHARSET = Charset.forName("UTF-8");
     private static final Gson GSON = new Gson();
-
-    // Fields transferred with every request
-    private final @Nonnull String configRepoUrl;
-    private final @Nonnull String version;
-
-//    public Entity() {
-//        this.configRepoUrl = null;
-//        this.version = null;
-//    }
-
-    public Entity(@Nonnull String configRepoUrl, @Nonnull String version) {
-        this.configRepoUrl = configRepoUrl;
-        this.version = version;
-    }
-
-    @Nonnull
-    public String getConfigRepoUrl() {
-        return configRepoUrl;
-    }
-
-    @Nonnull
-    public String getVersion() {
-        return version;
-    }
-
-    /**
-     * Write entity to {@link OutputStream}.
-     *
-     * @throws JsonIOException if there was a problem writing to the writer.
-     */
-    public void toOutputStream(@Nonnull OutputStream out) throws JsonIOException {
-        GSON.toJson(this, new PrintStream(out));
-    }
 
     /**
      * Read entity from stream.
@@ -99,19 +59,6 @@ public abstract class Entity {
     }
 
     /**
-     * Write entity to string.
-     *
-     * This method delegates to {@link #toOutputStream(OutputStream)} so subclasses must only override that one if needed.
-     *
-     * @throws JsonIOException if there was a problem writing to the writer.
-     */
-    public @Nonnull String toString() throws JsonIOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        toOutputStream(baos);
-        return baos.toString();
-    }
-
-    /**
      * Read entity from string.
      *
      * This method delegates to {@link #fromInputStream(InputStream, Class)} so subclasses must only override that one if needed.
@@ -123,5 +70,27 @@ public abstract class Entity {
     public static @Nonnull <T> T fromString(@Nonnull String in, @Nonnull Class<T> type) throws JsonSyntaxException, JsonIOException {
         ByteArrayInputStream bais = new ByteArrayInputStream(in.getBytes(TRANSPORT_CHARSET));
         return fromInputStream(bais, type);
+    }
+
+    /**
+     * Write entity to {@link OutputStream}.
+     *
+     * @throws JsonIOException if there was a problem writing to the writer.
+     */
+    public void toOutputStream(@Nonnull OutputStream out) throws JsonIOException {
+        GSON.toJson(this, new PrintStream(out));
+    }
+
+    /**
+     * Write entity to string.
+     *
+     * This method delegates to {@link #toOutputStream(OutputStream)} so subclasses must only override that one if needed.
+     *
+     * @throws JsonIOException if there was a problem writing to the writer.
+     */
+    public @Nonnull String toString() throws JsonIOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        toOutputStream(baos);
+        return baos.toString();
     }
 }

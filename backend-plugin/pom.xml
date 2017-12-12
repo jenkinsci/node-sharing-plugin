@@ -20,13 +20,6 @@
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>nodesharing-lib</artifactId>
         </dependency>
-
-        <!-- Test deps -->
-        <dependency> <!-- Speedup JTH -->
-            <groupId>org.jenkins-ci.modules</groupId>
-            <artifactId>sshd</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>

@@ -63,20 +63,10 @@
    <artifactId>gson</artifactId>
   </dependency>
 
-  <!-- Test deps -->
-  <dependency> <!-- Speedup JTH -->
-   <groupId>org.jenkins-ci.modules</groupId>
-   <artifactId>sshd</artifactId>
-   <scope>test</scope>
-  </dependency>
   <dependency>
    <groupId>com.github.tomakehurst</groupId>
    <artifactId>wiremock</artifactId>
    <scope>test</scope>
-  </dependency>
-  <dependency>
-   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-   <artifactId>node-sharing-orchestrator</artifactId>
   </dependency>
  </dependencies>
 

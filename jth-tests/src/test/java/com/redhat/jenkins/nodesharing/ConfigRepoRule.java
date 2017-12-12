@@ -89,7 +89,9 @@ public class ConfigRepoRule implements TestRule {
 
         StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
         // To make it work with no gitconfig
-        EnvVars env = new EnvVars("GIT_AUTHOR_NAME", "Pool Maintainer", "GIT_COMMITTER_NAME", "pool.maintainer@acme.com");
+        String name = "Pool Maintainer";
+        String mail = "pool.maintainer@acme.com";
+        EnvVars env = new EnvVars("GIT_AUTHOR_NAME", name, "GIT_AUTHOR_EMAIL", mail, "GIT_COMMITTER_NAME", name, "GIT_COMMITTER_EMAIL", mail);
         GitClient git = Git.with(listener, env).in(repo).using("git").getClient();
         git.init();
         git.add("*");
@@ -100,18 +102,10 @@ public class ConfigRepoRule implements TestRule {
     protected GitClient createReal(URL repoSources, Jenkins j) throws Exception {
         GitClient git = create(repoSources);
 
-        FilePath config = git.getWorkTree().child("config");
-        // TODO replase Jenkins URL
-        String newConfig = config.readToString().replace("orchestrator.url=",
-                "orchestrator.url=" + j.getRootUrl());
-        config.write(newConfig, Charset.defaultCharset().name());
+        git.getWorkTree().child("config").write("orchestrator.url=" + j.getRootUrl(), "UTF-8");
         git.add("config");
 
-        FilePath jenkinses = git.getWorkTree().child("jenkinses");
-        // TODO replase Jenkins URL
-        String newJenkinses = jenkinses.readToString().replace("jenkins1=",
-                "jenkins1=" + j.getRootUrl());
-        jenkinses.write(newJenkinses, Charset.defaultCharset().name());
+        git.getWorkTree().child("jenkinses").write("jenkins1=" + j.getRootUrl(), "UTF-8");
         git.add("jenkinses");
 
         // TODO create and store real Slave

@@ -29,6 +29,7 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.FilePath;
@@ -49,6 +50,7 @@ import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import hudson.model.Queue;
+import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -59,7 +61,6 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -76,9 +77,6 @@ import static org.junit.Assert.assertTrue;
  * @author pjanouse
  */
 public class SharedNodeCloudTest {
-
-    private static final String PROPERTY_VERSION = "version";
-    private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
 
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
@@ -102,8 +100,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnection() throws Exception {
-        j.jenkins.setCrumbIssuer(null); // TODO
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
 
         final Properties prop = new Properties();
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
@@ -113,6 +110,18 @@ public class SharedNodeCloudTest {
                 descr.doTestConnection(gitClient.getWorkTree().getRemote()).getMessage(),
                 containsString("Orchestrator version is " + prop.getProperty("version"))
         );
+    }
+
+    @Test
+    public void testConnectionWithoutCrumbIssuer() throws Exception {
+        j.jenkins.setCrumbIssuer(null);
+        doTestConnection();
+    }
+
+    @Test
+    public void testConnectionWithDefaultCrumbIssuer() throws Exception {
+        j.jenkins.setCrumbIssuer(new DefaultCrumbIssuer(false));
+        doTestConnection();
     }
 
     @Test
@@ -133,9 +142,10 @@ public class SharedNodeCloudTest {
         );
     }
 
+//    @Ignore
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
-        GitClient cr = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
+        GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
         FilePath workTree = cr.getWorkTree();
         workTree.child("config").delete();
 
@@ -150,9 +160,8 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnectionConfigRepoUrlMismatch() throws Exception {
-        j.jenkins.setCrumbIssuer(null); // TODO
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
-        GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
+        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
 
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote());
@@ -163,21 +172,20 @@ public class SharedNodeCloudTest {
     // TODO Implementation isn't completed
     @Test
     public void doReportWorkloadTest() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        j.jenkins.setCrumbIssuer(null);
-        List<Queue.Item> qli = new ArrayList<Queue.Item>();
-        MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
-        qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
-        qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
-        cloud.getApi().reportWorkload(qli); // 200 response enforced
+        ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload();
+        // TODO avoid using ReservationTask to simulate executor workload as that is meant for orchestrator
+        workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
+        workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
+        workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
+        cloud.getApi().reportWorkload(workload); // 200 response enforced
     }
 
     @Test
     public void nodeStatusTest() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        j.jenkins.setCrumbIssuer(null);
 
         // NOT_FOUND status
         assertNull(j.jenkins.getComputer("foo"));
@@ -241,7 +249,7 @@ public class SharedNodeCloudTest {
                 cloud.getNodeStatus(nodeName),
                 equalTo(nodeStatus)
         );
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm() + "cloud/" + cloud.name + "/api");
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
         assertThat(
                 rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, new NodeStatusRequest(
                         Pool.getInstance().getConfigEndpoint(),
@@ -299,9 +307,9 @@ public class SharedNodeCloudTest {
 
     @Test
     public void runStatusTest() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        j.jenkins.setCrumbIssuer(null);
+//        j.jenkins.setCrumbIssuer(null);
 
         // NOT_FOUND status
         assertNull(j.jenkins.getQueue().getItem(-1));
@@ -355,7 +363,7 @@ public class SharedNodeCloudTest {
                 cloud.getRunStatus(runId),
                 equalTo(runStatus)
         );
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm() + "cloud/" + cloud.name + "/api");
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
         assertThat(
                 rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, new RunStatusRequest(
                         Pool.getInstance().getConfigEndpoint(),

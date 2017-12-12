@@ -28,7 +28,7 @@ import javax.annotation.Nonnull;
 /**
  * @author pjanouse.
  */
-public class NodeStatusRequest extends Entity {
+public class NodeStatusRequest extends AbstractEntity {
     private final @Nonnull String nodeName;
 
     public final static String REQUEST_URI = "/nodeStatus";

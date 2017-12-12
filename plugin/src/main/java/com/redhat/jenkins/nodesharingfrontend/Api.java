@@ -48,7 +48,6 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -70,9 +69,6 @@ public class Api {
     private static final String PROPERTY_VERSION = "version";
     private Properties properties = null;
 
-    private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
-    private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
-
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
                @Nonnull final SharedNodeCloud cloud
@@ -80,9 +76,9 @@ public class Api {
         this.fingerprint = new ExecutorEntity.Fingerprint(
                 configRepoUrl,
                 getProperties().getProperty("version"),
-                snapshot.getJenkins(JenkinsLocationConfiguration.get().getUrl()).getName()
+                snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
-        rest = new RestEndpoint(snapshot.getOrchestratorUrl() + ORCHESTRATOR_URI);
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
         this.cloud = cloud;
     }
 
@@ -143,39 +139,8 @@ public class Api {
     /**
      * Put the queue items to Orchestrator
      */
-    public ReportWorkloadResponse reportWorkload(@Nonnull final List <Queue.Item> items) {
-
-/*
-        Set<LabelAtom> sla = new TreeSet<LabelAtom>();
-
-        // TODO Get List of provided labels
-        Set<LabelAtom> sla_tmp = new TreeSet<LabelAtom>();
-        sla_tmp.add(new LabelAtom("foo"));
-        sla_tmp.add(new LabelAtom("bar"));
-        for(LabelAtom la : sla_tmp) {
-            sla.add(la);
-        }
-        sla_tmp = new TreeSet<LabelAtom>();
-        sla_tmp.add(new LabelAtom("test"));
-        for(LabelAtom la : sla_tmp) {
-            sla.add(la);
-        }
-        // TODO Remove above with proper impl.
-
-        List<Queue.Item> qi = new ArrayList<Queue.Item>();
-
-        for(Queue.Item i : Jenkins.getInstance().getQueue().getItems()) {
-            if(i.getAssignedLabel().matches(sla)) {
-                 qi.add(i);
-            }
-        }
-*/
-
-        final ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload();
-        for(Queue.Item item : items) {
-            workload.addItem(item);
-        }
-
+    // TODO Response never used as there is likely nothing to report - consider async request
+    public ReportWorkloadResponse reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
         return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
     }

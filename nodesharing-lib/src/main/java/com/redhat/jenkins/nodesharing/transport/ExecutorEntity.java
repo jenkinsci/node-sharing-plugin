@@ -32,7 +32,7 @@ import javax.annotation.Nonnull;
  *
  * @author ogondza.
  */
-public class ExecutorEntity extends Entity {
+public class ExecutorEntity extends AbstractEntity {
     @Nonnull private final String executorName;
 
     public ExecutorEntity(@Nonnull Fingerprint fingerprint) {

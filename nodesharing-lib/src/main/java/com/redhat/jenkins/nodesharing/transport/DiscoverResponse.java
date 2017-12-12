@@ -34,7 +34,7 @@ import java.util.Set;
 /**
  * @author ogondza.
  */
-public class DiscoverResponse extends Entity {
+public class DiscoverResponse extends AbstractEntity {
     /**
      * Result of the compatibility validation on server side. Empty if no problems found.
      */
