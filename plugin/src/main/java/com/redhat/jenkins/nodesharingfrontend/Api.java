@@ -23,25 +23,22 @@
  */
 package com.redhat.jenkins.nodesharingfrontend;
 
-import com.google.gson.Gson;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Util;
 import hudson.model.Queue;
-import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
@@ -49,17 +46,8 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.ws.rs.NotSupportedException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -74,7 +62,7 @@ public class Api {
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
     private final @Nonnull ExecutorEntity.Fingerprint fingerprint;
 
-    private WebTarget base = null;
+    private final RestEndpoint rest;
 
     private final SharedNodeCloud cloud;
 
@@ -84,7 +72,6 @@ public class Api {
 
     private static final String ORCHESTRATOR_URI = "node-sharing-orchestrator";
     private static final String ORCHESTRATOR_REPORTWORKLOAD = "reportWorkload";
-    private static final String ORCHESTRATOR_REPORTWORKLOAD_URI = ORCHESTRATOR_URI+"/"+ORCHESTRATOR_REPORTWORKLOAD;
 
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
@@ -95,96 +82,11 @@ public class Api {
                 getProperties().getProperty("version"),
                 snapshot.getJenkins(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
-
-        ClientConfig clientConfig = new ClientConfig();
-
-        // TODO HTTP autentization
-        //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
-        //clientConfig.register(feature);
-
-        clientConfig.register(JacksonFeature.class);
-        Client client = ClientBuilder.newClient(clientConfig);
-
-        // Define a quite defensive timeouts
-        client.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
-        client.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
-        base = client.target(snapshot.getOrchestratorUrl());
-
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl() + ORCHESTRATOR_URI);
         this.cloud = cloud;
     }
 
     //// Helper methods
-
-    /**
-     * Do GET HTTP request on target.
-     *
-     * @param target The request.
-     * @return Server response.
-     */
-    @Nonnull
-    public Response doGetRequest(@Nonnull final WebTarget target) {
-        return doGetRequest(target, Response.Status.OK);
-    }
-
-    /**
-     * Do GET HTTP request on target and throws if response doesn't match the expectation.
-     *
-     * @param target The request.
-     * @param status Expected status.
-     *
-     * @return Server response.
-     */
-
-    @Nonnull
-    public Response doGetRequest(@Nonnull final WebTarget target, @Nonnull final Response.Status status) {
-        Response response = Response.serverError().entity("error").build();
-        try {
-            response = target.request(MediaType.APPLICATION_JSON).get();
-        } catch (Exception e) {
-            LOGGER.severe(e.getMessage());
-            throw new ActionFailed.CommunicationError("Performing GET request '" + target.toString()
-                    + "' returns unexpected response status '" + response.getStatus()
-                    + "' [" + response.readEntity(String.class) + "]");
-        }
-        return response;
-    }
-
-    /**
-     * Do POST HTTP request on target.
-     *
-     * @param target The request.
-     * @param entity JSON string.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    private Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
-        return doPostRequest(target, entity, Response.Status.OK);
-
-    }
-
-    /**
-     * Do POST HTTP request on target and throws exception if response doesn't match the expectation.
-     *
-     * @param target The request.
-     * @param entity POSTed entity.
-     * @param status Expected status.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    private Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
-                                   @Nonnull final Response.Status status) {
-        Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(Entity.json(entity));
-        if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
-            throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
-                    + "' returns unexpected response status '" + response.getStatus()
-                    + "' [" + response.readEntity(String.class) + "]");
-        }
-        return response;
-    }
 
     /**
      * Get properties.
@@ -241,7 +143,7 @@ public class Api {
     /**
      * Put the queue items to Orchestrator
      */
-    public Response.Status reportWorkload(@Nonnull final List <Queue.Item> items) {
+    public ReportWorkloadResponse reportWorkload(@Nonnull final List <Queue.Item> items) {
 
 /*
         Set<LabelAtom> sla = new TreeSet<LabelAtom>();
@@ -274,10 +176,8 @@ public class Api {
             workload.addItem(item);
         }
 
-        System.out.println("Frontend: " + new Gson().toJson(workload));
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
-        return Response.Status.fromStatusCode(
-                doPostRequest(base.path(ORCHESTRATOR_REPORTWORKLOAD_URI), request).getStatus());
+        return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
     }
 
     /**
@@ -285,30 +185,20 @@ public class Api {
      *
      * @return Discovery result.
      */
-    public DiscoverResponse discover() {
-        DiscoverRequest request = new DiscoverRequest(fingerprint);
-        Entity<String> text = Entity.text(request.toString());
-        InputStream response = base.path(ORCHESTRATOR_URI + "/discover")
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(text, InputStream.class)
-        ;
-
+    public DiscoverResponse discover() throws ActionFailed {
         // TODO Check status code
-        return com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(response, DiscoverResponse.class);
+        return rest.executeRequest(
+                rest.post("discover"),
+                DiscoverResponse.class,
+                new DiscoverRequest(fingerprint)
+        );
     }
 
     /**
      * Send request to return node. No response needed.
      */
     public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
-        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, name, status);
-
-        Entity<String> text = Entity.text(request.toString());
-        Response response = base.path(ORCHESTRATOR_URI + "/returnNode")
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(text)
-        ;
-
+        rest.executeRequest(rest.post("returnNode"), null, new ReturnNodeRequest(fingerprint, name, status));
         // TODO check status
     }
 
@@ -321,6 +211,7 @@ public class Api {
     public void doExecution(@Nonnull @QueryParameter final String nodeName,
                             @Nonnull @QueryParameter final String id) {
         // TODO Create a Node based on the info and execute the Item
+        throw new UnsupportedOperationException("TODO");
     }
 
     /**
@@ -330,7 +221,7 @@ public class Api {
      */
     @RequirePOST
     public void doReturnNode(@Nonnull @QueryParameter("name") final String name) {
-        throw new NotSupportedException();
+        throw new UnsupportedOperationException("TODO");
 /*
         Computer c = Jenkins.getInstance().getComputer(name);
         if (!(c instanceof SharedComputer)) {

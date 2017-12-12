@@ -196,58 +196,58 @@ public class ForemanSharedNodeCloudTest {
 
     @Ignore
     @Test
-    public void foremanBreakInTheMiddleOfTheBuildAndDisposerReleasesTheInstance() throws Exception {
-        String reserveReason = ForemanAPI.getReserveReason();
-        stubSearchInventory();
-        stubReserveScenario();
-
-        Computer[] computers = j.jenkins.getComputers();
-        int initialComputerSet = computers.length;
-
-        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
-
-        FreeStyleProject job = j.createFreeStyleProject();
-        job.setAssignedLabel(new LabelAtom("label1"));
-        job.getBuildersList().add(new TestBuilder() {
-            @Override
-            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-                // Simulate a Foreman connection error while disposing
-                stubFor(get(urlMatching("/api/.*")).willReturn(aResponse().withStatus(HTTPERROR)));
-                return true;
-            }
-        });
-
-        FreeStyleBuild build = job.scheduleBuild2(0, new UserIdCause()).get();
-        Node node = build.getBuiltOn();
-        assertEquals(SUT_HOSTNAME, node.getNodeName());
-
-        j.waitUntilNoActivity(); // Despite the build being completed, I have observed node not yet idle for removal
-        AsyncResourceDisposer.get().reschedule();
-
-        List<AsyncResourceDisposer.WorkItem> disposables = getDisposables();
-        assertThat(disposables, not(emptyIterableOf(AsyncResourceDisposer.WorkItem.class)));
-        for (AsyncResourceDisposer.WorkItem disposable : disposables) {
-            Disposable.State state;
-            do {
-                Thread.sleep(100);
-                state = disposable.getLastState();
-            } while (state instanceof Disposable.State.ToDispose);
-
-            assertThat(state, instanceOf(Disposable.State.Thrown.class));
-        }
-
-        wireMock.resetMappings(); // Remove broken mapping
-        stubReleaseScenario(reserveReason);
-
-        AsyncResourceDisposer.get().reschedule();
-        Thread.sleep(100);
-        j.waitForEmptyAsyncResourceDisposer();
-
-        assertThat(getDisposables(), emptyIterableOf(AsyncResourceDisposer.WorkItem.class));
-
-        Computer[] computersAfter = j.jenkins.getComputers();
-        int finalComputerSet = computersAfter.length;
-        assertTrue(initialComputerSet == finalComputerSet);
+    public void orchestratorBreakInTheMiddleOfTheBuildAndDisposerReleasesTheInstance() throws Exception {
+//        String reserveReason = ForemanAPI.getReserveReason();
+//        stubSearchInventory();
+//        stubReserveScenario();
+//
+//        Computer[] computers = j.jenkins.getComputers();
+//        int initialComputerSet = computers.length;
+//
+//        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
+//
+//        FreeStyleProject job = j.createFreeStyleProject();
+//        job.setAssignedLabel(new LabelAtom("label1"));
+//        job.getBuildersList().add(new TestBuilder() {
+//            @Override
+//            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+//                // Simulate a Foreman connection error while disposing
+//                stubFor(get(urlMatching("/api/.*")).willReturn(aResponse().withStatus(HTTPERROR)));
+//                return true;
+//            }
+//        });
+//
+//        FreeStyleBuild build = job.scheduleBuild2(0, new UserIdCause()).get();
+//        Node node = build.getBuiltOn();
+//        assertEquals(SUT_HOSTNAME, node.getNodeName());
+//
+//        j.waitUntilNoActivity(); // Despite the build being completed, I have observed node not yet idle for removal
+//        AsyncResourceDisposer.get().reschedule();
+//
+//        List<AsyncResourceDisposer.WorkItem> disposables = getDisposables();
+//        assertThat(disposables, not(emptyIterableOf(AsyncResourceDisposer.WorkItem.class)));
+//        for (AsyncResourceDisposer.WorkItem disposable : disposables) {
+//            Disposable.State state;
+//            do {
+//                Thread.sleep(100);
+//                state = disposable.getLastState();
+//            } while (state instanceof Disposable.State.ToDispose);
+//
+//            assertThat(state, instanceOf(Disposable.State.Thrown.class));
+//        }
+//
+//        wireMock.resetMappings(); // Remove broken mapping
+//        stubReleaseScenario(reserveReason);
+//
+//        AsyncResourceDisposer.get().reschedule();
+//        Thread.sleep(100);
+//        j.waitForEmptyAsyncResourceDisposer();
+//
+//        assertThat(getDisposables(), emptyIterableOf(AsyncResourceDisposer.WorkItem.class));
+//
+//        Computer[] computersAfter = j.jenkins.getComputers();
+//        int finalComputerSet = computersAfter.length;
+//        assertTrue(initialComputerSet == finalComputerSet);
 
 //        assertEquals(null, cloud.getForemanAPI().getHostInfo(SUT_HOSTNAME).getReservedFor());
     }
@@ -255,16 +255,16 @@ public class ForemanSharedNodeCloudTest {
     @Ignore
     @Test
     public void customJavaPath() throws Exception {
-        hostInfoResponseFile = "host-info-custom-java-path.txt";
-        stubSearchInventory();
-        stubReserveScenario();
-
-        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
-        // Do not use the test specific one so we actually test the value propagation to SSHLauncher
-        cloud.setLauncherFactory(null);
-        AbstractCloudSlave node = (AbstractCloudSlave) cloud.provision(Label.get("label1"), 1).iterator().next().future.get();
-        SSHLauncher launcher = (SSHLauncher) node.createComputer().getLauncher();
-        assertEquals("/custom/java/path", launcher.getJavaPath());
+//        hostInfoResponseFile = "host-info-custom-java-path.txt";
+//        stubSearchInventory();
+//        stubReserveScenario();
+//
+//        SharedNodeCloud cloud = j.addForemanCloud("mycloud", URL);
+//        // Do not use the test specific one so we actually test the value propagation to SSHLauncher
+//        cloud.setLauncherFactory(null);
+//        AbstractCloudSlave node = (AbstractCloudSlave) cloud.provision(Label.get("label1"), 1).iterator().next().future.get();
+//        SSHLauncher launcher = (SSHLauncher) node.createComputer().getLauncher();
+//        assertEquals("/custom/java/path", launcher.getJavaPath());
     }
 
     private List<AsyncResourceDisposer.WorkItem> getDisposables() {
@@ -328,54 +328,6 @@ public class ForemanSharedNodeCloudTest {
 //        assertEquals(ForemanAPI.getReserveReason(), reservedHost.getReservedFor());
 //        assertEquals(SUT_HOSTNAME, reservedHost.getName());
     }
-
-    private void stubReserveScenario() {
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
-                .inScenario("reserveHost")
-                .willReturn(ok(hostInfoResponseFile, "false")));
-        stubFor(get(urlMatching("/api/hosts_reserve.+"))
-                .inScenario("reserveHost")
-                .willSetStateTo("reserved")
-                .willReturn(ok("host-reserved-success.txt")));
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
-                .inScenario("reserveHost")
-                .whenScenarioStateIs("reserved")
-                .willReturn(ok(hostInfoResponseFile, ForemanAPI.getReserveReason())));
-    }
-
-    private void stubReleaseScenario(String reserveReason) {
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
-                .inScenario("releaseHost")
-                .willReturn(ok(hostInfoResponseFile, reserveReason)));
-        stubFor(get(urlEqualTo("/api/hosts_release?query=name+~+localhost.localdomain"))
-                .inScenario("releaseHost")
-                .willSetStateTo("released")
-                .willReturn(ok("host-release-success.txt")));
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain"))
-                .inScenario("releaseHost")
-                .whenScenarioStateIs("released")
-                .willReturn(ok(hostInfoResponseFile, "false")));
-    }
-
-    private void stubServiceStatus() {
-        stubFor(get(urlEqualTo("/api/v2/status")).willReturn(ok("service-status.txt")));
-    }
-
-    private String stubHostInfoReservedForMe() throws IOException, URISyntaxException {
-        String reserveReason = ForemanAPI.getReserveReason();
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain")).willReturn(ok(hostInfoResponseFile, reserveReason)));
-        return reserveReason;
-    }
-
-    private void stubHostInfoIdle() throws IOException, URISyntaxException {
-        stubFor(get(urlEqualTo("/api/v2/hosts/localhost.localdomain")).willReturn(ok(hostInfoResponseFile, "false")));
-    }
-
-    private void stubSearchInventory() {
-        String url = "/api/v2/hosts?search=has+params.JENKINS_LABEL+and+has+params.RESERVED+and+has+params.JENKINS_SLAVE_REMOTEFS_ROOT";
-        stubFor(get(urlEqualTo(url)).willReturn(ok("hosts-search-reservable.txt")));
-    }
-
     private ResponseDefinitionBuilder ok(String path, String... args) {
         String body = String.format(TestUtils.readFile(path), args);
         return aResponse()

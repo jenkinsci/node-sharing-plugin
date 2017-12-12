@@ -1,6 +1,5 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
-import com.redhat.jenkins.nodesharingfrontend.launcher.DummyComputerLauncherFactory;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AdministrativeMonitor;
@@ -136,9 +135,7 @@ public final class ForemanTestRule extends JenkinsRule {
     @Nonnull
     public SharedNodeCloud addForemanCloud(@Nonnull final String cloudName, @Nonnull final String url) {
         SharedNodeCloud foremanCloud = new SharedNodeCloud(url, "", 1);
-        foremanCloud.setLauncherFactory(new DummyComputerLauncherFactory());
         jenkins.clouds.add(foremanCloud);
-//        foremanCloud.updateHostData();
         foremanCloud.setOperational();
         return foremanCloud;
     }

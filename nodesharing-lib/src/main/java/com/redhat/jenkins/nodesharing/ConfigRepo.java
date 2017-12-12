@@ -138,12 +138,13 @@ public class ConfigRepo {
             Set<ExecutorJenkins> jenkinses = null;
             Map<String, NodeDefinition> hosts = null;
 
+            String orchestratorUrl = null;
             FilePath configFile = new FilePath(workingDir).child("config");
             if (!configFile.exists()) {
                 taskLog.error("No file named 'config' found in Config Repository");
             } else {
                 config = getProperties(configFile);
-                String orchestratorUrl = config.get("orchestrator.url");
+                orchestratorUrl = config.get("orchestrator.url");
                 if (orchestratorUrl == null) {
                     taskLog.error("No orchestrator.url specified by Config Repository");
                 } else try { // Yep, an else-try statement
@@ -157,7 +158,7 @@ public class ConfigRepo {
             if (!jenkinsesFile.exists()) {
                 taskLog.error("No file named 'jenkinses' found in Config Repository");
             } else {
-                jenkinses = getJenkinses(jenkinsesFile);
+                jenkinses = getJenkinses(jenkinsesFile, url);
             }
 
             FilePath nodesDir = new FilePath(workingDir).child("nodes");
@@ -172,14 +173,14 @@ public class ConfigRepo {
         }
     }
 
-    private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {
+    private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile, String configRepoUrl) throws IOException, InterruptedException {
         Properties config = new Properties();
         try (InputStream is = jenkinsesFile.read()) {
             config.load(is);
         }
         HashSet<ExecutorJenkins> jenkinses = new LinkedHashSet<>();
         for (Map.Entry<Object, Object> entry : config.entrySet()) {
-            jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey()));
+            jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey(), configRepoUrl));
         }
         return Collections.unmodifiableSet(jenkinses);
     }

@@ -21,36 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharing.transport;
 
-import org.junit.Test;
+import javax.annotation.Nonnull;
 
-import java.net.URL;
-
-import static org.junit.Assert.assertEquals;
-
-public class ExecutorJenkinsTest {
-
-    private static final String VALID_URL = "https://as.df:8080/orchestrator";
-    private static final String VALID_NAME = "as.df";
-    private static final String VALID_CONFIG_REPO_URL = "/tmp/config-repo";
-
-    @Test(expected = IllegalArgumentException.class)
-    public void notAnUrl() throws Exception {
-        new ExecutorJenkins("not an URL", VALID_NAME, VALID_CONFIG_REPO_URL);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void unsafeName() throws Exception {
-        new ExecutorJenkins(VALID_URL, "Robert'; drop table STUDENTS;--", VALID_CONFIG_REPO_URL);
-    }
-
-    @Test
-    public void basics() throws Exception {
-        ExecutorJenkins ej = new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL);
-
-        assertEquals(VALID_NAME, ej.getName());
-        assertEquals(new URL(VALID_URL), ej.getUrl());
-        assertEquals(new URL("https://as.df:8080/orchestrator"), ej.getEndpointUrl());
+/**
+ * @author ogondza.
+ */
+public class ReportWorkloadResponse extends Entity {
+    public ReportWorkloadResponse(@Nonnull String configRepoUrl, @Nonnull String version) {
+        super(configRepoUrl, version);
     }
 }

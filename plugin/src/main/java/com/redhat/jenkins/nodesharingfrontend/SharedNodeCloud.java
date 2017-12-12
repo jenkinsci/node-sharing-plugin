@@ -1,17 +1,15 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.CopyOnWrite;
 import hudson.Extension;
 import hudson.FilePath;
-import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -30,15 +28,12 @@ import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -48,7 +43,6 @@ import jenkins.model.Jenkins;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
@@ -61,7 +55,6 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
-import com.redhat.jenkins.nodesharingfrontend.launcher.SharedNodeComputerLauncherFactory;
 
 /**
  * Foreman Shared Node Cloud implementation.
@@ -90,33 +83,22 @@ public class SharedNodeCloud extends Cloud {
 
     private transient Api api = null;
 
-    private transient SharedNodeComputerLauncherFactory launcherFactory = null;
-
-    /** All available hosts structured as an immutable map, indexed by their label atoms for performance reasons */
-    @CopyOnWrite
-    private transient volatile @Nonnull Map<String, HostInfo> hostsMap = Collections.emptyMap();
-
     private transient OneShotEvent startOperations = null;
     private transient Object startLock = null;
 
     private transient volatile ConfigRepo configRepo;
     private transient ConfigRepo.Snapshot latestConfig;
 
-    private Object readResolve() throws ObjectStreamException {
-        hostsMap = Collections.emptyMap();
-        return this;
-    }
-
     /**
      * Constructor for Config Page.
      *
      * @param configRepoUrl        ConfigRepo url
      * @param credentialsId        creds to use to connect to slave.
-* @param sshConnectionTimeOut timeout for SSH connection in secs.
+     * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public SharedNodeCloud(String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
-        super(DigestUtils.md5Hex(configRepoUrl));
+    public SharedNodeCloud(@Nonnull String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
+        super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
         this.configRepo = getConfigRepo();
@@ -130,8 +112,6 @@ public class SharedNodeCloud extends Cloud {
     public final Api getApi() {
         if (this.api == null) {
             this.api = new Api(getLatestConfig(), configRepoUrl, this);
-
-//            System.out.println("Api was null");
         }
         return this.api;
     }
@@ -204,16 +184,6 @@ public class SharedNodeCloud extends Cloud {
     @DataBoundSetter
     public void setCredentialsId(@Nonnull final String credentialsId) {
         this.credentialsId = credentialsId;
-    }
-
-    /**
-     * Setter for Launcher Factory.
-     *
-     * @param launcherFactory launcherFactory to use.
-     */
-    @VisibleForTesting
-    /*package for testing*/ public void setLauncherFactory(@Nonnull final SharedNodeComputerLauncherFactory launcherFactory) {
-        this.launcherFactory = launcherFactory;
     }
 
     @Nonnull
@@ -327,23 +297,7 @@ public class SharedNodeCloud extends Cloud {
         long time = System.currentTimeMillis();
         LOGGER.finer("canProvision() asked for label '" + (label == null ? "" : label) + "'");
 
-        for (Map.Entry<String, HostInfo> host: hostsMap.entrySet()) {
-
-            try {
-                if (host.getValue().satisfies(label)) {
-                    LOGGER.info("canProvision returns True for label '" +
-                            (label == null ? "" : label) + "' in "
-                            + Util.getTimeSpanString(System.currentTimeMillis() - time));
-                    return true;
-                }
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Unexpected exception occurred in canProvision(): ", e);
-                continue;
-            }
-        }
-        LOGGER.info("canProvision returns False for label '" +
-                (label == null ? "" : label) + "' in "
-                + Util.getTimeSpanString(System.currentTimeMillis() - time));
+        // TODO implement
         return false;
     }
 
@@ -500,7 +454,7 @@ public class SharedNodeCloud extends Cloud {
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
-                return FormValidation.error(Messages.InvalidURI(), e);
+                return FormValidation.error(e, Messages.InvalidURI());
             }
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
@@ -524,7 +478,7 @@ public class SharedNodeCloud extends Cloud {
                 return FormValidation.errorWithMarkup(bout.toString(Charset.defaultCharset().name()));
             } catch (Exception e) {
                 e.printStackTrace();
-                return FormValidation.error("Test failed", e);
+                return FormValidation.error(e, "Test failed");
             } finally {
                 testConfigRepoDir.deleteRecursive();
             }

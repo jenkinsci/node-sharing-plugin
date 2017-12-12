@@ -23,7 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.redhat.jenkins.nodesharing.transport.Entity;
+import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
@@ -31,7 +31,6 @@ import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -49,21 +48,17 @@ import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
+import hudson.model.Queue;
 import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import hudson.model.Queue;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -90,42 +85,6 @@ public class SharedNodeCloudTest {
 
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
-
-    /**
-     * Do POST HTTP request on target.
-     *
-     * @param target The request.
-     * @param entity JSON string.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
-        return doPostRequest(target, entity, Response.Status.OK);
-    }
-
-    /**
-     * Do POST HTTP request on target and throws exception if response doesn't match the expectation.
-     *
-     * @param target The request.
-     * @param entity POSTed entity.
-     * @param status Expected status.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    public Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
-                                               @Nonnull final Response.Status status) {
-        Response response = target.queryParam(PROPERTY_VERSION, "4.2")
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(javax.ws.rs.client.Entity.json(entity));
-        if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
-            throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
-                    + "' returns unexpected response status '" + response.getStatus()
-                    + "' [" + response.readEntity(String.class) + "]");
-        }
-        return response;
-    }
 
     private static final class BlockingBuilder extends TestBuilder {
         private OneShotEvent start = new OneShotEvent();
@@ -161,7 +120,7 @@ public class SharedNodeCloudTest {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
                 descr.doTestConnection("file:\\\\aaa").getMessage(),
-                equalTo("Invalid config repo url")
+                startsWith("Invalid config repo url")
         );
     }
 
@@ -174,15 +133,13 @@ public class SharedNodeCloudTest {
         );
     }
 
-    @Ignore
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
         GitClient cr = configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins);
         FilePath workTree = cr.getWorkTree();
         workTree.child("config").delete();
 
-        // TODO Commit fails due to untracked config file delete action
-        cr.add("*");
+        cr.add("config");
         cr.commit("Hehehe");
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
@@ -213,10 +170,7 @@ public class SharedNodeCloudTest {
         MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
         qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
         qli.add(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
-        assertThat(
-                cloud.getApi().reportWorkload(qli),
-                equalTo(Response.Status.OK)
-        );
+        cloud.getApi().reportWorkload(qli); // 200 response enforced
     }
 
     @Test
@@ -224,10 +178,6 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("real_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.setCrumbIssuer(null);
-
-//        for (Node n : j.jenkins.getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
 
         // NOT_FOUND status
         assertNull(j.jenkins.getComputer("foo"));
@@ -286,25 +236,24 @@ public class SharedNodeCloudTest {
             @Nonnull SharedNodeCloud cloud,
             @Nonnull final String nodeName,
             @Nonnull final NodeStatusResponse.Status nodeStatus
-    ) {
+    ) throws Exception {
         assertThat(
                 cloud.getNodeStatus(nodeName),
                 equalTo(nodeStatus)
         );
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm() + "cloud/" + cloud.name + "/api");
         assertThat(
-                Entity.fromInputStream(
-                        (InputStream) doPostRequest(
-                                j.getCloudWebClient(cloud).path(NodeStatusRequest.REQUEST_URI),
-                                new NodeStatusRequest(
-                                    Pool.getInstance().getConfigEndpoint(),
-                                    "4.2",
-                                    nodeName
-                                )).getEntity(),
-                        NodeStatusResponse.class).getStatus(),
+                rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, new NodeStatusRequest(
+                        Pool.getInstance().getConfigEndpoint(),
+                        "4.2",
+                        nodeName
+                )).getStatus(),
                 equalTo(nodeStatus)
         );
         assertThat(
-                Api.getInstance().nodeStatus(new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), nodeName),
+                Api.getInstance().nodeStatus(
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
+                        nodeName),
                 equalTo(nodeStatus)
         );
     }
@@ -365,6 +314,16 @@ public class SharedNodeCloudTest {
             System.out.println(i.getId() + ": " + cloud.getRunStatus(i.getId()) + i.isBuildable());
         }
 
+//        RunState.getStatus((Integer) cloud.getApi().doRunStatus("-1")),
+//                equalTo(RunState.NOT_FOUND)
+//
+//        boolean ex_thrown = false;
+//        try {
+//            RunState.getStatus((Integer) cloud.getApi().doRunStatus("Invalid"));
+//            fail("Expected thrown exception!");
+//        } catch (IllegalArgumentException e) {
+//            ex_thrown = true;
+//        }
 //        assertThat(
 //                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
 //                equalTo(Communication.RunState.NOT_FOUND)
@@ -391,25 +350,24 @@ public class SharedNodeCloudTest {
             @Nonnull SharedNodeCloud cloud,
             @Nonnull final long runId,
             @Nonnull final RunStatusResponse.Status runStatus
-    ) {
+    ) throws Exception {
         assertThat(
                 cloud.getRunStatus(runId),
                 equalTo(runStatus)
         );
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm() + "cloud/" + cloud.name + "/api");
         assertThat(
-                Entity.fromInputStream(
-                        (InputStream) doPostRequest(
-                                j.getCloudWebClient(cloud).path(RunStatusRequest.REQUEST_URI),
-                                new RunStatusRequest(
-                                        Pool.getInstance().getConfigEndpoint(),
-                                        "4.2",
-                                        runId
-                                )).getEntity(),
-                        RunStatusResponse.class).getStatus(),
+                rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, new RunStatusRequest(
+                        Pool.getInstance().getConfigEndpoint(),
+                        "4.2",
+                        runId
+                )).getStatus(),
                 equalTo(runStatus)
         );
         assertThat(
-                Api.getInstance().runStatus(new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()), runId),
+                Api.getInstance().runStatus(
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
+                        runId),
                 equalTo(runStatus)
         );
     }

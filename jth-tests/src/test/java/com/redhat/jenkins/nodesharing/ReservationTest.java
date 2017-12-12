@@ -23,13 +23,10 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.gargoylesoftware.htmlunit.WebResponse;
-import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
-import hudson.model.Descriptor;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;

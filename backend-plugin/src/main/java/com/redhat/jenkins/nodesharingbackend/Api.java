@@ -23,14 +23,15 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
-import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
@@ -39,9 +40,6 @@ import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
-import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.client.ClientProperties;
-import org.glassfish.jersey.jackson.JacksonFeature;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -49,13 +47,7 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -75,8 +67,6 @@ public class Api implements RootAction {
 
     private Properties properties = null;
     private static final String PROPERTY_VERSION = "version";
-
-    private static Client webClient = null;
 
     public static @Nonnull Api getInstance() {
         ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
@@ -115,62 +105,6 @@ public class Api implements RootAction {
         return properties;
     }
 
-    @Nonnull
-    private WebTarget getWebClient(@Nonnull final String url) {
-        if (webClient == null) {
-            ClientConfig clientConfig = new ClientConfig();
-            clientConfig.register(JacksonFeature.class);
-            webClient = ClientBuilder.newClient(clientConfig);
-
-            // TODO HTTP autentization
-            //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
-            //clientConfig.register(feature);
-
-            // Define a quite defensive timeouts
-            webClient.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
-            webClient.property(ClientProperties.READ_TIMEOUT,    300000);  // 5m
-        }
-
-        return webClient.target(url);
-    }
-
-    /**
-     * Do POST HTTP request on target.
-     *
-     * @param target The request.
-     * @param entity JSON string.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    private Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity) {
-        return doPostRequest(target, entity, Response.Status.OK);
-
-    }
-
-    /**
-     * Do POST HTTP request on target and throws exception if response doesn't match the expectation.
-     *
-     * @param target The request.
-     * @param entity POSTed entity.
-     * @param status Expected status.
-     *
-     * @return Response from the server.
-     */
-    @Nonnull
-    private Response doPostRequest(@Nonnull final WebTarget target, @Nonnull final Object entity,
-                                   @Nonnull final Response.Status status) {
-        Response response = target.queryParam(PROPERTY_VERSION, getProperties().getProperty(PROPERTY_VERSION, ""))
-                .request(MediaType.APPLICATION_JSON_TYPE)
-                .post(javax.ws.rs.client.Entity.json(entity));
-        if (!status.equals(Response.Status.fromStatusCode(response.getStatus()))) {
-            throw new ActionFailed.CommunicationError("Performing POST request '" + target.toString()
-                    + "' returns unexpected response status '" + response.getStatus()
-                    + "' [" + response.readEntity(String.class) + "]");
-        }
-        return response;
-    }
-
     //// Outgoing
 
     /**
@@ -180,7 +114,7 @@ public class Api implements RootAction {
      * @param node Node to be reserved.
      */
     public void utilizeNode(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
-
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -193,7 +127,7 @@ public class Api implements RootAction {
      * @return List of host names the instance is using.
      */
     public @Nonnull Collection<String> reportUsage(@Nonnull ExecutorJenkins owner) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -209,7 +143,31 @@ public class Api implements RootAction {
      * @return true if the computer is still connected there, false if we know it is not, null otherwise.
      */
     public Boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
-        return true;
+        throw new UnsupportedOperationException();
+    }
+
+    @Nonnull
+    public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
+        NodeStatusRequest request = new NodeStatusRequest(
+                Pool.getInstance().getConfigEndpoint(),
+                getProperties().getProperty("version", ""),
+                nodeName
+        );
+        RestEndpoint rest = jenkins.getRest();
+        NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, request);
+        return nodeStatus.getStatus();
+    }
+
+    @Nonnull
+    public RunStatusResponse.Status runStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final long id) {
+        RunStatusRequest request = new RunStatusRequest(
+                Pool.getInstance().getConfigEndpoint(),
+                getProperties().getProperty("version", ""),
+                id
+        );
+        RestEndpoint rest = jenkins.getRest();
+        RunStatusResponse response = rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, request);
+        return response.getStatus();
     }
 
     //// Incoming
@@ -217,6 +175,7 @@ public class Api implements RootAction {
     /**
      * Dummy request to test the connection/compatibility.
      */
+    @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
         DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
         Pool pool = Pool.getInstance();
@@ -265,6 +224,10 @@ public class Api implements RootAction {
         // TODO Process the workload
         // TODO In set of queue items to be build
         // TODO Out nothing or OK
+
+        Pool pool = Pool.getInstance();
+        String version = getProperties().getProperty("version", "");
+        new ReportWorkloadResponse(pool.getConfigEndpoint(), version).toOutputStream(rsp.getOutputStream());
     }
 
     /**
@@ -287,43 +250,5 @@ public class Api implements RootAction {
         // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
         executable.complete(request.getExecutorName());
         // TODO Report status
-    }
-
-    @Nonnull
-    public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
-        final String version = getProperties().getProperty("version", "");
-
-        WebTarget target = getWebClient(jenkins.getEndpointUrl().toString())
-                .path("cloud/" + jenkins.getName() + "/api" + NodeStatusRequest.REQUEST_URI);
-        NodeStatusRequest request = new NodeStatusRequest(
-                Pool.getInstance().getConfigEndpoint(),
-                version,
-                nodeName
-        );
-        NodeStatusResponse response = Entity.fromInputStream(
-                (InputStream) doPostRequest(target, request).getEntity(),
-                NodeStatusResponse.class
-        );
-
-        return response.getStatus();
-    }
-
-    @Nonnull
-    public RunStatusResponse.Status runStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final long id) {
-        final String version = getProperties().getProperty("version", "");
-
-        WebTarget target = getWebClient(jenkins.getEndpointUrl().toString())
-                .path("cloud/" + jenkins.getName() + "/api" + RunStatusRequest.REQUEST_URI);
-        RunStatusRequest request = new RunStatusRequest(
-                Pool.getInstance().getConfigEndpoint(),
-                version,
-                id
-        );
-        RunStatusResponse response = Entity.fromInputStream(
-                (InputStream) doPostRequest(target, request).getEntity(),
-                RunStatusResponse.class
-        );
-
-        return response.getStatus();
     }
 }
