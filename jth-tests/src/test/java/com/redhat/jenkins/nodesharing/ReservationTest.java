@@ -33,6 +33,7 @@ import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
@@ -108,8 +109,7 @@ public class ReservationTest {
         Future<FreeStyleBuild> solarisStart = solarisJob.scheduleBuild2(0).getStartCondition();
         Future<FreeStyleBuild> scheduledSoalrisRun = solarisJob.scheduleBuild2(0).getStartCondition();
 
-        // Trigger workload update now from executor
-        WorkloadReporter.all().get(WorkloadReporter.class).doRun();
+        j.reportWorkloadToOrchestrator();
 
         // Then there should be reservation tasks on orchestrator
         List<ReservationTask> scheduledReservations = j.getScheduledReservations();
@@ -136,6 +136,39 @@ public class ReservationTest {
         scheduledSoalrisRun.get();
         assertTrue("Blocked task should resume", scheduledSoalrisRun.isDone());
         assertNotNull(j.getComputer("solaris1.executor.com").getReservation());
+    }
+
+    @Test
+    public void reflectChangesInWorkloadReported() throws Exception {
+        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
+
+        j.jenkins.doQuietDown(); // To keep the items in the queue
+
+        Label label = Label.get("windows");
+        FreeStyleProject remove = j.createFreeStyleProject("remove");
+        FreeStyleProject introduce = j.createFreeStyleProject("introduce");
+        FreeStyleProject keep = j.createFreeStyleProject("keep");
+        remove.setAssignedLabel(label);
+        introduce.setAssignedLabel(label);
+        keep.setAssignedLabel(label);
+
+        remove.scheduleBuild2(0);
+        keep.scheduleBuild2(0);
+
+        for (int i = 0; i < 3; i++) {
+            j.reportWorkloadToOrchestrator();
+
+            List<ReservationTask> scheduledReservations = j.getScheduledReservations();
+            assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
+            Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
+            // Executor items
+            assertEquals("remove", items[3].task.getName());
+            assertEquals("keep", items[2].task.getName());
+            // Orchestrator items
+            assertEquals("remove", scheduledReservations.get(0).getTaskName());
+            assertEquals("keep", scheduledReservations.get(1).getTaskName());
+        }
     }
 
     private static final class BlockingBuilder extends TestBuilder {

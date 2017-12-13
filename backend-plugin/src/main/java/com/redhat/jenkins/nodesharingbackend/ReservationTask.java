@@ -39,6 +39,7 @@ import org.acegisecurity.AccessDeniedException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Phony queue task that simulates build execution on executor Jenkins.
@@ -52,10 +53,12 @@ import java.io.IOException;
 public class ReservationTask extends AbstractQueueTask {
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
+    private final @Nonnull String taskName;
 
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName) {
         this.jenkins = owner;
         this.label = label;
+        this.taskName = taskName;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
@@ -69,12 +72,15 @@ public class ReservationTask extends AbstractQueueTask {
         return label;
     }
     public ExecutorJenkins getOwner() { return jenkins; }
+    public @Nonnull String getTaskName() {
+        return taskName;
+    }
 
     @Override public void checkAbortPermission() {throw new AccessDeniedException("Not abortable"); }
     @Override public boolean hasAbortPermission() { return false; }
 
     public Queue.Item schedule() {
-        return Jenkins.getInstance().getQueue().schedule2(this, 0).getItem();
+        return Jenkins.getActiveInstance().getQueue().schedule2(this, 0).getItem();
     }
 
     @Override public String getUrl() {
@@ -96,6 +102,23 @@ public class ReservationTask extends AbstractQueueTask {
 
     @Override public @CheckForNull Queue.Executable createExecutable() throws IOException {
         return new ReservationExecutable(this);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ReservationTask that = (ReservationTask) o;
+        return Objects.equals(jenkins, that.jenkins) && Objects.equals(taskName, that.taskName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(jenkins, taskName);
+    }
+
+    @Override public String toString() {
+        return "ReservationTask " + taskName + " for " + jenkins.getName() + " (" + label + ")";
     }
 
     public static class ReservationExecutable implements Queue.Executable {

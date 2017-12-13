@@ -28,6 +28,7 @@ import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.SharedComputer;
 import com.redhat.jenkins.nodesharingbackend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -41,6 +42,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
@@ -74,6 +76,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                 out.add((ReservationTask) item.task);
             }
         }
+        Collections.reverse(out);
         return out;
     }
 
@@ -101,7 +104,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     protected static class MockTask extends ReservationTask {
         final SharedComputer actuallyRunOn[] = new SharedComputer[1];
         public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
-            super(owner, label);
+            super(owner, label, "MockTask");
         }
 
         @Override
@@ -131,5 +134,12 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", null);
         jenkins.clouds.add(cloud);
         return cloud;
+    }
+
+    /**
+     * Trigger workload update now from executor
+     */
+    protected void reportWorkloadToOrchestrator() throws Exception {
+        WorkloadReporter.all().get(WorkloadReporter.class).doRun();
     }
 }

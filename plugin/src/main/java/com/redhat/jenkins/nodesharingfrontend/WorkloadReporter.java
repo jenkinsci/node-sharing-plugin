@@ -29,6 +29,7 @@ import hudson.Extension;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.ArrayUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -58,7 +59,16 @@ public class WorkloadReporter extends PeriodicWork {
     public void doRun() throws Exception {
         Map<SharedNodeCloud, ReportWorkloadRequest.Workload> workloadMapping = new HashMap<>();
         Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
+
+        // Make sure those scheduled sooner are at the beginning
+        ArrayUtils.reverse(items);
+
         for (Queue.Item item : items) {
+            if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) {
+                // TEST HACK: these are not supposed to coexist but they do in jth-tests
+                continue;
+            }
+
             for (SharedNodeCloud cloud : SharedNodeCloud.getAll()) {
                 if (cloud.canProvision(item.getAssignedLabel())) {
                     ReportWorkloadRequest.Workload workload = workloadMapping.get(cloud);

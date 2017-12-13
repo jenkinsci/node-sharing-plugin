@@ -61,7 +61,7 @@ public class ExecutorJenkins {
         rest = new RestEndpoint(url,  "/cloud/" + inferCloudName(configRepoUrl) + "/api");
     }
 
-    public static final String inferCloudName(String url) {
+    public static String inferCloudName(String url) {
         return DigestUtils.md5Hex(url);
     }
 
@@ -96,11 +96,19 @@ public class ExecutorJenkins {
         if (o == null || getClass() != o.getClass()) return false;
 
         ExecutorJenkins that = (ExecutorJenkins) o;
-        return Objects.equals(url, that.url) && Objects.equals(name, that.name);
+        try {
+            return Objects.equals(name, that.name) && Objects.equals(url.toURI(), that.url.toURI());
+        } catch (URISyntaxException e) {
+            throw new AssertionError(e);
+        }
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(url, name);
+        try {
+            return Objects.hash(url.toURI(), name);
+        } catch (URISyntaxException e) {
+            throw new AssertionError(e);
+        }
     }
 }
