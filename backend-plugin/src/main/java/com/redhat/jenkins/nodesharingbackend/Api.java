@@ -34,6 +34,8 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
+import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -150,18 +152,26 @@ public class Api implements RootAction {
 
     @Nonnull
     public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
-        final String version = getProperties().getProperty("version", "");
-
         NodeStatusRequest request = new NodeStatusRequest(
                 Pool.getInstance().getConfigEndpoint(),
-                version,
+                getProperties().getProperty("version", ""),
                 nodeName
         );
-
         RestEndpoint rest = jenkins.getRest();
         NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, request);
-
         return nodeStatus.getStatus();
+    }
+
+    @Nonnull
+    public RunStatusResponse.Status runStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final long id) {
+        RunStatusRequest request = new RunStatusRequest(
+                Pool.getInstance().getConfigEndpoint(),
+                getProperties().getProperty("version", ""),
+                id
+        );
+        RestEndpoint rest = jenkins.getRest();
+        RunStatusResponse response = rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, request);
+        return response.getStatus();
     }
 
     //// Incoming

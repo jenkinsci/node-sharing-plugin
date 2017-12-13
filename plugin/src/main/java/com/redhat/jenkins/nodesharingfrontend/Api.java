@@ -34,10 +34,10 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
-import com.redhat.jenkins.nodesharing.transport.RunState;
+import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
+import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Util;
 import hudson.model.Queue;
-import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -46,7 +46,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Properties;
@@ -104,6 +103,38 @@ public class Api {
     }
 
     //// Outgoing
+
+    /**
+     * Query Executor Jenkins to report the status of shared node.
+     */
+    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
+    public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+                req.getInputStream(), NodeStatusRequest.class);
+        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
+        if (nodeName != null)
+            status = cloud.getNodeStatus(request.getNodeName());
+        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
+    }
+
+    /**
+     * Query Executor Jenkins to report the status of executed item.
+     */
+    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
+    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+                req.getInputStream(), RunStatusRequest.class);
+        RunStatusResponse response = new RunStatusResponse(
+                fingerprint,
+                request.getRunId(),
+                cloud.getRunStatus(request.getRunId())
+        );
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
+    }
 
     /**
      * Put the queue items to Orchestrator
@@ -171,57 +202,5 @@ public class Api {
         // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
         executable.complete(owner, state);
 */
-    }
-
-    /**
-     * Query Executor Jenkins to report the status of shared node.
-     */
-    public void doNodeStatus(StaplerRequest req, StaplerResponse rsp) throws IOException {
-        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), NodeStatusRequest.class);
-        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
-        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        if (nodeName != null)
-            status = cloud.getNodeStatus(request.getNodeName());
-        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
-        rsp.setContentType("application/json");
-        response.toOutputStream(rsp.getOutputStream());
-    }
-
-    /**
-     * Query Executor Jenkins to report the status of executed item.
-     *
-     * @param id ID of the run to be queried.
-     * @return Item status.
-     */
-    @CheckForNull
-    @RequirePOST
-    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-    public Object doRunStatus(@Nonnull @QueryParameter("id") final String id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Work id cannot be 'null'!");
-        }
-        long runId;
-        try {
-            runId = Long.parseLong(id);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid id value '" + id + "'", e);
-        }
-        RunState status = RunState.NOT_FOUND;
-        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
-        if (item != null) {
-            status = RunState.FOUND;
-            if (item.isBlocked()) {
-                status = RunState.BLOCKED;
-            }
-            if (item.isStuck()) {
-                status = RunState.STUCK;
-            }
-            if (item.getFuture().isDone()) {
-                status = RunState.DONE;
-            }
-            // TODO Extract EXECUTING
-        }
-        return status.ordinal();
     }
 }

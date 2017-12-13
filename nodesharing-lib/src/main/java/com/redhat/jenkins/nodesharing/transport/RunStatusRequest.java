@@ -23,23 +23,31 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
-/**
- * @author ogondza.
- */
-public enum RunState {
-    INVALID,
-    FOUND,
-    BLOCKED,
-    STUCK,
-    DONE,
-    NOT_FOUND;
+import javax.annotation.Nonnull;
 
-    public static RunState getStatus(final int status) {
-        for (RunState r : RunState.values()) {
-            if (r.ordinal() == status) {
-                return r;
-            }
-        }
-        return RunState.INVALID;
+/**
+ * @author pjanouse.
+ */
+public class RunStatusRequest extends AbstractEntity {
+    private final @Nonnull long runId;
+
+    public final static String REQUEST_URI = "/runStatus";
+    /**
+     * @param runId ID of the run to be returned.
+     */
+    public RunStatusRequest(
+            @Nonnull String configRepoUrl,
+            @Nonnull String version,
+            long runId
+    ) {
+        super(configRepoUrl, version);
+        this.runId = runId;
+    }
+
+    /**
+     * @return Run ID.
+     */
+    public long getRunId() {
+        return runId;
     }
 }
