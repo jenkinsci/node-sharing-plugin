@@ -26,43 +26,25 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
-import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
-import hudson.model.Descriptor;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.model.Slave;
-import hudson.model.TaskListener;
-import hudson.slaves.CommandLauncher;
-import hudson.slaves.ComputerLauncher;
 import hudson.slaves.DumbSlave;
-import hudson.slaves.EphemeralNode;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.RetentionStrategy;
-import hudson.slaves.SlaveComputer;
-import hudson.model.Queue;
 import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
-import hudson.util.OneShotEvent;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -83,18 +65,6 @@ public class SharedNodeCloudTest {
 
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
-
-    private static final class BlockingBuilder extends TestBuilder {
-        private OneShotEvent start = new OneShotEvent();
-        private OneShotEvent end = new OneShotEvent();
-
-        @Override
-        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-            start.signal();
-            end.block();
-            return true;
-        }
-    }
 
     ////
 
@@ -142,7 +112,7 @@ public class SharedNodeCloudTest {
         );
     }
 
-//    @Ignore
+    @Ignore
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
         GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
@@ -210,7 +180,7 @@ public class SharedNodeCloudTest {
         assertTrue(slave.toComputer().isOnline());
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedNode(slave);
-        BlockingBuilder builder = new BlockingBuilder();
+        NodeSharingJenkinsRule.BlockingBuilder builder = new NodeSharingJenkinsRule.BlockingBuilder();
         job.getBuildersList().add(builder);
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();
@@ -228,8 +198,8 @@ public class SharedNodeCloudTest {
         builder.end.signal();
 
         // CONNECTING status
-        BlockingCommandLauncher blockingLauncher = new BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
-        ConnectingSlave connectingSlave = new ConnectingSlave("aConnectingNode", "dummy",
+        NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher = new NodeSharingJenkinsRule.BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
+        NodeSharingJenkinsRule.ConnectingSlave connectingSlave = new NodeSharingJenkinsRule.ConnectingSlave("aConnectingNode", "dummy",
                 j.createTmpDir().getPath(), "1", Node.Mode.NORMAL, "",
                 blockingLauncher, RetentionStrategy.NOOP, Collections.EMPTY_LIST);
         j.jenkins.addNode(connectingSlave);
@@ -264,45 +234,6 @@ public class SharedNodeCloudTest {
                         nodeName),
                 equalTo(nodeStatus)
         );
-    }
-
-    private class BlockingCommandLauncher extends CommandLauncher {
-        private OneShotEvent start = new OneShotEvent();
-        private OneShotEvent end = new OneShotEvent();
-
-        public BlockingCommandLauncher(String command) {
-            super(command);
-        }
-
-        @Override
-        public void launch(SlaveComputer computer, final TaskListener listener) {
-            start.signal();
-            try {
-                end.block();
-            } catch (InterruptedException e) { }
-            super.launch(computer, listener);
-        }
-    }
-
-    private class ConnectingSlave extends Slave implements EphemeralNode {
-        public ConnectingSlave(String name,
-                               String nodeDescription,
-                               String remoteFS,
-                               String numExecutors,
-                               Mode mode,
-                               String labelString,
-                               ComputerLauncher launcher,
-                               RetentionStrategy retentionStrategy,
-                               List<? extends NodeProperty<?>> nodeProperties
-        ) throws IOException, Descriptor.FormException {
-            super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher,
-                    retentionStrategy, nodeProperties);
-        }
-
-        @Override
-        public ConnectingSlave asNode() {
-            return this;
-        }
     }
 
 //    @Test

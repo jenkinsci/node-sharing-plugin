@@ -28,14 +28,27 @@ import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.SharedComputer;
 import com.redhat.jenkins.nodesharingbackend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.Descriptor;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
+import hudson.model.Slave;
+import hudson.model.TaskListener;
+import hudson.slaves.CommandLauncher;
+import hudson.slaves.ComputerLauncher;
+import hudson.slaves.EphemeralNode;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.RetentionStrategy;
+import hudson.slaves.SlaveComputer;
 import hudson.util.OneShotEvent;
 import jenkins.model.queue.AsynchronousExecution;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -132,25 +145,55 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         jenkins.clouds.add(cloud);
         return cloud;
     }
-//
-//    @Nonnull
-//    public WebTarget getCloudWebClient(@Nonnull final SharedNodeCloud cloud) {
-//        if (webClient == null) {
-//            ClientConfig clientConfig = new ClientConfig();
-//
-//            // TODO HTTP autentization
-//            //HttpAuthenticationFeature feature = HttpAuthenticationFeature.basic(user, Secret.toString(password));
-//            //clientConfig.register(feature);
-//
-//            clientConfig.register(JacksonFeature.class);
-//            webClient = ClientBuilder.newClient(clientConfig);
-//
-//            // Define a quite defensive timeouts
-//            webClient.property(ClientProperties.CONNECT_TIMEOUT, 60000);   // 60s
-//            webClient.property(ClientProperties.READ_TIMEOUT, 300000);  // 5m
-//        }
-////        String jenkins = Pool.getInstance().getConfig().getJenkinses().iterator().next().getEndpointUrl().toExternalForm();
-////        jenkins += "cloud/" + cloud.getName() + "/api";
-//        return webClient.target(jenkins.getRootUrl() + "cloud/" + cloud.getName() + "/api");
-//    }
+
+    static final class BlockingBuilder extends TestBuilder {
+        final OneShotEvent start = new OneShotEvent();
+        final OneShotEvent end = new OneShotEvent();
+
+        @Override
+        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+            start.signal();
+            end.block();
+            return true;
+        }
+    }
+
+    static class BlockingCommandLauncher extends CommandLauncher {
+        final OneShotEvent start = new OneShotEvent();
+        final OneShotEvent end = new OneShotEvent();
+
+        public BlockingCommandLauncher(String command) {
+            super(command);
+        }
+
+        @Override
+        public void launch(SlaveComputer computer, final TaskListener listener) {
+            start.signal();
+            try {
+                end.block();
+            } catch (InterruptedException e) { }
+            super.launch(computer, listener);
+        }
+    }
+
+    static class ConnectingSlave extends Slave implements EphemeralNode {
+        public ConnectingSlave(String name,
+                               String nodeDescription,
+                               String remoteFS,
+                               String numExecutors,
+                               Mode mode,
+                               String labelString,
+                               ComputerLauncher launcher,
+                               RetentionStrategy retentionStrategy,
+                               List<? extends NodeProperty<?>> nodeProperties
+        ) throws IOException, Descriptor.FormException {
+            super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher,
+                    retentionStrategy, nodeProperties);
+        }
+
+        @Override
+        public ConnectingSlave asNode() {
+            return this;
+        }
+    }
 }
