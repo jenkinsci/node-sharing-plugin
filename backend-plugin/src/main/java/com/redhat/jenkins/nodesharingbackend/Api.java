@@ -50,7 +50,9 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -214,6 +216,9 @@ public class Api implements RootAction {
 
     /**
      * Report workload to be executed on orchestrator for particular executor master.
+     *
+     * The order of items from orchestrator is preserved though not guaranteed to be exactly the same as the builds ware
+     * scheduled on individual executor Jenkinses.
      */
     @RequirePOST
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
@@ -222,13 +227,32 @@ public class Api implements RootAction {
         Pool pool = Pool.getInstance();
         final ConfigRepo.Snapshot config = pool.getConfig();
 
+        final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
+        final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
         final ExecutorJenkins executor = config.getJenkinsByName(request.getExecutorName());
+        for (ReportWorkloadRequest.Workload.WorkloadItem item : reportedItems) {
+            reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName()));
+        }
+
         Queue.withLock(new Runnable() {
             @Override public void run() {
                 Queue queue = Jenkins.getActiveInstance().getQueue();
-                for (ReportWorkloadRequest.Workload.WorkloadItem item : request.getWorkload().getItems()) {
-                    ReservationTask reservationTask = new ReservationTask(executor, item.getLabel());
-                    queue.schedule2(reservationTask, 0);
+                for (Queue.Item item : queue.getItems()) {
+                    if (item.task instanceof ReservationTask) {
+                        // Cancel items executor is no longer interested in and keep in those it is
+                        if (!reportedTasks.contains(item.task)) {
+                            queue.cancel(item);
+                        }
+                        reportedTasks.remove(item.task);
+                    }
+                }
+
+                // Add new tasks
+                // TODO these might have been reported just before the build started the execution on Executor so
+                // now the ReservationTask might be executing on even completed on orchestrator. Adding it to queue is
+                // not desirable even though the grid should be able to recover.
+                for (ReservationTask newTask : reportedTasks) {
+                    queue.schedule2(newTask, 0);
                 }
             }
         });

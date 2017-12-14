@@ -274,11 +274,12 @@ public class PoolTest {
                 List<String> labels = Arrays.asList("soalris11", "windows", "sparc", "w2k16");
                 for (;;) {
                     String ownerUrl = owners.get(rand.nextInt(owners.size()));
+                    String ownerName = ownerUrl.replaceAll("\\W", "");
+                    String label = labels.get(rand.nextInt(labels.size()));
                     new ReservationTask(
-                            new ExecutorJenkins(ownerUrl, ownerUrl.replaceAll("\\W", ""), ""),
-                            Label.get(
-                                    labels.get(rand.nextInt(labels.size()))
-                            )
+                            new ExecutorJenkins(ownerUrl, ownerName, ""),
+                            Label.get(label),
+                            ownerName + "-" + label
                     ).schedule();
                     System.out.println('.');
                     try {

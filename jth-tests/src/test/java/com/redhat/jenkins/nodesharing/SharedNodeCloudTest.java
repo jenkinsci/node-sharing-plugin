@@ -112,7 +112,7 @@ public class SharedNodeCloudTest {
         );
     }
 
-    @Ignore
+//    @Ignore
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
         GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);

@@ -28,6 +28,7 @@ import org.junit.Test;
 import java.net.URL;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 public class ExecutorJenkinsTest {
 
@@ -52,5 +53,13 @@ public class ExecutorJenkinsTest {
         assertEquals(VALID_NAME, ej.getName());
         assertEquals(new URL(VALID_URL), ej.getUrl());
         assertEquals(new URL("https://as.df:8080/orchestrator"), ej.getEndpointUrl());
+    }
+
+    @Test
+    public void equality() throws Exception {
+        ExecutorJenkins valid = new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL);
+        assertEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL));
+        assertNotEquals(valid, new ExecutorJenkins(VALID_URL + "a", VALID_NAME, VALID_CONFIG_REPO_URL));
+        assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a", VALID_CONFIG_REPO_URL));
     }
 }

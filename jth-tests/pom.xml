@@ -22,6 +22,10 @@
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-orchestrator</artifactId>
         </dependency>
+        <dependency><!-- Transient but required by JaCoCo to add to code coverage report -->
+            <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
+            <artifactId>nodesharing-lib</artifactId>
+        </dependency>
 
         <!-- Java modules -->
         <dependency>
