@@ -26,7 +26,6 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -169,7 +168,7 @@ public class ReservationTest {
             assertEquals("remove", items[3].task.getName());
             assertEquals("keep", items[2].task.getName());
             // Orchestrator items
-            assertEquals("remove", ((ReservationTask) items[1].task).getTaskName());
+            assertEquals(Arrays.toString(items), "remove", ((ReservationTask) items[1].task).getTaskName());
             assertEquals("keep", ((ReservationTask) items[0].task).getTaskName());
         }
 
