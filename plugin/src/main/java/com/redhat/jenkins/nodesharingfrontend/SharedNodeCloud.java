@@ -62,7 +62,7 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 
 /**
- * Foreman Shared Node Cloud implementation.
+ * Shared Node Cloud implementation.
  */
 public class SharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(SharedNodeCloud.class.getName());

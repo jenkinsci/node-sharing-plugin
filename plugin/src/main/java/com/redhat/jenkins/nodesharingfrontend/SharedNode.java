@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * Foreman Shared Node.
+ * Shared execution node.
  */
 public class SharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
 
@@ -34,12 +34,12 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     private static final long serialVersionUID = -3284884519464420953L;
 
-    @Deprecated // Use id instead,
+    @Deprecated // TODO Use id instead,
     private String cloudName;
     private ProvisioningActivity.Id id;
 
     /**
-     * Foreman Shared Node.
+     * Shared Node.
      *
      * @param id             id of the provisioning attempt.
      * @param label          Jenkins label requested.
@@ -120,7 +120,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
         @Override
         public String getDisplayName() {
-            return "Foreman Shared Node";
+            return "Shared Node";
         }
 
         @Override
