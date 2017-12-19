@@ -23,12 +23,14 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import hudson.model.Failure;
 import jenkins.model.Jenkins;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
@@ -43,9 +45,9 @@ public class ExecutorJenkins {
 
     private final @Nonnull URL url;
     private final @Nonnull String name;
-    private final @Nonnull RestEndpoint rest;
+    private /*final once initialized*/ @CheckForNull RestEndpoint rest;
 
-    public ExecutorJenkins(@Nonnull String url, @Nonnull String name, String configRepoUrl) {
+    /*package*/ ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
         try {
             Jenkins.checkGoodName(name);
             this.name = name;
@@ -58,7 +60,6 @@ public class ExecutorJenkins {
         } catch (MalformedURLException|URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
-        rest = new RestEndpoint(url,  "/cloud/" + inferCloudName(configRepoUrl) + "/api");
     }
 
     public static String inferCloudName(String url) {
@@ -78,16 +79,13 @@ public class ExecutorJenkins {
      *
      * @return REST endpoint URL.
      */
-    public @Nonnull URL getEndpointUrl() {
-        try {
-            return new URL(url.toExternalForm());
-        } catch (MalformedURLException e) {
-            throw new Error(e); // base url was validated
-        }
+    /*package*/ @Nonnull URL getEndpointUrl() {
+        return url;
     }
 
-    public @Nonnull RestEndpoint getRest() {
-        return rest;
+    public @Nonnull RestEndpoint getRest(@Nonnull String configRepoUrl, UsernamePasswordCredentials creds) {
+        if (rest != null) return rest;
+        return rest = new RestEndpoint(url.toExternalForm(),  "/cloud/" + inferCloudName(configRepoUrl) + "/api", creds);
     }
 
     @Override

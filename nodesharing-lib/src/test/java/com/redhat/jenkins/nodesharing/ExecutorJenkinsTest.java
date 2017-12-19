@@ -34,21 +34,20 @@ public class ExecutorJenkinsTest {
 
     private static final String VALID_URL = "https://as.df:8080/orchestrator";
     private static final String VALID_NAME = "as.df";
-    private static final String VALID_CONFIG_REPO_URL = "/tmp/config-repo";
 
     @Test(expected = IllegalArgumentException.class)
     public void notAnUrl() throws Exception {
-        new ExecutorJenkins("not an URL", VALID_NAME, VALID_CONFIG_REPO_URL);
+        new ExecutorJenkins("not an URL", VALID_NAME);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void unsafeName() throws Exception {
-        new ExecutorJenkins(VALID_URL, "Robert'; drop table STUDENTS;--", VALID_CONFIG_REPO_URL);
+        new ExecutorJenkins(VALID_URL, "Robert'; drop table STUDENTS;--");
     }
 
     @Test
     public void basics() throws Exception {
-        ExecutorJenkins ej = new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL);
+        ExecutorJenkins ej = new ExecutorJenkins(VALID_URL, VALID_NAME);
 
         assertEquals(VALID_NAME, ej.getName());
         assertEquals(new URL(VALID_URL), ej.getUrl());
@@ -57,9 +56,9 @@ public class ExecutorJenkinsTest {
 
     @Test
     public void equality() throws Exception {
-        ExecutorJenkins valid = new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL);
-        assertEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME, VALID_CONFIG_REPO_URL));
-        assertNotEquals(valid, new ExecutorJenkins(VALID_URL + "a", VALID_NAME, VALID_CONFIG_REPO_URL));
-        assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a", VALID_CONFIG_REPO_URL));
+        ExecutorJenkins valid = new ExecutorJenkins(VALID_URL, VALID_NAME);
+        assertEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME));
+        assertNotEquals(valid, new ExecutorJenkins(VALID_URL + "a", VALID_NAME));
+        assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a"));
     }
 }

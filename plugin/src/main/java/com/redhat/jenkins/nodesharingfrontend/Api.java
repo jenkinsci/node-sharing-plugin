@@ -23,6 +23,10 @@
  */
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
@@ -38,6 +42,8 @@ import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Util;
 import hudson.model.Queue;
+import hudson.security.ACL;
+import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -69,17 +75,25 @@ public class Api {
     private static final String PROPERTY_VERSION = "version";
     private Properties properties = null;
 
-    public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
-               @Nonnull final String configRepoUrl,
-               @Nonnull final SharedNodeCloud cloud
-    ) {
+    /*package*/ Api(@Nonnull final SharedNodeCloud cloud) {
+        this.cloud = cloud;
+        ConfigRepo.Snapshot snapshot = cloud.getLatestConfig();
+        if (snapshot == null) throw new IllegalStateException("No latest config found");
+
         this.fingerprint = new ExecutorEntity.Fingerprint(
-                configRepoUrl,
+                cloud.getConfigRepoUrl(),
                 getProperties().getProperty("version"),
                 snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
-        rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
-        this.cloud = cloud;
+
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator", getRestCredential(cloud));
+    }
+
+    private UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) {
+        return CredentialsMatchers.firstOrNull(
+                    CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
+                    CredentialsMatchers.withId(cloud.getRestCredentialId())
+            );
     }
 
     //// Helper methods
@@ -109,6 +123,8 @@ public class Api {
      */
     // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
                 req.getInputStream(), NodeStatusRequest.class);
         String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
@@ -175,6 +191,8 @@ public class Api {
     @RequirePOST
     public void doExecution(@Nonnull @QueryParameter final String nodeName,
                             @Nonnull @QueryParameter final String id) {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         // TODO Create a Node based on the info and execute the Item
         throw new UnsupportedOperationException("TODO");
     }
@@ -186,6 +204,8 @@ public class Api {
      */
     @RequirePOST
     public void doReturnNode(@Nonnull @QueryParameter("name") final String name) {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         throw new UnsupportedOperationException("TODO");
 /*
         Computer c = Jenkins.getInstance().getComputer(name);

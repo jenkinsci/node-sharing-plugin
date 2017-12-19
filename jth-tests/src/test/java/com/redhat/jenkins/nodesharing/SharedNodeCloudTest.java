@@ -39,7 +39,6 @@ import hudson.slaves.RetentionStrategy;
 import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -77,7 +76,7 @@ public class SharedNodeCloudTest {
 
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection(gitClient.getWorkTree().getRemote()).getMessage(),
+                descr.doTestConnection(gitClient.getWorkTree().getRemote(), "TODO").getMessage(),
                 containsString("Orchestrator version is " + prop.getProperty("version"))
         );
     }
@@ -98,7 +97,7 @@ public class SharedNodeCloudTest {
     public void doTestConnectionInvalidUrl() throws Exception {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection("file:\\\\aaa").getMessage(),
+                descr.doTestConnection("file:\\\\aaa", "TODO").getMessage(),
                 startsWith("Invalid config repo url")
         );
     }
@@ -107,7 +106,7 @@ public class SharedNodeCloudTest {
     public void doTestConnectionNonExistsUrl() throws Exception {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection("file://dummy_not_exists").getMessage(),
+                descr.doTestConnection("file://dummy_not_exists", "TODO").getMessage(),
                 containsString("Unable to update config repo from")
         );
     }
@@ -123,7 +122,7 @@ public class SharedNodeCloudTest {
         cr.commit("Hehehe");
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection(workTree.getRemote()).getMessage(),
+                descr.doTestConnection(workTree.getRemote(), "TODO").getMessage(),
                 containsString("No file named 'config' found in Config Repository")
         );
     }
@@ -134,7 +133,7 @@ public class SharedNodeCloudTest {
         GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
 
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
-        FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote());
+        FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote(), "TODO");
         assertThat(validation.kind, equalTo(FormValidation.Kind.WARNING));
         assertThat(validation.getMessage(), startsWith("Orchestrator is configured from"));
     }
@@ -219,7 +218,7 @@ public class SharedNodeCloudTest {
                 cloud.getNodeStatus(nodeName),
                 equalTo(nodeStatus)
         );
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
         assertThat(
                 rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, new NodeStatusRequest(
                         Pool.getInstance().getConfigEndpoint(),
@@ -230,7 +229,7 @@ public class SharedNodeCloudTest {
         );
         assertThat(
                 Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()),
                         nodeName),
                 equalTo(nodeStatus)
         );

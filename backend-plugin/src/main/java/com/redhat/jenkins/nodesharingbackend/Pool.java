@@ -23,6 +23,8 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
@@ -32,9 +34,12 @@ import hudson.AbortException;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
+import hudson.Util;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
+import hudson.security.Permission;
+import hudson.security.PermissionGroup;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -59,6 +64,8 @@ public class Pool {
     private static final Logger LOGGER = Logger.getLogger(Pool.class.getName());
 
     public static final String CONFIG_REPO_PROPERTY_NAME = Pool.class.getCanonicalName() + ".ENDPOINT";
+    public static final String USERNAME_PROPERTY_NAME = Pool.class.getCanonicalName() + ".USERNAME";
+    public static final String PASSWORD_PROPERTY_NAME = Pool.class.getCanonicalName() + ".PASSWORD";
 
     @Extension
     public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
@@ -77,12 +84,33 @@ public class Pool {
     }
 
     public @CheckForNull String getConfigEndpoint() {
-        String property = System.getProperty(CONFIG_REPO_PROPERTY_NAME);
+        String property = Util.fixEmptyAndTrim(System.getProperty(CONFIG_REPO_PROPERTY_NAME));
         if (property == null) {
             String msg = "Node sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
         }
         return property;
+    }
+
+    public @CheckForNull StandardUsernamePasswordCredentials getCredential() {
+        String username = Util.fixEmptyAndTrim(System.getProperty(USERNAME_PROPERTY_NAME));
+        if (username == null) {
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
+                    "No node sharing username specified by " + USERNAME_PROPERTY_NAME + " property"
+            ));
+            return null;
+        }
+        String password = Util.fixEmptyAndTrim(System.getProperty(PASSWORD_PROPERTY_NAME));
+        if (password == null) {
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
+                    "No node sharing password specified by " + PASSWORD_PROPERTY_NAME + " property"
+            ));
+            return null;
+        }
+
+        return new UsernamePasswordCredentialsImpl(
+                null, "transient-instance", "Node sharing orchestrator credential", username, password
+        );
     }
 
     public Pool() {}
@@ -102,7 +130,7 @@ public class Pool {
         updateNodes(config.getNodes());
     }
 
-    // TODO Queue.withLock?
+    // TODO Avoid calling this if there was no change
     private void updateNodes(final Map<String, NodeDefinition> nodes) {
         final Jenkins j = Jenkins.getActiveInstance();
         // Use queue lock so pool changes appear atomic from perspective of Queue#maintian and Api#doReportWorkload

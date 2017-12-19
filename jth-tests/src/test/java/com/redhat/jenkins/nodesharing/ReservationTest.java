@@ -26,7 +26,6 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -34,10 +33,10 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Queue;
-import hudson.model.queue.QueueTaskFuture;
 import hudson.util.FormValidation;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
+import org.acegisecurity.GrantedAuthority;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
@@ -76,6 +75,15 @@ public class ReservationTest {
         assertThat(output, containsString("author Pool Maintainer <pool.maintainer@acme.com>"));
         assertThat(output, containsString("committer Pool Maintainer <pool.maintainer@acme.com>"));
     }
+    
+    @Test
+    public void restPermission() throws Exception {
+        System.out.println(Jenkins.getAuthentication());
+        System.out.println(Jenkins.getAuthentication().getAuthorities());
+        for (GrantedAuthority authority : Jenkins.getAuthentication().getAuthorities()) {
+            System.out.println(authority.getAuthority());
+        }
+    }
 
     @Test
     public void doTestConnection() throws Exception {
@@ -85,7 +93,7 @@ public class ReservationTest {
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
 
         SharedNodeCloud.DescriptorImpl descriptor = (SharedNodeCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(SharedNodeCloud.class);
-        FormValidation validation = descriptor.doTestConnection(cr.getWorkTree().getRemote());
+        FormValidation validation = descriptor.doTestConnection(cr.getWorkTree().getRemote(), "TODO");
         assertThat(validation.renderHtml(), containsString("Orchestrator version is " + prop.getProperty("version")));
     }
 

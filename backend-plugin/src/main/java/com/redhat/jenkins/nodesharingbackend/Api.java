@@ -34,8 +34,6 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -152,12 +150,13 @@ public class Api implements RootAction {
 
     @Nonnull
     public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
+        Pool pool = Pool.getInstance();
         NodeStatusRequest request = new NodeStatusRequest(
-                Pool.getInstance().getConfigEndpoint(),
+                pool.getConfigEndpoint(),
                 getProperties().getProperty("version", ""),
                 nodeName
         );
-        RestEndpoint rest = jenkins.getRest();
+        RestEndpoint rest = jenkins.getRest(pool.getConfigEndpoint(), pool.getCredential());
         NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, request);
         return nodeStatus.getStatus();
     }
@@ -181,6 +180,8 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
         Pool pool = Pool.getInstance();
         String version = getProperties().getProperty("version", "");
@@ -222,6 +223,8 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
 
         Pool pool = Pool.getInstance();
@@ -266,6 +269,8 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
         Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
         if (!(c instanceof SharedComputer)) {

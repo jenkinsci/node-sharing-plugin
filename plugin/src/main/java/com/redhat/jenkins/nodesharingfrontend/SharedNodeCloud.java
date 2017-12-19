@@ -7,21 +7,16 @@ import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.model.Queue;
 import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.OneShotEvent;
 
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
@@ -43,14 +38,12 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
-import jenkins.util.Timer;
-import org.apache.commons.codec.digest.DigestUtils;
-
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -77,10 +70,13 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     private String configRepoUrl;
 
+    private String restCredentialId;
+
     /**
-     * The id of the credentials to use.
+     * The id of the ssh credentials for hosts.
      */
     private String credentialsId;
+
     /**
      * The time in seconds to attempt to establish a SSH connection.
      */
@@ -95,14 +91,16 @@ public class SharedNodeCloud extends Cloud {
      * Constructor for Config Page.
      *
      * @param configRepoUrl        ConfigRepo url
+     * @param restCredentialId     Orchestrator credential.
      * @param credentialsId        creds to use to connect to slave.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public SharedNodeCloud(@Nonnull String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
+    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String restCredentialId, String credentialsId, Integer sshConnectionTimeOut) {
         super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
+        this.restCredentialId = restCredentialId;
         this.configRepo = getConfigRepo();
         this.credentialsId = credentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
@@ -117,7 +115,7 @@ public class SharedNodeCloud extends Cloud {
         if (this.api == null) {
             ConfigRepo.Snapshot latestConfig = getLatestConfig();
             if (latestConfig == null) throw new IllegalStateException("No latest config found");
-            this.api = new Api(latestConfig, configRepoUrl, this);
+            this.api = new Api(this);
         }
         return this.api;
     }
@@ -177,9 +175,14 @@ public class SharedNodeCloud extends Cloud {
      *
      * @return credential id.
      */
-    @Nonnull
+    @Nonnull @Restricted(DoNotUse.class) // View Only
     public String getCredentialsId() {
         return credentialsId;
+    }
+
+    @Nonnull
+    public String getRestCredentialId() {
+        return restCredentialId;
     }
 
     /**
@@ -392,7 +395,10 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
-        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl) throws Exception {
+        public FormValidation doTestConnection(
+                @Nonnull @QueryParameter("configRepoUrl") String configRepoUrl,
+                @Nonnull @QueryParameter("restCredentialId") String restCredentialId
+        ) throws Exception {
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
@@ -401,11 +407,9 @@ public class SharedNodeCloud extends Cloud {
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
+                SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId, "", null);
 
-                ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
-                ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
-
-                DiscoverResponse discover = new Api(testSnapshot, configRepoUrl, null).discover();
+                DiscoverResponse discover = new Api(cloud).discover();
                 if (!discover.getDiagnosis().isEmpty()) {
                     return FormValidation.warning(discover.getDiagnosis());
                 }

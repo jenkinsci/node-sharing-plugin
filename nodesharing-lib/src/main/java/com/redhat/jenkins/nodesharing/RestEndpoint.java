@@ -23,18 +23,30 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import hudson.security.Permission;
+import hudson.security.PermissionGroup;
+import hudson.security.PermissionScope;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.client.AuthCache;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.AbstractHttpEntity;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
@@ -55,13 +67,18 @@ import java.util.logging.Logger;
  */
 public class RestEndpoint {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
+    private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
+    private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
+    public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveRescription(), null, NODE_SHARING_SCOPE);
 
     private final @Nonnull String endpoint;
     private final @Nonnull String crumbIssuerEndpoint;
+    private final @Nonnull UsernamePasswordCredentials creds;
 
-    public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath) {
+    public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath, UsernamePasswordCredentials creds) {
         this.endpoint = jenkinsUrl + endpointPath;
         this.crumbIssuerEndpoint = jenkinsUrl + "crumbIssuer/api/json";
+        this.creds = creds;
     }
 
     public HttpPost post(@Nonnull String path) {
@@ -112,8 +129,25 @@ public class RestEndpoint {
     @CheckForNull
     private <T extends Entity> T _executeRequest(@Nonnull HttpRequestBase method, @Nullable Class<T> returnType) {
         CloseableHttpClient client = HttpClients.createSystem();
+        CredentialsProvider credsProvider = new BasicCredentialsProvider();
+        credsProvider.setCredentials(
+                new AuthScope(targetHost.getHostName(), targetHost.getPort()),
+                new org.apache.http.auth.UsernamePasswordCredentials(creds.getUsername(), creds.getPassword().getPlainText())
+        );
+
+        // Create AuthCache instance
+        AuthCache authCache = new BasicAuthCache();
+// Generate BASIC scheme object and add it to the local auth cache
+        BasicScheme basicAuth = new BasicScheme();
+        authCache.put(targetHost, basicAuth);
+
+// Add AuthCache to the execution context
+        HttpClientContext context = HttpClientContext.create();
+        context.setCredentialsProvider(credsProvider);
+        context.setAuthCache(authCache);
+
         try {
-            CloseableHttpResponse response = client.execute(method);
+            CloseableHttpResponse response = client.execute(method, context);
 
             // Check exit code
             int statusCode = response.getStatusLine().getStatusCode();
