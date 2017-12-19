@@ -34,10 +34,7 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Util;
-import hudson.model.Queue;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -61,45 +58,33 @@ public class Api {
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
     private final @Nonnull ExecutorEntity.Fingerprint fingerprint;
 
-    private final RestEndpoint rest;
-
     private final SharedNodeCloud cloud;
-
-    private static final String PROPERTIES_FILE = "nodesharingfrontend.properties";
-    private static final String PROPERTY_VERSION = "version";
-    private Properties properties = null;
+    private final RestEndpoint rest;
+    private final String version;
 
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
                @Nonnull final SharedNodeCloud cloud
     ) {
+        this.cloud = cloud;
+
+        try {
+            Properties properties = new Properties();
+            properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
+            version = properties.getProperty("version");
+            if (version == null) throw new AssertionError("No version in assembly properties");
+        } catch (IOException e) {
+            throw new AssertionError("Cannot load assembly properties", e);
+        }
+
         this.fingerprint = new ExecutorEntity.Fingerprint(
                 configRepoUrl,
-                getProperties().getProperty("version"),
+                version,
                 snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
-        this.cloud = cloud;
-    }
 
-    //// Helper methods
 
-    /**
-     * Get properties.
-     *
-     * @return Properties.
-     */
-    @Nonnull
-    private Properties getProperties() {
-        if(properties == null) {
-            properties = new Properties();
-            try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
-            } catch (IOException e) {
-                properties = new Properties();
-            }
-        }
-        return properties;
     }
 
     //// Outgoing
@@ -151,7 +136,6 @@ public class Api {
      * @return Discovery result.
      */
     public DiscoverResponse discover() throws ActionFailed {
-        // TODO Check status code
         return rest.executeRequest(
                 rest.post("discover"),
                 DiscoverResponse.class,
@@ -164,7 +148,6 @@ public class Api {
      */
     public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
         rest.executeRequest(rest.post("returnNode"), null, new ReturnNodeRequest(fingerprint, name, status));
-        // TODO check status
     }
 
     //// Incoming

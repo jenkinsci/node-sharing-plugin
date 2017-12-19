@@ -62,7 +62,10 @@ import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
 /**
  * Placeholder computer representing shareable computer.
  *
- * The computer is always "up" with no channel so the real system. The purpose of this abstraction is to schedule here
+ * The computer is always "up" with no channel to the real system. The purpose of this abstraction is to schedule implement
+ * label aware queuing.
+ *
+ * @see ReservationTask
  */
 @Restricted(NoExternalUse.class)
 public class SharedComputer extends SlaveComputer implements EphemeralNode {
@@ -71,7 +74,7 @@ public class SharedComputer extends SlaveComputer implements EphemeralNode {
         super(slave);
         // A lot of Jenkins abstractions presumes Computers are either SlaveComputers or a single MasterComputer which
         // effectively forces us to implement SharedComputer as SlaveComputer. That, however, needs to have Channel associated
-        // but again, the API enforces that to be a "real" channel which is undesirable. Constructing such channel to do
+        // but again, the API enforces that to be a "real" Channel which is undesirable. Constructing such channel to do
         // nothing turned to be tricky as it perform transport negotiation in constructor so we are creating our Dummy
         // subtype without invoking constructor here.
         String typeName = NoopChannel.class.getName().replace("$", "_-");

@@ -34,8 +34,6 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
@@ -69,8 +67,18 @@ public class Api implements RootAction {
 
     private static final String HIDDEN = null;
 
-    private Properties properties = null;
-    private static final String PROPERTY_VERSION = "version";
+    private final @Nonnull String version;
+
+    public Api() {
+        try {
+            Properties properties = new Properties();
+            properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
+            version = properties.getProperty("version");
+            if (version == null) throw new AssertionError("No version in assembly properties");
+        } catch (IOException e) {
+            throw new AssertionError("Cannot load assembly properties", e);
+        }
+    }
 
     public static @Nonnull Api getInstance() {
         ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
@@ -88,25 +96,6 @@ public class Api implements RootAction {
 
     @Override public String getUrlName() {
         return "node-sharing-orchestrator";
-    }
-
-    /**
-     * Get properties.
-     *
-     * @return Properties.
-     */
-    @Nonnull
-    private Properties getProperties() {
-        if(properties == null) {
-            properties = new Properties();
-            try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
-            } catch (IOException e) {
-                LOGGER.severe("Cannot load properties from ");
-                properties = new Properties();
-            }
-        }
-        return properties;
     }
 
     //// Outgoing
@@ -152,9 +141,10 @@ public class Api implements RootAction {
 
     @Nonnull
     public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
+
         NodeStatusRequest request = new NodeStatusRequest(
                 Pool.getInstance().getConfigEndpoint(),
-                getProperties().getProperty("version", ""),
+                version,
                 nodeName
         );
         RestEndpoint rest = jenkins.getRest();
@@ -183,7 +173,8 @@ public class Api implements RootAction {
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
         DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
         Pool pool = Pool.getInstance();
-        String version = getProperties().getProperty("version", "");
+
+        String version = this.version;
 
         // Sanity checking
         StringBuilder diagnosisBuilder = new StringBuilder();
@@ -257,7 +248,7 @@ public class Api implements RootAction {
             }
         });
 
-        String version = getProperties().getProperty("version", "");
+        String version = this.version;
         new ReportWorkloadResponse(pool.getConfigEndpoint(), version).toOutputStream(rsp.getOutputStream());
     }
 
