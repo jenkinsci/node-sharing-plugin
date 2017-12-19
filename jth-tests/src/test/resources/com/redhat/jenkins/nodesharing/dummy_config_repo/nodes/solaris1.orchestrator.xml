@@ -1,4 +1,4 @@
-<com.redhat.foreman.ForemanSharedNode>
+<com.redhat.jenkins.nodesharingfrontend.SharedNode>
   <name>solaris1.executor.com</name>
   <description/>
   <remoteFS>/var/jenkins-workspace</remoteFS>
@@ -15,4 +15,4 @@
   </launcher>
   <label>solaris11 sparc</label>
   <nodeProperties/>
-</com.redhat.foreman.ForemanSharedNode>
+</com.redhat.jenkins.nodesharingfrontend.SharedNode>
