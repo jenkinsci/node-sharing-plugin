@@ -29,14 +29,20 @@ import hudson.remoting.Channel;
 import hudson.remoting.ChannelBuilder;
 import hudson.remoting.ChannelProperty;
 import hudson.remoting.CommandTransport;
+import hudson.remoting.Future;
 import hudson.remoting.JarCache;
 import hudson.remoting.forward.ListeningPort;
+import hudson.util.Futures;
 import org.jenkinsci.remoting.CallableDecorator;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.URL;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Channel that does nothing but still exists.
@@ -142,12 +148,86 @@ public class NoopChannel extends Channel {
 
     @Override
     public <V, T extends Throwable> V call(Callable<V, T> callable) throws IOException, T, InterruptedException {
+        // Call locally not to put it offline
+        if (isResponseTimeMonitor(callable)) {
+            return callable.call();
+        }
+        // Call on master site as we have no way to get real data anyway and this would avoid potential problems
+        // with some sort of "empty value".
+        if (isSafeMonitor(new Throwable())) {
+            return null;
+        }
         throw new UnsupportedOperationException();
     }
 
     @Override
     public <V, T extends Throwable> hudson.remoting.Future<V> callAsync(Callable<V, T> callable) throws IOException {
+        // Call locally not to put it offline
+        if (isResponseTimeMonitor(callable)) {
+            return new PrecomputedCallableFuture<>(callable);
+        }
+        // Call on master site as we have no way to get real data anyway and this would avoid potential problems
+        // with some sort of "empty value".
+        if (isSafeMonitor(new Throwable())) {
+            return Futures.precomputed(null);
+        }
         throw new UnsupportedOperationException();
+    }
+
+    private <V, T extends Throwable> boolean isSafeMonitor(@Nonnull Throwable trace) {
+        String caller = null;
+        StackTraceElement[] st = trace.getStackTrace();
+        if (st.length > 2) {
+            caller = st[1].getClassName() + "#" + st[1].getMethodName();
+        }
+
+        return "hudson.node_monitors.AbstractAsyncNodeMonitorDescriptor#monitor".equals(caller);
+    }
+
+    private <V, T extends Throwable> boolean isResponseTimeMonitor(@Nonnull Callable<V, T> trace) {
+        return "hudson.node_monitors.ResponseTimeMonitor$Step1".equals(trace.getClass().getName());
+    }
+
+    /** Eagerly evaluate the callable */
+    private static final class PrecomputedCallableFuture<V, T extends Throwable> implements Future<V> {
+        private final V value;
+        private final ExecutionException exception;
+
+        public PrecomputedCallableFuture(Callable<V, T> callable) {
+            V value;
+            ExecutionException exception;
+            try {
+                value = callable.call();
+                exception = null;
+            } catch (Throwable t) {
+                exception = new ExecutionException(t);
+                value = null;
+            }
+            this.value = value;
+            this.exception = exception;
+        }
+
+        @Override public boolean cancel(boolean mayInterruptIfRunning) {
+            return false;
+        }
+
+        @Override public boolean isCancelled() {
+            return false;
+        }
+
+        @Override public boolean isDone() {
+            return true;
+        }
+
+        @Override public V get() throws InterruptedException, ExecutionException {
+            if (exception == null) return value;
+            throw exception;
+        }
+
+        @Override
+        public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            return get();
+        }
     }
 
     @Override public void terminate(IOException e) {
