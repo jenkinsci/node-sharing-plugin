@@ -47,11 +47,13 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -153,22 +155,38 @@ public class ReservationTest {
         introduce.setAssignedLabel(label);
         keep.setAssignedLabel(label);
 
-        remove.scheduleBuild2(0);
+        QueueTaskFuture<FreeStyleBuild> removeFuture = remove.scheduleBuild2(0);
         keep.scheduleBuild2(0);
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) { // The same can be sent repeatedly without changing the queue
             j.reportWorkloadToOrchestrator();
 
             List<ReservationTask> scheduledReservations = j.getScheduledReservations();
             assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
             Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
+            assertThat(items, arrayWithSize(4));
             // Executor items
             assertEquals("remove", items[3].task.getName());
             assertEquals("keep", items[2].task.getName());
             // Orchestrator items
-            assertEquals("remove", scheduledReservations.get(0).getTaskName());
-            assertEquals("keep", scheduledReservations.get(1).getTaskName());
+            assertEquals("remove", ((ReservationTask) items[1].task).getTaskName());
+            assertEquals("keep", ((ReservationTask) items[0].task).getTaskName());
         }
+
+        removeFuture.cancel(true);
+        introduce.scheduleBuild2(0);
+
+        j.reportWorkloadToOrchestrator();
+
+        List<ReservationTask> scheduledReservations = j.getScheduledReservations();
+        assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
+        Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
+        assertThat(items, arrayWithSize(4));
+
+        assertEquals("keep", items[3].task.getName());
+        assertEquals("keep", ((ReservationTask) items[2].task).getTaskName());
+        assertEquals("introduce", items[1].task.getName());
+        assertEquals("introduce", ((ReservationTask) items[0].task).getTaskName());
     }
 
     private static final class BlockingBuilder extends TestBuilder {
