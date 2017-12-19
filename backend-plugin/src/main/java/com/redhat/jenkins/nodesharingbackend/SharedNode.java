@@ -89,6 +89,10 @@ public final class SharedNode extends Slave implements EphemeralNode {
         return this;
     }
 
+    @Nonnull public NodeDefinition getNodeDefinition() {
+        return nodeDefinition;
+    }
+
     @Override public CauseOfBlockage canTake(Queue.BuildableItem item) {
         return item.task instanceof ReservationTask ? null : RESERVATION_TASKS_ONLY;
     }

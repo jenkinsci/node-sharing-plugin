@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
@@ -34,12 +35,15 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.model.Queue;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
+import org.apache.http.HttpStatus;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -81,7 +85,7 @@ public class Api implements RootAction {
     }
 
     public static @Nonnull Api getInstance() {
-        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
+        ExtensionList<Api> list = Jenkins.getActiveInstance().getExtensionList(Api.class);
         assert list.size() == 1;
         return list.iterator().next();
     }
@@ -103,11 +107,22 @@ public class Api implements RootAction {
     /**
      * Signal to Executor Jenkins to start using particular node.
      *
-     * @param owner Jenkins instance the node is reserved for.
+     * @param executor Jenkins instance the node is reserved for.
      * @param node Node to be reserved.
+     * @return true is the client accepted the node, false otherwise.
      */
-    public void utilizeNode(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
-        throw new UnsupportedOperationException();
+    public boolean utilizeNode(@Nonnull ExecutorJenkins executor, @Nonnull SharedNode node) {
+        UtilizeNodeRequest request = new UtilizeNodeRequest(Pool.getInstance().getConfigEndpoint(), version, node.getNodeDefinition());
+        RestEndpoint rest = executor.getRest();
+        try {
+            rest.executeRequest(rest.post("utilizeNode"), UtilizeNodeResponse.class, request);
+            return true;
+        } catch (ActionFailed.RequestFailed ex) {
+            if (ex.getStatusCode() == HttpStatus.SC_GONE) {
+                return false;
+            }
+            throw ex;
+        }
     }
 
     /**

@@ -25,16 +25,23 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
+import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Util;
+import hudson.model.Queue;
+import hudson.model.labels.LabelAtom;
+import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -44,7 +51,9 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -153,13 +162,32 @@ public class Api {
     //// Incoming
 
     /**
-     * Request to execute #Item from the queue
+     * Request to utilize reserved computer.
+     *
+     * Response code "200 OK" is used when the node was accepted and "410 Gone" when there is no longer the need so it
+     * will not be used in any way and orchestrator can reuse it immediately.
      */
     @RequirePOST
-    public void doExecution(@Nonnull @QueryParameter final String nodeName,
-                            @Nonnull @QueryParameter final String id) {
-        // TODO Create a Node based on the info and execute the Item
-        throw new UnsupportedOperationException("TODO");
+    public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
+        NodeDefinition definition = NodeDefinition.create(request.getFileName(), request.getDefinition());
+        if (definition == null) throw new AssertionError("Unknown node definition: " + request.getFileName());
+
+        // Utilize when there is some load for it
+        Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
+        for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
+            if (item.getAssignedLabel().matches(nodeLabels)) {
+                System.out.println("Accepted: " + definition.getDefinition());
+                // TODO create SharedNode form NodeDefinition and connect it
+
+                new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
+                rsp.setStatus(HttpServletResponse.SC_OK);
+                return;
+            }
+        }
+
+        // Reject otherwise
+        rsp.setStatus(HttpServletResponse.SC_GONE);
     }
 
     /**
