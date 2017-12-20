@@ -156,6 +156,7 @@ public class ReservationTest {
 
         QueueTaskFuture<FreeStyleBuild> removeFuture = remove.scheduleBuild2(0);
         keep.scheduleBuild2(0);
+        Thread.sleep(500); // Wait for executor items to become buildable
 
         for (int i = 0; i < 3; i++) { // The same can be sent repeatedly without changing the queue
             j.reportWorkloadToOrchestrator();
@@ -168,12 +169,13 @@ public class ReservationTest {
             assertEquals("remove", items[3].task.getName());
             assertEquals("keep", items[2].task.getName());
             // Orchestrator items
-            assertEquals(Arrays.toString(items), "remove", ((ReservationTask) items[1].task).getTaskName());
+            assertEquals("remove", ((ReservationTask) items[1].task).getTaskName());
             assertEquals("keep", ((ReservationTask) items[0].task).getTaskName());
         }
 
         removeFuture.cancel(true);
         introduce.scheduleBuild2(0);
+        Thread.sleep(500); // Wait for executor items to become buildable
 
         j.reportWorkloadToOrchestrator();
 
