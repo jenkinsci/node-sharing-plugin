@@ -100,12 +100,12 @@ public class ReservationTest {
         Label winLabel = Label.get("w2k12");
         FreeStyleProject winJob = j.createFreeStyleProject("win");
         winJob.setAssignedLabel(winLabel);
-        BlockingBuilder winBuilder = new BlockingBuilder();
+        NodeSharingJenkinsRule.BlockingBuilder winBuilder = new NodeSharingJenkinsRule.BlockingBuilder();
         winJob.getBuildersList().add(winBuilder);
         Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
         FreeStyleProject solarisJob = j.createFreeStyleProject("sol");
         solarisJob.setAssignedLabel(solarisLabel);
-        BlockingBuilder solarisBuilder = new BlockingBuilder();
+        NodeSharingJenkinsRule.BlockingBuilder solarisBuilder = new NodeSharingJenkinsRule.BlockingBuilder();
         solarisJob.getBuildersList().add(solarisBuilder);
         Future<FreeStyleBuild> winStart = winJob.scheduleBuild2(0).getStartCondition();
         Future<FreeStyleBuild> solarisStart = solarisJob.scheduleBuild2(0).getStartCondition();
@@ -187,17 +187,5 @@ public class ReservationTest {
         assertEquals("keep", ((ReservationTask) items[2].task).getTaskName());
         assertEquals("introduce", items[1].task.getName());
         assertEquals("introduce", ((ReservationTask) items[0].task).getTaskName());
-    }
-
-    private static final class BlockingBuilder extends TestBuilder {
-        private OneShotEvent start = new OneShotEvent();
-        private OneShotEvent end = new OneShotEvent();
-
-        @Override
-        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-            start.signal();
-            end.block();
-            return true;
-        }
     }
 }
