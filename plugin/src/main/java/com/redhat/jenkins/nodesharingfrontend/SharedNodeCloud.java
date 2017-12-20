@@ -348,13 +348,6 @@ public class SharedNodeCloud extends Cloud {
         return out;
     }
 
-    public static DisposableImpl addDisposableEvent(final String cloudName, final String hostName) {
-        LOGGER.finer("Adding the host '" + hostName + "' to the disposable queue.");
-        DisposableImpl disposable = new DisposableImpl(cloudName, hostName);
-        AsyncResourceDisposer.get().dispose(disposable);
-        return disposable;
-    }
-
     /**
      * The cloud is considered operational once it can get data from Config Repo and talk to orchestrator.
      */

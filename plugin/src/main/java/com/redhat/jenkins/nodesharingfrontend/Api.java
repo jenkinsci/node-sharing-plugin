@@ -39,10 +39,17 @@ import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPost;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
@@ -53,6 +60,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -92,8 +100,6 @@ public class Api {
                 snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
-
-
     }
 
     //// Outgoing
@@ -134,9 +140,9 @@ public class Api {
      * Put the queue items to Orchestrator
      */
     // TODO Response never used as there is likely nothing to report - consider async request
-    public ReportWorkloadResponse reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
+    public void reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
-        return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
+        rest.executeRequest(rest.post("reportWorkload"), request, ReportWorkloadResponse.class);
     }
 
     /**
@@ -147,16 +153,43 @@ public class Api {
     public DiscoverResponse discover() throws ActionFailed {
         return rest.executeRequest(
                 rest.post("discover"),
-                DiscoverResponse.class,
-                new DiscoverRequest(fingerprint)
+                new DiscoverRequest(fingerprint), DiscoverResponse.class
         );
     }
 
     /**
      * Send request to return node. No response needed.
      */
-    public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
-        rest.executeRequest(rest.post("returnNode"), null, new ReturnNodeRequest(fingerprint, name, status));
+    public void returnNode(@Nonnull SharedNode node) {
+        Computer computer = node.toComputer();
+        String offlineCause = null;
+        if (computer != null) {
+            offlineCause = computer.getOfflineCause().toString();
+        }
+        final ReturnNodeRequest.Status status = offlineCause == null
+                ? ReturnNodeRequest.Status.OK
+                : ReturnNodeRequest.Status.FAILED
+        ;
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getNodeName(), status, offlineCause);
+
+        final HttpPost method = rest.post("returnNode");
+        rest.executeRequest(method, request, new ResponseHandler<Void>() {
+            @Override
+            public Void handleResponse(HttpResponse response) throws IOException {
+                // Check exit code
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode != 200 && statusCode != 404) {
+                    try (InputStream is = response.getEntity().getContent()) {
+                        ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
+                                method, response.getStatusLine(), IOUtils.toString(is)
+                        );
+                        throw requestFailed;
+                    }
+                }
+
+                return null;
+            }
+        });
     }
 
     //// Incoming

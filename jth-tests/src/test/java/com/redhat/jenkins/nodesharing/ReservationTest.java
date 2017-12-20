@@ -93,7 +93,7 @@ public class ReservationTest {
     @Test @Ignore // TODO Keep hacking until this passes
     public void runBuildSuccessfully() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
+        j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         // When I schedule a bunch of tasks on executor
         Label winLabel = Label.get("w2k12");
@@ -142,7 +142,7 @@ public class ReservationTest {
     @Test
     public void reflectChangesInWorkloadReported() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
+        j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         j.jenkins.doQuietDown(); // To keep the items in the queue
 

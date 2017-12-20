@@ -48,7 +48,7 @@ public abstract class ActionFailed extends RuntimeException {
         private final StatusLine statusLine;
 
         public RequestFailed(HttpRequestBase method, StatusLine statusLine, String body) {
-            super("Failed executing REST call " + method + ":\n" + body);
+            super("Executing REST call " + method + " failed with " + statusLine + ":\n" + body);
             this.statusLine = statusLine;
         }
 

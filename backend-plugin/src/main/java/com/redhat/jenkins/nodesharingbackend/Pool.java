@@ -76,7 +76,7 @@ public class Pool {
         return list.iterator().next();
     }
 
-    public @CheckForNull String getConfigEndpoint() {
+    public @CheckForNull String getConfigRepoUrl() {
         String property = System.getProperty(CONFIG_REPO_PROPERTY_NAME);
         if (property == null) {
             String msg = "Node sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
@@ -109,11 +109,11 @@ public class Pool {
         Queue.withLock(new Runnable() {
             @Override public void run() {
                 for (NodeDefinition nodeDefinition : nodes.values()) {
-                    SharedNode existing = (SharedNode) j.getNode(nodeDefinition.getName());
+                    ShareableNode existing = (ShareableNode) j.getNode(nodeDefinition.getName());
                     if (existing == null) {
                         // Add new ones
                         try {
-                            SharedNode node = SharedNode.get(nodeDefinition);
+                            ShareableNode node = new ShareableNode(nodeDefinition);
                             j.addNode(node);
                         } catch (Exception ex) {
                             // Continue with other changes - this will be reattempted
@@ -129,8 +129,8 @@ public class Pool {
 
         // Delete removed
         for (Node node : j.getNodes()) {
-            if (node instanceof SharedNode && !nodes.containsKey(node.getNodeName())) {
-                ((SharedNode) node).deleteWhenIdle();
+            if (node instanceof ShareableNode && !nodes.containsKey(node.getNodeName())) {
+                ((ShareableNode) node).deleteWhenIdle();
             }
         }
     }
@@ -154,7 +154,7 @@ public class Pool {
         @Override @VisibleForTesting
         public void doRun() throws Exception {
             Pool pool = Pool.getInstance();
-            String configEndpoint = pool.getConfigEndpoint();
+            String configEndpoint = pool.getConfigRepoUrl();
             if (configEndpoint == null) return;
 
             ConfigRepo repo = new ConfigRepo(configEndpoint, CONFIG_DIR);

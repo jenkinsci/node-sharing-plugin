@@ -63,7 +63,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                 label, launcher, strategy, nodeProperties);
         this.id = id;
         this.cloudName = id.getCloudName();
-        LOGGER.info("Instancing a new SharedNode: name='" + name + "', label='"
+        LOGGER.info("Instantiating a new SharedNode: name='" + name + "', label='"
                 + (label == null ? "<NULL>" : label) + "'");
     }
 
@@ -87,14 +87,16 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        LOGGER.info("Terminating the SharedNode: name='" + name + "'");
-
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
         }
 
-        SharedNodeCloud.addDisposableEvent(cloudName, name);
+        LOGGER.finer("Adding the host '" + name + "' to the disposable queue.");
+        SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
+        if (cloud != null) { // Might be deleted or using different config repo
+            cloud.getApi().returnNode(this);
+        }
     }
 
     @CheckForNull

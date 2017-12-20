@@ -39,7 +39,6 @@ import hudson.slaves.RetentionStrategy;
 import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -221,11 +220,11 @@ public class SharedNodeCloudTest {
         );
         RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
         assertThat(
-                rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, new NodeStatusRequest(
-                        Pool.getInstance().getConfigEndpoint(),
+                rest.executeRequest(rest.post("nodeStatus"), new NodeStatusRequest(
+                        Pool.getInstance().getConfigRepoUrl(),
                         "4.2",
                         nodeName
-                )).getStatus(),
+                ), NodeStatusResponse.class).getStatus(),
                 equalTo(nodeStatus)
         );
         assertThat(

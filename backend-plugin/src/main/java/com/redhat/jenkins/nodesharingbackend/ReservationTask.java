@@ -45,7 +45,7 @@ import java.util.Objects;
  * Phony queue task that simulates build execution on executor Jenkins.
  *
  * All requests to reserve a host are modeled as queue items so they are prioritized by Jenkins as well as and assigned
- * to {@link SharedComputer}s according to labels. Similarly, when computer is occupied by this task it means the host is
+ * to {@link ShareableComputer}s according to labels. Similarly, when computer is occupied by this task it means the host is
  * effectively reserved for executor Jenkins that has created this.
  *
  * @author ogondza.
@@ -142,11 +142,7 @@ public class ReservationTask extends AbstractQueueTask {
 
         @Override
         public void run() throws AsynchronousExecution {
-            Computer owner = Executor.currentExecutor().getOwner();
-            if (!(owner instanceof SharedComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
-
-            SharedComputer computer = (SharedComputer) owner;
-            System.out.println("Reserving " + owner.getName() + " for " + task.getName());
+            ShareableComputer computer = getExecutingComputer();
             Api.getInstance().utilizeNode(task.jenkins, computer.getNode());
             try {
                 done.block();
@@ -158,12 +154,16 @@ public class ReservationTask extends AbstractQueueTask {
             }
         }
 
-        public void complete(String owner) {
-            if (getParent().jenkins.getUrl().toExternalForm().equals(owner)) {
-                done.signal();
-                return;
-            }
-            throw new IllegalStateException("Computer not reserved for " + owner);
+
+        public @Nonnull ShareableComputer getExecutingComputer() {
+            Computer owner = Executor.currentExecutor().getOwner();
+            if (!(owner instanceof ShareableComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
+
+            return (ShareableComputer) owner;
+        }
+
+        public void complete() {
+            done.signal();
         }
     }
 }

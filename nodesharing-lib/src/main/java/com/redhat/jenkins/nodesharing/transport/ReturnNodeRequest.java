@@ -23,37 +23,37 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
-/**
- * @author ogondza.
- */
 public class ReturnNodeRequest extends ExecutorEntity {
     private final @Nonnull String nodeName;
-    @Nonnull private final Status status;
+    private final @Nonnull Status status;
+    private final @CheckForNull String message;
 
-    /**
-     * @param nodeName Name of the node to be returned.
-     * @param status
-     *      'OK' if the host was used successfully,
-     *      'FAILED' when executor failed to get the node onlin,
-     *      other values are ignored.
-     */
-    public ReturnNodeRequest(@Nonnull Fingerprint f, @Nonnull String nodeName, @Nonnull Status status) {
+    public ReturnNodeRequest(@Nonnull Fingerprint f, @Nonnull String nodeName, @Nonnull Status status, @CheckForNull String message) {
         super(f);
         this.nodeName = nodeName;
         this.status = status;
+        this.message = message;
     }
 
     public @Nonnull String getNodeName() {
         return nodeName;
     }
 
-    public Status getStatus() {
+    public @Nonnull Status getStatus() {
         return status;
     }
 
+    public @CheckForNull String getMessage() {
+        return message;
+    }
+
     public enum Status {
-        OK, FAILED;
+        /** When the host was used successfully. */
+        OK,
+        /** When executor failed to get the node online, */
+        FAILED
     }
 }

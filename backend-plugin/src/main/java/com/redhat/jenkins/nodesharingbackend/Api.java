@@ -51,10 +51,12 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -111,11 +113,11 @@ public class Api implements RootAction {
      * @param node Node to be reserved.
      * @return true is the client accepted the node, false otherwise.
      */
-    public boolean utilizeNode(@Nonnull ExecutorJenkins executor, @Nonnull SharedNode node) {
-        UtilizeNodeRequest request = new UtilizeNodeRequest(Pool.getInstance().getConfigEndpoint(), version, node.getNodeDefinition());
+    public boolean utilizeNode(@Nonnull ExecutorJenkins executor, @Nonnull ShareableNode node) {
+        UtilizeNodeRequest request = new UtilizeNodeRequest(Pool.getInstance().getConfigRepoUrl(), version, node.getNodeDefinition());
         RestEndpoint rest = executor.getRest();
         try {
-            rest.executeRequest(rest.post("utilizeNode"), UtilizeNodeResponse.class, request);
+            rest.executeRequest(rest.post("utilizeNode"), request, UtilizeNodeResponse.class);
             return true;
         } catch (ActionFailed.RequestFailed ex) {
             if (ex.getStatusCode() == HttpStatus.SC_GONE) {
@@ -141,7 +143,7 @@ public class Api implements RootAction {
     /**
      * Determine whether the host is still used by executor.
      *
-     * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
+     * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, ShareableNode)} was send and
      * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to be delivered for some
      * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
      * we can not rely on node-sharing API on Executor end.
@@ -150,7 +152,7 @@ public class Api implements RootAction {
      * @param node The node to query.
      * @return true if the computer is still connected there, false if we know it is not, null otherwise.
      */
-    public Boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
+    public Boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull ShareableNode node) {
         throw new UnsupportedOperationException();
     }
 
@@ -158,12 +160,12 @@ public class Api implements RootAction {
     public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
 
         NodeStatusRequest request = new NodeStatusRequest(
-                Pool.getInstance().getConfigEndpoint(),
+                Pool.getInstance().getConfigRepoUrl(),
                 version,
                 nodeName
         );
         RestEndpoint rest = jenkins.getRest();
-        NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, request);
+        NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), request, NodeStatusResponse.class);
         return nodeStatus.getStatus();
     }
 
@@ -201,7 +203,7 @@ public class Api implements RootAction {
                     .append(". ")
             ;
         }
-        String configEndpoint = pool.getConfigEndpoint();
+        String configEndpoint = pool.getConfigRepoUrl();
         if (!request.getConfigRepoUrl().equals(configEndpoint)) {
             diagnosisBuilder.append("Orchestrator is configured from ")
                     .append(request.getConfigRepoUrl())
@@ -264,7 +266,7 @@ public class Api implements RootAction {
         });
 
         String version = this.version;
-        new ReportWorkloadResponse(pool.getConfigEndpoint(), version).toOutputStream(rsp.getOutputStream());
+        new ReportWorkloadResponse(pool.getConfigRepoUrl(), version).toOutputStream(rsp.getOutputStream());
     }
 
     /**
@@ -274,18 +276,41 @@ public class Api implements RootAction {
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
         Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
-        if (!(c instanceof SharedComputer)) {
-            // TODO computer not reservable
+        if (c == null) {
+            LOGGER.info(
+                    "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + " that does not exists"
+            );
+            rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
+            rsp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        SharedComputer computer = (SharedComputer) c;
+
+        if (!(c instanceof ShareableComputer)) {
+            LOGGER.warning(
+                    "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + "that is not reservable"
+            );
+            rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
+            rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            return;
+        }
+
+        ShareableComputer computer = (ShareableComputer) c;
         ReservationTask.ReservationExecutable executable = computer.getReservation();
         if (executable == null) {
-            // TODO computer not reserved
+            rsp.setStatus(HttpServletResponse.SC_OK);
             return;
         }
-        // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(request.getExecutorName());
+
+        String ocr = Pool.getInstance().getConfigRepoUrl();
+        String ecr = request.getConfigRepoUrl();
+        if (!Objects.equals(ocr, ecr)) {
+            rsp.getWriter().println("Unable to return node - config repo mismatch " + ocr + " != " + ecr);
+            rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            return;
+        }
+
+        executable.complete();
         // TODO Report status
+        rsp.setStatus(HttpServletResponse.SC_OK);
     }
 }

@@ -54,38 +54,23 @@ import java.util.Collections;
  * @author ogondza.
  */
 @Restricted(NoExternalUse.class)
-public final class SharedNode extends Slave implements EphemeralNode {
+public final class ShareableNode extends Slave implements EphemeralNode {
     private static final long serialVersionUID = 1864241962205144748L;
 
     private final transient Object nodeSharingAttributesLock = new Object();
     @GuardedBy("nodeSharingAttributesLock")
     private @Nonnull NodeDefinition nodeDefinition;
 
-    /**
-     * Instantiate node based on its abstract definition.
-     *
-     * @param def Definition of the node.
-     * @return The node.
-     */
-    public static @Nonnull SharedNode get(NodeDefinition def) throws IOException, Descriptor.FormException {
-        if (!(def instanceof NodeDefinition.Xml)) {
-            throw new IllegalArgumentException("Unsupported node definition " + def.getClass().getName());
-        }
-
-        NodeDefinition.Xml d = ((NodeDefinition.Xml) def);
-        return new SharedNode(d);
-    }
-
-    /*package*/ SharedNode(@Nonnull NodeDefinition.Xml def) throws Descriptor.FormException, IOException {
+    public ShareableNode(@Nonnull NodeDefinition def) throws Descriptor.FormException, IOException {
         super(def.getName(), def.getName(), "/unused", 1, Mode.EXCLUSIVE, def.getLabel(), new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
         nodeDefinition = def;
     }
 
     @Override public Computer createComputer() {
-        return new SharedComputer(this);
+        return new ShareableComputer(this);
     }
 
-    @Override public SharedNode asNode() {
+    @Override public ShareableNode asNode() {
         return this;
     }
 
@@ -128,7 +113,7 @@ public final class SharedNode extends Slave implements EphemeralNode {
     }
 
     /**
-     * Delayed deletion promised by {@link SharedNode#deleteWhenIdle()}.
+     * Delayed deletion promised by {@link ShareableNode#deleteWhenIdle()}.
      */
     @Extension
     public static final class DanglingNodeDeleter extends PeriodicWork {
@@ -142,8 +127,8 @@ public final class SharedNode extends Slave implements EphemeralNode {
         @Override
         public void doRun() throws Exception {
             for (Node node : Jenkins.getInstance().getNodes()) {
-                if (node instanceof SharedNode && ((SharedNode) node).canBeDeleted()) {
-                    ((SharedNode) node).deleteWhenIdle();
+                if (node instanceof ShareableNode && ((ShareableNode) node).canBeDeleted()) {
+                    ((ShareableNode) node).deleteWhenIdle();
                 }
             }
         }
