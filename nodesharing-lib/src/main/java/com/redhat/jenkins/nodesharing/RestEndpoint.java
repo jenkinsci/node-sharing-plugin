@@ -80,6 +80,7 @@ public class RestEndpoint {
      * @param requestEntity Entity to be sent in request body.
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
+     * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
     public <T extends AbstractEntity> T executeRequest(
             @Nonnull HttpEntityEnclosingRequestBase method,
@@ -100,6 +101,7 @@ public class RestEndpoint {
      * @param returnType Type the response should be converted at.
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
+     * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
     public <T extends AbstractEntity> T executeRequest(
             @Nonnull HttpRequestBase method,

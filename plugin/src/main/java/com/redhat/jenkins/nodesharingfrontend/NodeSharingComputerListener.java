@@ -19,9 +19,9 @@ import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
  * Computer listener to cleanup after failed launches.
  */
 @Extension
-public class ForemanComputerListener extends ComputerListener {
+public class NodeSharingComputerListener extends ComputerListener {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanComputerListener.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(NodeSharingComputerListener.class.getName());
 
     @Override
     @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
@@ -56,9 +56,9 @@ public class ForemanComputerListener extends ComputerListener {
         if (c instanceof SharedComputer) {
             Node node = c.getNode();
             if (node instanceof SharedNode) {
-               SharedNodeCloud foremanCloud =
+               SharedNodeCloud cloud =
                        SharedNodeCloud.getByName(((SharedNode) node).getCloudName());
-               if (foremanCloud == null || !foremanCloud.isOperational()) {
+               if (cloud == null || !cloud.isOperational()) {
                    throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
                }
            }

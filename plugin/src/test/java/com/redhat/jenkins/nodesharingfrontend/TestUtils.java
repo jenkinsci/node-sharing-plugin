@@ -122,23 +122,4 @@ public final class TestUtils {
             }
         }
     }
-
-    /**
-     * Utility method for reading files.
-     * @param path path to file.
-     * @return contents of file.
-     */
-    public static String readFile(String path) {
-        try {
-            return Util.loadFile(
-                    new File(ForemanSharedNodeCloudTest.class.getResource(path).toURI()),
-                    Charset.forName("UTF-8")
-            );
-        } catch (IOException e) {
-            throw new Error(e);
-        } catch (URISyntaxException e) {
-            throw new Error(e);
-        }
-    }
-
 }

@@ -1,6 +1,0 @@
-{
-  "result": "ok",
-  "status": 200,
-  "version": "1.5.3",
-  "api_version": 2
-}

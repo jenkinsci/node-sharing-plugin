@@ -24,7 +24,7 @@ public class DiscoverTest {
 
     @Test
     public void responseRoundtrip() throws Exception {
-        NodeDefinition node = new NodeDefinition() {
+        NodeDefinition node = new NodeDefinition("foo.xml", "<definition/>") {
             @Override public String getName() {
                 return "fake-name";
             }

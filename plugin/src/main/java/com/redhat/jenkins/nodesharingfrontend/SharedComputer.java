@@ -21,7 +21,7 @@ import org.kohsuke.stapler.StaplerResponse;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * Foreman Cloud Computer.
+ * Node Sharing Computer.
  */
 public class SharedComputer extends AbstractCloudComputer<SharedNode> implements TrackedItem {
 
@@ -35,7 +35,7 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
     }
 
     /**
-     * Utility method to terminate a Foreman shared node.
+     * Utility method to terminate a shared node.
      *
      * @param c The {@link Computer}
      * @throws IOException if occurs.
@@ -69,11 +69,6 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
         terminateComputer(this);
     }
 
-    /**
-     * Default constructor.
-     *
-     * @param slave Foreman slave {@link SharedNode}.
-     */
     public SharedComputer(SharedNode slave) {
         super(slave);
         LOGGER.fine("Instancing a new SharedComputer: name='" + slave.getNodeName() + "'");

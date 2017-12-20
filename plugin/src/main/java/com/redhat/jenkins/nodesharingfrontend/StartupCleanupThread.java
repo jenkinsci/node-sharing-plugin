@@ -1,19 +1,9 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
-import hudson.Util;
-import hudson.model.Computer;
 import hudson.model.listeners.ItemListener;
-import hudson.slaves.Cloud;
 import hudson.util.OneShotEvent;
-import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
-import org.jenkinsci.plugins.resourcedisposer.Disposable;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -30,7 +20,7 @@ public final class StartupCleanupThread {
 //        LOGGER.finer("[START] StartupCleanupThread.onCompleted()");
 //
 //        // Make the time consuming operation in the separate thread to not block other listeners
-//        new Thread("ForemanStartCleanupThread") {
+//        new Thread("NodeSharingStartCleanupThread") {
 //            @Override
 //            public void run() {
 //                runCleanup();
