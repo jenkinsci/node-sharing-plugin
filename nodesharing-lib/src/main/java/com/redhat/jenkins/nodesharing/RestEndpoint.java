@@ -204,7 +204,7 @@ public class RestEndpoint {
             return -1;
         }
 
-        @Override public InputStream getContent() throws IOException, UnsupportedOperationException {
+        @Override public InputStream getContent() throws IOException {
             throw new UnsupportedOperationException(
                     "We should not need this as presumably this is used for receiving entities only"
             );

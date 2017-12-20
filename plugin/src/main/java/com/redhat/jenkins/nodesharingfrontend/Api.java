@@ -225,26 +225,10 @@ public class Api {
 
     /**
      * Immediately return node to orchestrator. (Nice to have feature)
-     *
-     * @param name Name of the node to be returned.
      */
+    // TODO rename not to be confused with executor->orchestrator call named 'returnNode'
     @RequirePOST
-    public void doReturnNode(@Nonnull @QueryParameter("name") final String name) {
+    public void doReturnNode() {
         throw new UnsupportedOperationException("TODO");
-/*
-        Computer c = Jenkins.getInstance().getComputer(name);
-        if (!(c instanceof SharedComputer)) {
-            // TODO computer not reservable
-            return;
-        }
-        SharedComputer computer = (SharedComputer) c;
-        ReservationTask.ReservationExecutable executable = computer.getReservation();
-        if (executable == null) {
-            // TODO computer not reserved
-            return;
-        }
-        // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(owner, state);
-*/
     }
 }
