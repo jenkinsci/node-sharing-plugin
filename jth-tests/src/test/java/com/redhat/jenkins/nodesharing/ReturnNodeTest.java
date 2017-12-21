@@ -109,6 +109,7 @@ public class ReturnNodeTest {
         );
         cloud.getApi().returnNode(shared);
         reservationFuture.get(1, TimeUnit.SECONDS);
+        Thread.sleep(500);
 
         assertTrue(j.jenkins.getComputer(shareableNode.getNodeName()).isIdle());
     }
