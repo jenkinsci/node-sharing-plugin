@@ -129,14 +129,14 @@ public class Api {
     public void returnNode(@Nonnull SharedNode node) {
         Computer computer = node.toComputer();
         String offlineCause = null;
-        if (computer != null) {
+        if (computer != null && computer.getOfflineCause() != null) {
             offlineCause = computer.getOfflineCause().toString();
         }
         final ReturnNodeRequest.Status status = offlineCause == null
                 ? ReturnNodeRequest.Status.OK
                 : ReturnNodeRequest.Status.FAILED
         ;
-        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getNodeName(), status, offlineCause);
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getId().getNodeName(), status, offlineCause);
 
         final HttpPost method = rest.post("returnNode");
         rest.executeRequest(method, request, new ResponseHandler<Void>() {

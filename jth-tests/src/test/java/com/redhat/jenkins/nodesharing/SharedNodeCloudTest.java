@@ -160,17 +160,17 @@ public class SharedNodeCloudTest {
         checkNodeStatus(cloud, "foo", NodeStatusResponse.Status.NOT_FOUND);
 
         // IDLE status
-        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isIdle());
-        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.IDLE);
+        assertTrue(j.jenkins.getComputer("solaris1.acme.com").isIdle());
+        checkNodeStatus(cloud, "solaris1.acme.com", NodeStatusResponse.Status.IDLE);
 
         // still IDLE status although offline
-        j.jenkins.getComputer("solaris1.orchestrator").setTemporarilyOffline(true);
-        j.jenkins.getComputer("solaris1.orchestrator").waitUntilOffline();
-        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOffline());
-        checkNodeStatus(cloud, "solaris1.orchestrator", NodeStatusResponse.Status.IDLE);
-        j.jenkins.getComputer("solaris1.orchestrator").setTemporarilyOffline(false);
-        j.jenkins.getComputer("solaris1.orchestrator").waitUntilOnline();
-        assertTrue(j.jenkins.getComputer("solaris1.orchestrator").isOnline());
+        j.jenkins.getComputer("solaris1.acme.com").setTemporarilyOffline(true);
+        j.jenkins.getComputer("solaris1.acme.com").waitUntilOffline();
+        assertTrue(j.jenkins.getComputer("solaris1.acme.com").isOffline());
+        checkNodeStatus(cloud, "solaris1.acme.com", NodeStatusResponse.Status.IDLE);
+        j.jenkins.getComputer("solaris1.acme.com").setTemporarilyOffline(false);
+        j.jenkins.getComputer("solaris1.acme.com").waitUntilOnline();
+        assertTrue(j.jenkins.getComputer("solaris1.acme.com").isOnline());
 
         // BUSY status
         DumbSlave slave = j.createSlave("aNode", "", null);

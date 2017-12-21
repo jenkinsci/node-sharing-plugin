@@ -120,22 +120,22 @@ public class ReservationTest {
         assertFalse(scheduledSolarisRun.isDone());
 
         // They start occupying real computers or they stay in the queue
-        assertEquals(solarisLabel, j.getComputer("solaris1.executor.com").getReservation().getParent().getAssignedLabel());
-        assertEquals(winLabel, j.getComputer("win1.executor.com").getReservation().getParent().getAssignedLabel());
-        assertNull(j.getComputer("win2.executor.com").getReservation());
+        assertEquals(solarisLabel, j.getComputer("solaris1.acme.com").getReservation().getParent().getAssignedLabel());
+        assertEquals(winLabel, j.getComputer("win1.acme.com").getReservation().getParent().getAssignedLabel());
+        assertNull(j.getComputer("win2.acme.com").getReservation());
         assertFalse(scheduledSolarisRun.isDone());
 
         winBuilder.end.signal();
         j.assertBuildStatusSuccess(winJob.getBuildByNumber(1));
-        assertNull(j.getComputer("win1.executor.com").getReservation());
-        assertNull(j.getComputer("win2.executor.com").getReservation());
+        assertNull(j.getComputer("win1.acme.com").getReservation());
+        assertNull(j.getComputer("win2.acme.com").getReservation());
 
         // When first solaris task completes
         solarisBuilder.end.signal();
         j.assertBuildStatusSuccess(solarisJob.getBuildByNumber(1));
         scheduledSolarisRun.get();
         assertTrue("Blocked task should resume", scheduledSolarisRun.isDone());
-        assertNotNull(j.getComputer("solaris1.executor.com").getReservation());
+        assertNotNull(j.getComputer("solaris1.acme.com").getReservation());
     }
 
     @Test

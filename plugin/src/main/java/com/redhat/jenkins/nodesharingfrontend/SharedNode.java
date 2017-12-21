@@ -55,7 +55,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
             RetentionStrategy<AbstractCloudComputer> strategy,
             List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
         //CS IGNORE check FOR NEXT 3 LINES. REASON: necessary inline conditional in super().
-        super(id.getNodeName(), "", remoteFS, NUM_EXECUTORS,
+        super(id.getNodeName() + '.' + id.getCloudName(), "", remoteFS, NUM_EXECUTORS,
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
         this.id = id;

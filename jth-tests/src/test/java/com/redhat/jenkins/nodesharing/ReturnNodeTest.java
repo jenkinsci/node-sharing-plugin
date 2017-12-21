@@ -69,9 +69,10 @@ public class ReturnNodeTest {
 
         // Removing node of different type is an error
         DumbSlave slave = j.createOnlineSlave();
-        foo = new SharedNode(
-                new ProvisioningActivity.Id("c", "t", slave.getNodeName()), "", "", null, null, Collections.<NodeProperty<?>>emptyList()
-        );
+        j.jenkins.removeNode(slave);
+        slave.setNodeName("foo");
+        j.jenkins.addNode(slave);
+
         try {
             cloud.getApi().returnNode(foo);
             fail();

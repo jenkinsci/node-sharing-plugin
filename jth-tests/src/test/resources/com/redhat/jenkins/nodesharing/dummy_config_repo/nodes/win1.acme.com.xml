@@ -1,5 +1,5 @@
 <com.redhat.foreman.ForemanSharedNode>
-  <name>win1.executor.com</name>
+  <name>win1.acme.com</name>
   <description/>
   <remoteFS>W:\\</remoteFS>
   <numExecutors>1</numExecutors>
