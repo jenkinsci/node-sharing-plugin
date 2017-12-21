@@ -103,6 +103,8 @@ public class ConfigRepo {
             }
         } catch (IOException|GitException ex) {
             taskLog.error(ex, "Unable to update config repo from %s", url);
+        } finally {
+            taskLog.close();
         }
 
         taskLog.throwIfFailed("Unable to read snapshot from " + url);

@@ -28,6 +28,7 @@ import hudson.console.AnnotatedLargeText;
 import hudson.util.StreamTaskListener;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -38,9 +39,12 @@ import java.nio.charset.Charset;
  *
  * @author ogondza.
  */
-public class TaskLog extends StreamTaskListener {
+public class TaskLog extends StreamTaskListener implements AutoCloseable, Closeable {
+    private static final long serialVersionUID = 1576021666075069316L;
+
     private final File target;
     private boolean failed = false;
+    private volatile boolean completed = false;
 
     public TaskLog(File out) throws IOException {
         super(out);
@@ -60,7 +64,7 @@ public class TaskLog extends StreamTaskListener {
     }
 
     public AnnotatedLargeText<TaskLog> getAnnotatedText() {
-        return new AnnotatedLargeText<TaskLog>(target, Charset.defaultCharset(), false /*TODO*/, this);
+        return new AnnotatedLargeText<TaskLog>(target, Charset.defaultCharset(), completed, this);
     }
 
     public void println(String msg) {
@@ -96,6 +100,11 @@ public class TaskLog extends StreamTaskListener {
     @Override public PrintWriter fatalError(String format, Object... args) {
         failed = true;
         return super.fatalError(format, args);
+    }
+
+    @Override public void close() throws IOException {
+        this.completed = true;
+        super.close();
     }
 
     /**
