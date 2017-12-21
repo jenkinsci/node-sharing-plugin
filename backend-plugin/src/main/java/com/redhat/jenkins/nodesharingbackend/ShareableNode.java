@@ -174,8 +174,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     public static final class NoopLauncher extends ComputerLauncher {
         @Override
         public boolean isLaunchSupported() {
-            // TODO: is this desirable? We want it launched once and never relaunched
-            return true;
+            return false;
         }
 
         @Override
