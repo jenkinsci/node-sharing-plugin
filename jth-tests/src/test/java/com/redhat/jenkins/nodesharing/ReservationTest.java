@@ -53,6 +53,7 @@ import java.util.concurrent.Future;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -155,10 +156,12 @@ public class ReservationTest {
 
         QueueTaskFuture<FreeStyleBuild> removeFuture = remove.scheduleBuild2(0);
         keep.scheduleBuild2(0);
-        Thread.sleep(500); // Wait for executor items to become buildable
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
-        for (int i = 0; i < 3; i++) { // The same can be sent repeatedly without changing the queue
+        // The same can be sent repeatedly without changing the queue
+        for (int i = 0; i < 3; i++) {
             j.reportWorkloadToOrchestrator();
+            j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
             List<ReservationTask> scheduledReservations = j.getScheduledReservations();
             assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
@@ -174,9 +177,10 @@ public class ReservationTest {
 
         removeFuture.cancel(true);
         introduce.scheduleBuild2(0);
-        Thread.sleep(500); // Wait for executor items to become buildable
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
         j.reportWorkloadToOrchestrator();
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
         List<ReservationTask> scheduledReservations = j.getScheduledReservations();
         assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
