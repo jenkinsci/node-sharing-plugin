@@ -104,7 +104,7 @@ public class Api {
     /**
      * Put the queue items to Orchestrator
      */
-    // TODO Response never used as there is likely nothing to report - consider async request
+    // Response never used as there is likely nothing to report - async request candidate
     public void reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
         rest.executeRequest(rest.post("reportWorkload"), request, ReportWorkloadResponse.class);
