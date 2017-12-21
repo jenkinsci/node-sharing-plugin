@@ -326,33 +326,4 @@ public class PoolTest {
         assertThat(reportWorkload.statusLine.getStatusCode(), equalTo(HttpServletResponse.SC_NOT_IMPLEMENTED));
         assertThat(reportWorkload.payload, containsString("No config snapshot loaded from "));
     }
-
-    @Test @Ignore
-    public void ui() throws Exception {
-        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
-        Timer.get().schedule(new Runnable() {
-            private final Random rand = new Random();
-            @Override public void run() {
-                List<String> owners = Arrays.asList("https://a.com", "https://b.org", "http://10.8.0.14");
-                List<String> labels = Arrays.asList("soalris11", "windows", "sparc", "w2k16");
-                for (;;) {
-                    String ownerUrl = owners.get(rand.nextInt(owners.size()));
-                    String ownerName = ownerUrl.replaceAll("\\W", "");
-                    String label = labels.get(rand.nextInt(labels.size()));
-                    new ReservationTask(
-                            new ExecutorJenkins(ownerUrl, ownerName, ""),
-                            Label.get(label),
-                            ownerName + "-" + label
-                    ).schedule();
-                    System.out.println('.');
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                }
-            }
-        }, 0, TimeUnit.SECONDS);
-        j.interactiveBreak();
-    }
 }

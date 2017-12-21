@@ -139,8 +139,16 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
+    public void doDelete() { // Override delete.jelly
+        throw HttpResponses.status(SC_BAD_REQUEST);
+    }
+
     @Override
     public void doConfigSubmit(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException, Descriptor.FormException {
+        throw HttpResponses.status(SC_BAD_REQUEST);
+    }
+
+    public void doConfigure() { // Override configure.jelly
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
