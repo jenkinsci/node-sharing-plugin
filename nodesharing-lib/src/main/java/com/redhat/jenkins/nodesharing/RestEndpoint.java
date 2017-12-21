@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
@@ -32,7 +33,6 @@ import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -47,6 +47,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -115,19 +116,34 @@ public class RestEndpoint {
         return _executeRequest(method, handler);
     }
 
+    @VisibleForTesting
+    public <T> T executeRequest(
+            @Nonnull HttpEntityEnclosingRequestBase method,
+            @Nonnull ResponseHandler<T> handler
+    ) throws ActionFailed {
+        method.addHeader(getCrumbHeader());
+        return _executeRequest(method, handler);
+    }
+
     @CheckForNull
     private <T> T _executeRequest(
             @Nonnull HttpRequestBase method,
             @Nonnull ResponseHandler<T> handler
     ) {
-        CloseableHttpClient client = HttpClients.createSystem();
         if (handler instanceof DefaultResponseHandler) {
             ((DefaultResponseHandler) handler).method = method;
         }
+        CloseableHttpClient client = HttpClients.createSystem();
         try {
             return client.execute(method, handler);
         } catch (IOException e) {
             throw new ActionFailed.CommunicationError("Failed executing REST call: " + method, e);
+        } finally {
+            try {
+                client.close();
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e);
+            }
         }
     }
 
@@ -143,6 +159,13 @@ public class RestEndpoint {
         }
         assert crumbResponse != null;
         return new BasicHeader(crumbResponse.getCrumbRequestField(), crumbResponse.getCrumb());
+    }
+
+    @VisibleForTesting
+    public static String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
+        try (InputStream is = response.getEntity().getContent()) {
+            return IOUtils.toString(is);
+        }
     }
 
     /**
@@ -162,13 +185,11 @@ public class RestEndpoint {
             // Check exit code
             int statusCode = response.getStatusLine().getStatusCode();
             if (isCodeValid(statusCode)) {
-                try (InputStream is = response.getEntity().getContent()) {
-                    ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
-                            method, response.getStatusLine(), IOUtils.toString(is)
-                    );
-                    LOGGER.info(requestFailed.getMessage());
-                    throw requestFailed;
-                }
+                ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
+                        method, response.getStatusLine(), getPayloadAsString(response)
+                );
+                LOGGER.info(requestFailed.getMessage());
+                throw requestFailed;
             }
 
             return consumeRequest(response);

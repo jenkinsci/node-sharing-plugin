@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharingbackend;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
@@ -66,7 +67,6 @@ import java.util.logging.Logger;
 @Extension
 @Restricted(NoExternalUse.class)
 // TODO Check permission
-// TODO Fail fast if there is no ConfigRepo.Snapshot - Broken orchestrator
 public class Api implements RootAction {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
@@ -141,12 +141,12 @@ public class Api implements RootAction {
     }
 
     /**
-     * Determine whether the host is still used by executor.
+     * Determine whether the host is still used by particular executor.
      *
      * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, ShareableNode)} was send and
-     * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to be delivered for some
-     * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
-     * we can not rely on node-sharing API on Executor end.
+     * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to
+     * be delivered for some reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or
+     * plugin was uninstalled so we can not rely on node-sharing API on Executor end.
      *
      * @param owner Jenkins instance to query.
      * @param node The node to query.
@@ -184,12 +184,14 @@ public class Api implements RootAction {
     //// Incoming
 
     /**
-     * Dummy request to test the connection/compatibility.
+     * Initial request to test the connection/compatibility.
      */
     @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
-        DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
         Pool pool = Pool.getInstance();
+        Collection<NodeDefinition> nodes = pool.getConfig().getNodes().values(); // Fail early when there is no config
+
+        DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
 
         String version = this.version;
 
@@ -214,9 +216,7 @@ public class Api implements RootAction {
         }
 
         String diagnosis = diagnosisBuilder.toString();
-        DiscoverResponse response = new DiscoverResponse(
-                configEndpoint, version, diagnosis, pool.getConfig().getNodes().values()
-        );
+        DiscoverResponse response = new DiscoverResponse(configEndpoint, version, diagnosis, nodes);
 
         rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());
@@ -230,10 +230,10 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
-
         Pool pool = Pool.getInstance();
-        final ConfigRepo.Snapshot config = pool.getConfig();
+        final ConfigRepo.Snapshot config = pool.getConfig(); // Fail early when there is no config
+
+        final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
 
         final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
         final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
@@ -247,7 +247,7 @@ public class Api implements RootAction {
                 Queue queue = Jenkins.getActiveInstance().getQueue();
                 for (Queue.Item item : queue.getItems()) {
                     if (item.task instanceof ReservationTask) {
-                        // Cancel items executor is no longer interested in and keep in those it is
+                        // Cancel items executor is no longer interested in and keep those it cares for
                         if (!reportedTasks.contains(item.task)) {
                             queue.cancel(item);
                         }
@@ -255,10 +255,9 @@ public class Api implements RootAction {
                     }
                 }
 
-                // Add new tasks
-                // TODO these might have been reported just before the build started the execution on Executor so
-                // now the ReservationTask might be executing on even completed on orchestrator. Adding it to queue is
-                // not desirable even though the grid should be able to recover.
+                // These might have been reported just before the build started the execution on Executor so now the
+                // ReservationTask might be executing or even completed on executor, though there is no way for orchestrator
+                // to know. This situation will be handled by executor rejecting the `utilizeNode` call.
                 for (ReservationTask newTask : reportedTasks) {
                     queue.schedule2(newTask, 0);
                 }
@@ -274,7 +273,15 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
+        String ecr = request.getConfigRepoUrl();
+        if (!Objects.equals(ocr, ecr)) {
+            rsp.getWriter().println("Unable to return node - config repo mismatch " + ocr + " != " + ecr);
+            rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            return;
+        }
+
         Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
         if (c == null) {
             LOGGER.info(
@@ -298,14 +305,6 @@ public class Api implements RootAction {
         ReservationTask.ReservationExecutable executable = computer.getReservation();
         if (executable == null) {
             rsp.setStatus(HttpServletResponse.SC_OK);
-            return;
-        }
-
-        String ocr = Pool.getInstance().getConfigRepoUrl();
-        String ecr = request.getConfigRepoUrl();
-        if (!Objects.equals(ocr, ecr)) {
-            rsp.getWriter().println("Unable to return node - config repo mismatch " + ocr + " != " + ecr);
-            rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
             return;
         }
 

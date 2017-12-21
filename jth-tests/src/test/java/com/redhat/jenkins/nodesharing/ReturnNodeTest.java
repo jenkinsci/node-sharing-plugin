@@ -80,7 +80,7 @@ public class ReturnNodeTest {
         }
 
         // Node is free
-        ShareableNode shareableNode = getShareableNode();
+        ShareableNode shareableNode = new ShareableNode(Pool.getInstance().getConfig().getNodes().values().iterator().next());
         j.jenkins.addNode(shareableNode);
         foo = new SharedNode(
                 new ProvisioningActivity.Id("c", "t", shareableNode.getNodeName()), "", "", null, null, Collections.<NodeProperty<?>>emptyList()
@@ -111,17 +111,5 @@ public class ReturnNodeTest {
         reservationFuture.get(1, TimeUnit.SECONDS);
 
         assertTrue(j.jenkins.getComputer(shareableNode.getNodeName()).isIdle());
-    }
-
-    private @Nonnull ShareableNode getShareableNode() throws Descriptor.FormException, IOException {
-        return new ShareableNode(new NodeDefinition("a.xml", "<definition/>") {
-            @Override public String getName() {
-                return "shareable";
-            }
-
-            @Nonnull @Override public String getLabel() {
-                return "sharable";
-            }
-        });
     }
 }

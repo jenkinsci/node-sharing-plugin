@@ -46,7 +46,6 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;

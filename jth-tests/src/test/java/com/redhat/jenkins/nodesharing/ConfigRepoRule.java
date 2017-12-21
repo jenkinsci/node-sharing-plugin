@@ -24,7 +24,6 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.EnvVars;
-import hudson.FilePath;
 import hudson.Util;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;

@@ -38,10 +38,15 @@ import hudson.model.Queue;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -71,26 +76,28 @@ public class Pool {
     private @CheckForNull ConfigRepo.Snapshot config = null;
 
     public static @Nonnull Pool getInstance() {
-        ExtensionList<Pool> list = Jenkins.getInstance().getExtensionList(Pool.class);
+        ExtensionList<Pool> list = Jenkins.getActiveInstance().getExtensionList(Pool.class);
         assert list.size() == 1;
         return list.iterator().next();
     }
 
-    public @CheckForNull String getConfigRepoUrl() {
+    public @Nonnull String getConfigRepoUrl() throws PoolMisconfigured {
         String property = System.getProperty(CONFIG_REPO_PROPERTY_NAME);
         if (property == null) {
             String msg = "Node sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
+            throw new PoolMisconfigured(msg);
         }
         return property;
     }
 
     public Pool() {}
 
-    @VisibleForTesting
-    public @CheckForNull ConfigRepo.Snapshot getConfig() {
+    public @Nonnull ConfigRepo.Snapshot getConfig() {
         synchronized (configLock) {
-            return config;
+            if (config != null) return config;
+            String configRepoUrl = getConfigRepoUrl();// Rise more specific exception if the problem is missing config property
+            throw new PoolMisconfigured("No config snapshot loaded from " + configRepoUrl);
         }
     }
 
@@ -102,7 +109,6 @@ public class Pool {
         updateNodes(config.getNodes());
     }
 
-    // TODO Queue.withLock?
     private void updateNodes(final Map<String, NodeDefinition> nodes) {
         final Jenkins j = Jenkins.getActiveInstance();
         // Use queue lock so pool changes appear atomic from perspective of Queue#maintian and Api#doReportWorkload
@@ -141,7 +147,7 @@ public class Pool {
         private static final File CONFIG_DIR = new File(WORK_DIR, "config");
 
         public static @Nonnull Updater getInstance() {
-            ExtensionList<Updater> list = Jenkins.getInstance().getExtensionList(Updater.class);
+            ExtensionList<Updater> list = Jenkins.getActiveInstance().getExtensionList(Updater.class);
             assert list.size() == 1;
             return list.iterator().next();
         }
@@ -154,8 +160,12 @@ public class Pool {
         @Override @VisibleForTesting
         public void doRun() throws Exception {
             Pool pool = Pool.getInstance();
-            String configEndpoint = pool.getConfigRepoUrl();
-            if (configEndpoint == null) return;
+            String configEndpoint;
+            try {
+                configEndpoint = pool.getConfigRepoUrl();
+            } catch (PoolMisconfigured ex) {
+                return;
+            }
 
             ConfigRepo repo = new ConfigRepo(configEndpoint, CONFIG_DIR);
 
@@ -165,6 +175,19 @@ public class Pool {
             } catch (IOException | TaskLog.TaskFailed ex) {
                 Pool.ADMIN_MONITOR.report(MONITOR_CONTEXT, ex);
             }
+        }
+    }
+
+    public static final class PoolMisconfigured extends RuntimeException implements HttpResponse {
+        private static final long serialVersionUID = -4744633341873004987L;
+
+        private PoolMisconfigured(String message) {
+            super(message);
+        }
+
+        @Override
+        public void generateResponse(StaplerRequest req, StaplerResponse rsp, Object node) throws IOException, ServletException {
+            rsp.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, getMessage());
         }
     }
 }
