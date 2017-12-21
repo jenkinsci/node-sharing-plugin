@@ -47,7 +47,7 @@ public class TaskLog extends StreamTaskListener implements AutoCloseable, Closea
     private volatile boolean completed = false;
 
     public TaskLog(File out) throws IOException {
-        super(out);
+        super(out, Charset.defaultCharset());
         target = out;
     }
 

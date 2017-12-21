@@ -105,7 +105,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         }
 
         try {
-            Jenkins j = Jenkins.getInstance();
+            Jenkins j = Jenkins.getActiveInstance();
             j.removeNode(this);
         } catch (IOException e) {
             // delay as if not idle
@@ -126,7 +126,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         @VisibleForTesting
         @Override
         public void doRun() throws Exception {
-            for (Node node : Jenkins.getInstance().getNodes()) {
+            for (Node node : Jenkins.getActiveInstance().getNodes()) {
                 if (node instanceof ShareableNode && ((ShareableNode) node).canBeDeleted()) {
                     ((ShareableNode) node).deleteWhenIdle();
                 }

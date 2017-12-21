@@ -11,6 +11,7 @@ import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -51,6 +52,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -251,17 +254,17 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(nodeName);
-        if (node != null) {
+        Computer computer = Jenkins.getActiveInstance().getComputer(nodeName);
+        if (computer != null) {
             status = NodeStatusResponse.Status.FOUND;
-            if (node.toComputer().isIdle() && !node.toComputer().isConnecting()) {
+            if (computer.isIdle() && !computer.isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
-            } else if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+            } else if (computer.isOffline() && !computer.isIdle()) {
                 // Offline but BUSY
                 status = NodeStatusResponse.Status.OFFLINE;
-            } else if (!node.toComputer().isIdle()) {
+            } else if (!computer.isIdle()) {
                 status = NodeStatusResponse.Status.BUSY;
-            } else  if (node.toComputer().isConnecting()) {
+            } else  if (computer.isConnecting()) {
                 status = NodeStatusResponse.Status.CONNECTING;
             }
         }
@@ -322,13 +325,10 @@ public class SharedNodeCloud extends Cloud {
      * @return a Shared node cloud or null if not found.
      */
     @CheckForNull
-//    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public static SharedNodeCloud getByName(@Nonnull final String name) throws IllegalArgumentException {
-        if (name != null && Jenkins.getInstance().clouds != null) {
-            Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
-            if (cloud instanceof SharedNodeCloud) {
-                return (SharedNodeCloud) cloud;
-            }
+        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
+        if (cloud instanceof SharedNodeCloud) {
+            return (SharedNodeCloud) cloud;
         }
         return null;
     }
@@ -360,14 +360,10 @@ public class SharedNodeCloud extends Cloud {
     public static class DescriptorImpl extends Descriptor<Cloud> {
         @Override
         public String getDisplayName() {
-            return "Shared Node";
+            return "Shared Nodes";
         }
 
-        /**
-         * Fill SSH credentials.
-         *
-         * @return list of creds.
-         */
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillCredentialsIdItems() {
             return new StandardListBoxModel()
                     .withMatching(anyOf(
@@ -383,6 +379,7 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
+        @Restricted(DoNotUse.class)
         public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl) throws Exception {
             try {
                 new URI(configRepoUrl);
@@ -403,7 +400,7 @@ public class SharedNodeCloud extends Cloud {
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(discover.getVersion()) + "<strong>");
             } catch (TaskLog.TaskFailed e) {
                 ByteArrayOutputStream bout = new ByteArrayOutputStream();
-                try (OutputStreamWriter writer = new OutputStreamWriter(bout)) {
+                try (OutputStreamWriter writer = new OutputStreamWriter(bout, Charset.defaultCharset())) {
                     writer.write("<pre>");
                     e.getLog().getAnnotatedText().writeHtmlTo(0, writer);
                     writer.write("</pre>");

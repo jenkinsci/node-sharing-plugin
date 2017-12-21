@@ -107,6 +107,7 @@ public class ConfigRepo {
         }
 
         taskLog.throwIfFailed("Unable to read snapshot from " + url);
+        assert snapshot != null;
         return snapshot;
     }
 

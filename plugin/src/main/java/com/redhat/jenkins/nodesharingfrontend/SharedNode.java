@@ -17,7 +17,6 @@ import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
@@ -34,8 +33,6 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     private static final long serialVersionUID = -3284884519464420953L;
 
-    @Deprecated // TODO Use id instead,
-    private String cloudName;
     private ProvisioningActivity.Id id;
 
     /**
@@ -62,7 +59,6 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
         this.id = id;
-        this.cloudName = id.getCloudName();
         LOGGER.info("Instantiating a new SharedNode: name='" + name + "', label='"
                 + (label == null ? "<NULL>" : label) + "'");
     }
@@ -99,9 +95,8 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         }
     }
 
-    @CheckForNull
-    public String getCloudName() {
-        return cloudName;
+    public @Nonnull String getCloudName() {
+        return id.getCloudName();
     }
 
     @Override

@@ -143,7 +143,9 @@ public class ReservationTask extends AbstractQueueTask {
         @Override
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
-            Api.getInstance().utilizeNode(task.jenkins, computer.getNode());
+            ShareableNode node = computer.getNode();
+            if (node == null) throw new AssertionError();
+            Api.getInstance().utilizeNode(task.jenkins, node);
             try {
                 done.block();
                 System.out.println("Task completed");
@@ -156,7 +158,9 @@ public class ReservationTask extends AbstractQueueTask {
 
 
         public @Nonnull ShareableComputer getExecutingComputer() {
-            Computer owner = Executor.currentExecutor().getOwner();
+            Executor executor = Executor.currentExecutor();
+            if (executor == null) throw new AssertionError();
+            Computer owner = executor.getOwner();
             if (!(owner instanceof ShareableComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
 
             return (ShareableComputer) owner;

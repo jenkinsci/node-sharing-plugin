@@ -54,6 +54,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -78,7 +79,7 @@ public class Api {
 
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
-               @Nonnull final SharedNodeCloud cloud
+               @CheckForNull final SharedNodeCloud cloud
     ) {
         this.cloud = cloud;
 
