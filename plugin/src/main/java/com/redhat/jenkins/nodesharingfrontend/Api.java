@@ -46,13 +46,10 @@ import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpPost;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -103,38 +100,6 @@ public class Api {
     }
 
     //// Outgoing
-
-    /**
-     * Query Executor Jenkins to report the status of shared node.
-     */
-    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-    public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), NodeStatusRequest.class);
-        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
-        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        if (nodeName != null)
-            status = cloud.getNodeStatus(request.getNodeName());
-        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
-        rsp.setContentType("application/json");
-        response.toOutputStream(rsp.getOutputStream());
-    }
-
-//    /**
-//     * Query Executor Jenkins to report the status of executed item.
-//     */
-//    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-//    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-//        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-//                req.getInputStream(), RunStatusRequest.class);
-//        RunStatusResponse response = new RunStatusResponse(
-//                fingerprint,
-//                request.getRunId(),
-//                cloud.getRunStatus(request.getRunId())
-//        );
-//        rsp.setContentType("application/json");
-//        response.toOutputStream(rsp.getOutputStream());
-//    }
 
     /**
      * Put the queue items to Orchestrator
@@ -222,6 +187,38 @@ public class Api {
         // Reject otherwise
         rsp.setStatus(HttpServletResponse.SC_GONE);
     }
+
+    /**
+     * Query Executor Jenkins to report the status of shared node.
+     */
+    @RequirePOST
+    public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+                req.getInputStream(), NodeStatusRequest.class);
+        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
+        if (nodeName != null)
+            status = cloud.getNodeStatus(request.getNodeName());
+        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
+    }
+
+//    /**
+//     * Query Executor Jenkins to report the status of executed item.
+//     */
+//    @RequirePOST
+//    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+//        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+//                req.getInputStream(), RunStatusRequest.class);
+//        RunStatusResponse response = new RunStatusResponse(
+//                fingerprint,
+//                request.getRunId(),
+//                cloud.getRunStatus(request.getRunId())
+//        );
+//        rsp.setContentType("application/json");
+//        response.toOutputStream(rsp.getOutputStream());
+//    }
 
     /**
      * Immediately return node to orchestrator. (Nice to have feature)

@@ -144,7 +144,6 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         return c == null || (c.getOfflineCause() == PENDING_DELETION && c.isIdle());
     }
 
-    // TODO proper cause
     private static final OfflineCause PENDING_DELETION= new OfflineCause.UserCause(
             User.getUnknown(), "Node is pending deletion"
     );
