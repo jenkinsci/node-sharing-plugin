@@ -31,7 +31,6 @@ import com.redhat.jenkins.nodesharing.transport.Entity;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
@@ -92,7 +91,7 @@ public class RestEndpoint {
     ) throws ActionFailed {
         method.addHeader(getCrumbHeader());
         method.setEntity(new WrappingEntity(requestEntity));
-        return _executeRequest(method, new DefaultResponseHandler<>(returnType));
+        return _executeRequest(method, new DefaultResponseHandler<>(method, returnType));
     }
 
     /**
@@ -117,7 +116,7 @@ public class RestEndpoint {
     }
 
     @VisibleForTesting
-    public <T> T executeRequest(
+    /*package*/ <T> T executeRequest(
             @Nonnull HttpEntityEnclosingRequestBase method,
             @Nonnull ResponseHandler<T> handler
     ) throws ActionFailed {
@@ -126,13 +125,7 @@ public class RestEndpoint {
     }
 
     @CheckForNull
-    private <T> T _executeRequest(
-            @Nonnull HttpRequestBase method,
-            @Nonnull ResponseHandler<T> handler
-    ) {
-        if (handler instanceof DefaultResponseHandler) {
-            ((DefaultResponseHandler) handler).method = method;
-        }
+    private <T> T _executeRequest(@Nonnull HttpRequestBase method, @Nonnull ResponseHandler<T> handler) {
         CloseableHttpClient client = HttpClients.createSystem();
         try {
             return client.execute(method, handler);
@@ -150,7 +143,8 @@ public class RestEndpoint {
     private Header getCrumbHeader() {
         CrumbResponse crumbResponse;
         try {
-            crumbResponse = _executeRequest(new HttpGet(crumbIssuerEndpoint), new DefaultResponseHandler<>(CrumbResponse.class));
+            HttpGet method = new HttpGet(crumbIssuerEndpoint);
+            crumbResponse = _executeRequest(method, new DefaultResponseHandler<>(method, CrumbResponse.class));
         } catch (ActionFailed.RequestFailed e) {
             if (e.getStatusCode() == 404) { // No crumb issuer used
                 return new BasicHeader("Jenkins-Crumb", "Not-Used");
@@ -162,7 +156,7 @@ public class RestEndpoint {
     }
 
     @VisibleForTesting
-    public static String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
+    /*package*/ static String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
         try (InputStream is = response.getEntity().getContent()) {
             return IOUtils.toString(is);
         }
@@ -171,20 +165,21 @@ public class RestEndpoint {
     /**
      * Fail in case of non-200 status code and create response entity.
      */
-    public static class DefaultResponseHandler<T extends Entity> implements ResponseHandler<T> {
+    private static final class DefaultResponseHandler<T extends Entity> implements ResponseHandler<T> {
 
-        private @Nonnull Class<? extends T> returnType;
-        private @Nonnull HttpRequestBase method;
+        private final @Nonnull HttpRequestBase method;
+        private final @Nonnull Class<? extends T> returnType;
 
-        public DefaultResponseHandler(@Nonnull Class<? extends T> returnType) {
+        private DefaultResponseHandler(@Nonnull HttpRequestBase method, @Nonnull Class<? extends T> returnType) {
+            this.method = method;
             this.returnType = returnType;
         }
 
         @Override
-        public final @Nonnull T handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+        public final @Nonnull T handleResponse(HttpResponse response) throws IOException {
             // Check exit code
             int statusCode = response.getStatusLine().getStatusCode();
-            if (isCodeValid(statusCode)) {
+            if (statusCode != 200) {
                 ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
                         method, response.getStatusLine(), getPayloadAsString(response)
                 );
@@ -192,20 +187,14 @@ public class RestEndpoint {
                 throw requestFailed;
             }
 
-            return consumeRequest(response);
-        }
-
-        protected boolean isCodeValid(int statusCode) {
-            return statusCode != 200;
-        }
-
-        protected T consumeRequest(@Nonnull HttpResponse response) throws IOException {
+            // Build Entity
             try (InputStream is = response.getEntity().getContent()) {
                 return Entity.fromInputStream(is, returnType);
             } catch (JsonParseException ex) {
                 throw new ActionFailed.ProtocolMismatch("Unable to create entity: " + returnType, ex);
             }
         }
+
     }
 
     // Wrap transport.Entity into HttpEntity
@@ -213,7 +202,7 @@ public class RestEndpoint {
 
         private final @Nonnull Entity entity;
 
-        public WrappingEntity(@Nonnull Entity entity) {
+        private WrappingEntity(@Nonnull Entity entity) {
             this.entity = entity;
         }
 
