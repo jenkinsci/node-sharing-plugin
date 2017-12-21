@@ -67,9 +67,7 @@ import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 public class SharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(SharedNodeCloud.class.getName());
 
-    private static final int SSH_DEFAULT_PORT = 22;
-
-    public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
+    private static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
     /**
      * Git cloneable URL of config repository.
