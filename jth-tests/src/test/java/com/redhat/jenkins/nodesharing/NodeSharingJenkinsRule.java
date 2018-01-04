@@ -171,32 +171,12 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
         @Override
         public void launch(SlaveComputer computer, final TaskListener listener) {
+System.out.println("Launching...");
             start.signal();
             try {
                 end.block();
             } catch (InterruptedException e) { }
             super.launch(computer, listener);
-        }
-    }
-
-    static class ConnectingSlave extends Slave implements EphemeralNode {
-        public ConnectingSlave(String name,
-                               String nodeDescription,
-                               String remoteFS,
-                               String numExecutors,
-                               Mode mode,
-                               String labelString,
-                               ComputerLauncher launcher,
-                               RetentionStrategy retentionStrategy,
-                               List<? extends NodeProperty<?>> nodeProperties
-        ) throws IOException, Descriptor.FormException {
-            super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher,
-                    retentionStrategy, nodeProperties);
-        }
-
-        @Override
-        public ConnectingSlave asNode() {
-            return this;
         }
     }
 

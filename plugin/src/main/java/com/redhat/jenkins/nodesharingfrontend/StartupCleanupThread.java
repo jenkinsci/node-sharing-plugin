@@ -46,7 +46,7 @@ public final class StartupCleanupThread {
 
         @Override
         public void onLoaded() {
-            LOGGER.finer("[START] StartupCleanupThread.OnLoadedListener.onLoaded()");
+            LOGGER.info("[START] StartupCleanupThread.OnLoadedListener.onLoaded()");
             synchronized (getExecutedLock()) {
                 if (executed == null) {
                     executed = new OneShotEvent();
@@ -54,7 +54,7 @@ public final class StartupCleanupThread {
                 if (!executed.isSignaled()) {
                     executed.signal();
                 } else {
-                    LOGGER.finer("[COMPLETED] StartupCleanupThread.OnLoadedListener.onLoaded() - without a new thread");
+                    LOGGER.info("[COMPLETED] StartupCleanupThread.OnLoadedListener.onLoaded() - without a new thread");
                     return;
                 }
             }
@@ -66,7 +66,7 @@ public final class StartupCleanupThread {
 //                    runCleanup();
 //                }
 //            }.start();
-            LOGGER.finer("[COMPLETED] StartupCleanupThread.OnLoadedListener.onLoaded() - with a new thread");
+            LOGGER.info("[COMPLETED] StartupCleanupThread.OnLoadedListener.onLoaded() - with a new thread");
         }
     }
 }

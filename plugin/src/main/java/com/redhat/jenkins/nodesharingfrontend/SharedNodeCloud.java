@@ -245,6 +245,17 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
+     * Make unique name per Cloud.
+     *
+     * @param nodeName node name from the config repo.
+     * @return the node name.
+     */
+    @Nonnull
+    public String getNodeName(@Nonnull final String nodeName) {
+        return nodeName + "-" + name;
+    }
+
+    /**
      * Get the node status.
      *
      * @param nodeName The node name.
@@ -253,8 +264,13 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(nodeName);
-        if (node != null) {
+        Node node = Jenkins.getInstance().getNode(getNodeName(nodeName));
+
+System.out.println("nodeName: '"+nodeName+"', real-name: '"+getNodeName(nodeName)+"'");
+if(node != null)
+System.out.println(node.getClass().getCanonicalName());
+
+        if (node != null && node instanceof SharedNode) {
             status = NodeStatusResponse.Status.FOUND;
             if (node.toComputer().isIdle() && !node.toComputer().isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
@@ -268,6 +284,13 @@ public class SharedNodeCloud extends Cloud {
             }
         }
         return status;
+    }
+
+    public void createNode(@Nonnull final NodeDefinition definition) throws IOException {
+        final String nodeName = definition.getName();
+        Node result = (Node) Jenkins.XSTREAM2.fromXML(
+                definition.getDefinition().replace(nodeName, getNodeName(nodeName)));
+        Jenkins.getInstance().addNode(result);
     }
 
 //    /**

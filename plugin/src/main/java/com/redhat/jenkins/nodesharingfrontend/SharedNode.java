@@ -62,7 +62,6 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
         this.id = id;
-        this.cloudName = id.getCloudName();
         LOGGER.info("Instancing a new SharedNode: name='" + name + "', label='"
                 + (label == null ? "<NULL>" : label) + "'");
     }
@@ -95,6 +94,10 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         }
 
         SharedNodeCloud.addDisposableEvent(cloudName, name);
+    }
+
+    public void setCloudName(@Nonnull final String cloudName) {
+        this.cloudName = cloudName;
     }
 
     @CheckForNull

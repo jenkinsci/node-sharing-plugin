@@ -178,7 +178,13 @@ public class Api {
         for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
             if (item.getAssignedLabel().matches(nodeLabels)) {
                 System.out.println("Accepted: " + definition.getDefinition());
-                // TODO create SharedNode form NodeDefinition and connect it
+
+                try {
+                    cloud.createNode(definition);
+                } catch (IOException e) {
+                    // TODO Report as 5XX HTTP Status code with the exception
+                    break;
+                }
 
                 new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
                 rsp.setStatus(HttpServletResponse.SC_OK);
