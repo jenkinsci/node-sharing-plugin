@@ -39,20 +39,26 @@ import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPost;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -73,7 +79,7 @@ public class Api {
 
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
-               @Nonnull final SharedNodeCloud cloud
+               @CheckForNull final SharedNodeCloud cloud
     ) {
         this.cloud = cloud;
 
@@ -92,51 +98,17 @@ public class Api {
                 snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
         );
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
-
-
     }
 
     //// Outgoing
 
     /**
-     * Query Executor Jenkins to report the status of shared node.
-     */
-    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-    public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), NodeStatusRequest.class);
-        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
-        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        if (nodeName != null)
-            status = cloud.getNodeStatus(request.getNodeName());
-        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
-        rsp.setContentType("application/json");
-        response.toOutputStream(rsp.getOutputStream());
-    }
-
-//    /**
-//     * Query Executor Jenkins to report the status of executed item.
-//     */
-//    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
-//    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-//        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-//                req.getInputStream(), RunStatusRequest.class);
-//        RunStatusResponse response = new RunStatusResponse(
-//                fingerprint,
-//                request.getRunId(),
-//                cloud.getRunStatus(request.getRunId())
-//        );
-//        rsp.setContentType("application/json");
-//        response.toOutputStream(rsp.getOutputStream());
-//    }
-
-    /**
      * Put the queue items to Orchestrator
      */
-    // TODO Response never used as there is likely nothing to report - consider async request
-    public ReportWorkloadResponse reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
+    // Response never used as there is likely nothing to report - async request candidate
+    public void reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
-        return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
+        rest.executeRequest(rest.post("reportWorkload"), request, ReportWorkloadResponse.class);
     }
 
     /**
@@ -147,16 +119,43 @@ public class Api {
     public DiscoverResponse discover() throws ActionFailed {
         return rest.executeRequest(
                 rest.post("discover"),
-                DiscoverResponse.class,
-                new DiscoverRequest(fingerprint)
+                new DiscoverRequest(fingerprint), DiscoverResponse.class
         );
     }
 
     /**
      * Send request to return node. No response needed.
      */
-    public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
-        rest.executeRequest(rest.post("returnNode"), null, new ReturnNodeRequest(fingerprint, name, status));
+    public void returnNode(@Nonnull SharedNode node) {
+        Computer computer = node.toComputer();
+        String offlineCause = null;
+        if (computer != null) {
+            offlineCause = computer.getOfflineCause().toString();
+        }
+        final ReturnNodeRequest.Status status = offlineCause == null
+                ? ReturnNodeRequest.Status.OK
+                : ReturnNodeRequest.Status.FAILED
+        ;
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getNodeName(), status, offlineCause);
+
+        final HttpPost method = rest.post("returnNode");
+        rest.executeRequest(method, request, new ResponseHandler<Void>() {
+            @Override
+            public Void handleResponse(HttpResponse response) throws IOException {
+                // Check exit code
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode != 200 && statusCode != 404) {
+                    try (InputStream is = response.getEntity().getContent()) {
+                        ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
+                                method, response.getStatusLine(), IOUtils.toString(is)
+                        );
+                        throw requestFailed;
+                    }
+                }
+
+                return null;
+            }
+        });
     }
 
     //// Incoming
@@ -197,27 +196,43 @@ public class Api {
     }
 
     /**
-     * Immediately return node to orchestrator. (Nice to have feature)
-     *
-     * @param name Name of the node to be returned.
+     * Query Executor Jenkins to report the status of shared node.
      */
     @RequirePOST
-    public void doReturnNode(@Nonnull @QueryParameter("name") final String name) {
+    public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+                req.getInputStream(), NodeStatusRequest.class);
+        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
+        if (nodeName != null)
+            status = cloud.getNodeStatus(request.getNodeName());
+        NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
+        rsp.setContentType("application/json");
+        response.toOutputStream(rsp.getOutputStream());
+    }
+
+//    /**
+//     * Query Executor Jenkins to report the status of executed item.
+//     */
+//    @RequirePOST
+//    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+//        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
+//                req.getInputStream(), RunStatusRequest.class);
+//        RunStatusResponse response = new RunStatusResponse(
+//                fingerprint,
+//                request.getRunId(),
+//                cloud.getRunStatus(request.getRunId())
+//        );
+//        rsp.setContentType("application/json");
+//        response.toOutputStream(rsp.getOutputStream());
+//    }
+
+    /**
+     * Immediately return node to orchestrator. (Nice to have feature)
+     */
+    // TODO rename not to be confused with executor->orchestrator call named 'returnNode'
+    @RequirePOST
+    public void doReturnNode() {
         throw new UnsupportedOperationException("TODO");
-/*
-        Computer c = Jenkins.getInstance().getComputer(name);
-        if (!(c instanceof SharedComputer)) {
-            // TODO computer not reservable
-            return;
-        }
-        SharedComputer computer = (SharedComputer) c;
-        ReservationTask.ReservationExecutable executable = computer.getReservation();
-        if (executable == null) {
-            // TODO computer not reserved
-            return;
-        }
-        // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(owner, state);
-*/
     }
 }

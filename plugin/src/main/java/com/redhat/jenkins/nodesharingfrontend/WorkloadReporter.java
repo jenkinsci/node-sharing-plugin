@@ -33,7 +33,9 @@ import org.apache.commons.lang.ArrayUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,10 +44,10 @@ import java.util.Map;
  * @author ogondza.
  */
 // TODO periodic reporting on is probably not sufficient in the long run as there is no good compromise between prompt
-// provisioning and not hammering the backend. I would probably be for the best if:
+// provisioning and not hammering the backend with needless requests. I would probably be for the best if:
 // - sudden load can generate update
-// - queue will be rechecked even when no listener was called
-// - the same workload will not be send repeatedly
+// - queue will be rechecked even when no listener was called periodically
+// - the same workload will not be sent repeatedly
 @Extension
 @Restricted(NoExternalUse.class)
 public class WorkloadReporter extends PeriodicWork {
@@ -58,10 +60,8 @@ public class WorkloadReporter extends PeriodicWork {
     @Override @VisibleForTesting
     public void doRun() throws Exception {
         Map<SharedNodeCloud, ReportWorkloadRequest.Workload> workloadMapping = new HashMap<>();
-        Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
-
         // Make sure those scheduled sooner are at the beginning
-        ArrayUtils.reverse(items);
+        List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
 
         for (Queue.Item item : items) {
             if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) {

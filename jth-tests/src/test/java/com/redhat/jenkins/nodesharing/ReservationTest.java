@@ -26,7 +26,6 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -47,7 +46,6 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
@@ -94,7 +92,7 @@ public class ReservationTest {
     @Test @Ignore // TODO Keep hacking until this passes
     public void runBuildSuccessfully() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
+        j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         // When I schedule a bunch of tasks on executor
         Label winLabel = Label.get("w2k12");
@@ -143,7 +141,7 @@ public class ReservationTest {
     @Test
     public void reflectChangesInWorkloadReported() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(Pool.getInstance().getConfigEndpoint());
+        j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         j.jenkins.doQuietDown(); // To keep the items in the queue
 
@@ -157,9 +155,12 @@ public class ReservationTest {
 
         QueueTaskFuture<FreeStyleBuild> removeFuture = remove.scheduleBuild2(0);
         keep.scheduleBuild2(0);
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
-        for (int i = 0; i < 3; i++) { // The same can be sent repeatedly without changing the queue
+        // The same can be sent repeatedly without changing the queue
+        for (int i = 0; i < 3; i++) {
             j.reportWorkloadToOrchestrator();
+            j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
             List<ReservationTask> scheduledReservations = j.getScheduledReservations();
             assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
@@ -175,8 +176,10 @@ public class ReservationTest {
 
         removeFuture.cancel(true);
         introduce.scheduleBuild2(0);
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
         j.reportWorkloadToOrchestrator();
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
         List<ReservationTask> scheduledReservations = j.getScheduledReservations();
         assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));

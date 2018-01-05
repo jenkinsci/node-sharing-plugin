@@ -25,8 +25,8 @@ package com.redhat.jenkins.nodesharing;
 
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
-import com.redhat.jenkins.nodesharingbackend.SharedComputer;
-import com.redhat.jenkins.nodesharingbackend.SharedNode;
+import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
+import com.redhat.jenkins.nodesharingbackend.ShareableNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
@@ -65,14 +65,14 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42", "/tmp/configRepo");
 
-    protected @Nonnull SharedComputer getComputer(String name) {
-        return (SharedComputer) getNode(name).toComputer();
+    protected @Nonnull ShareableComputer getComputer(String name) {
+        return (ShareableComputer) getNode(name).toComputer();
     }
 
-    protected @Nonnull SharedNode getNode(String name) {
+    protected @Nonnull ShareableNode getNode(String name) {
         Node node = jenkins.getNode(name);
         assertNotNull("No such node " + name, node);
-        return (SharedNode) node;
+        return (ShareableNode) node;
     }
 
     protected GitClient injectConfigRepo(GitClient repoClient) throws Exception {
@@ -115,7 +115,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      * Mock task to represent fake reservation task. To be run on orchestrator only.
      */
     protected static class MockTask extends ReservationTask {
-        final SharedComputer actuallyRunOn[] = new SharedComputer[1];
+        final ShareableComputer actuallyRunOn[] = new ShareableComputer[1];
         public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
             super(owner, label, "MockTask");
         }
@@ -125,7 +125,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             return new ReservationExecutable(this) {
                 @Override
                 public void run() throws AsynchronousExecution {
-                    actuallyRunOn[0] = (SharedComputer) Executor.currentExecutor().getOwner();
+                    actuallyRunOn[0] = (ShareableComputer) Executor.currentExecutor().getOwner();
                     perform();
                 }
             };

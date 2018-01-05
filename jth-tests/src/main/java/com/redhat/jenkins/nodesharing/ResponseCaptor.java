@@ -21,39 +21,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing.transport;
+package com.redhat.jenkins.nodesharing;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 
-public class ReturnNodeRequest extends ExecutorEntity {
-    private final @Nonnull String nodeName;
-    private final @Nonnull Status status;
-    private final @CheckForNull String message;
+import java.io.IOException;
 
-    public ReturnNodeRequest(@Nonnull Fingerprint f, @Nonnull String nodeName, @Nonnull Status status, @CheckForNull String message) {
-        super(f);
-        this.nodeName = nodeName;
-        this.status = status;
-        this.message = message;
+/**
+ * Capture content of HttpResponse for test purposes.
+ *
+ * To be used as a {@link ResponseHandler} for {@link RestEndpoint}<tt>#executeRequest</tt>.
+ */
+public final class ResponseCaptor implements ResponseHandler<ResponseCaptor.Capture> {
+
+    @Override
+    public Capture handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+        return new Capture(response.getStatusLine(), RestEndpoint.getPayloadAsString(response));
     }
 
-    public @Nonnull String getNodeName() {
-        return nodeName;
-    }
+    public static final class Capture {
 
-    public @Nonnull Status getStatus() {
-        return status;
-    }
+        public final StatusLine statusLine;
+        public final String payload;
 
-    public @CheckForNull String getMessage() {
-        return message;
-    }
+        public Capture(StatusLine statusLine, String payload) {
 
-    public enum Status {
-        /** When the host was used successfully. */
-        OK,
-        /** When executor failed to get the node online, */
-        FAILED
+            this.statusLine = statusLine;
+            this.payload = payload;
+        }
     }
 }

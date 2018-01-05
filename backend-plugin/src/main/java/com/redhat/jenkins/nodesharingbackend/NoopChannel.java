@@ -105,10 +105,10 @@ public class NoopChannel extends Channel {
     @Override public Object getProperty(Object key) { return null; }
     @Override public <T> T getProperty(ChannelProperty<T> key) { return null; }
 
-    @Override public synchronized Object waitForProperty(Object key) throws InterruptedException { return null; }
+    @Override public Object waitForProperty(Object key) throws InterruptedException { return null; }
     @Override public <T> T waitForProperty(ChannelProperty<T> key) throws InterruptedException { return null; }
 
-    @Override public synchronized Object setProperty(Object key, Object value) { return null; }
+    @Override public Object setProperty(Object key, Object value) { return null; }
     @Override public <T> T setProperty(ChannelProperty<T> key, T value) { return null; }
 
     @Override public Object getRemoteProperty(Object key) { return null; }

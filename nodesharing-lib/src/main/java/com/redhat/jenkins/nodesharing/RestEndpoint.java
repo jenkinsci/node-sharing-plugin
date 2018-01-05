@@ -23,13 +23,15 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -41,7 +43,6 @@ import org.apache.http.message.BasicHeader;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -76,83 +77,65 @@ public class RestEndpoint {
      * Execute HttpRequest.
      *
      * @param method Method and url to be invoked.
-     * @param returnType Type the response should be converted at.
      * @param requestEntity Entity to be sent in request body.
+     * @param returnType Type the response should be converted at.
+     *
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
      * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
     public <T extends AbstractEntity> T executeRequest(
             @Nonnull HttpEntityEnclosingRequestBase method,
-            @Nullable Class<T> returnType,
-            @Nullable Entity requestEntity
+            @Nonnull Entity requestEntity,
+            @Nonnull Class<T> returnType
     ) throws ActionFailed {
         method.addHeader(getCrumbHeader());
-        if (requestEntity != null) {
-            method.setEntity(new WrappingEntity(requestEntity));
-        }
-        return _executeRequest(method, returnType);
+        method.setEntity(new WrappingEntity(requestEntity));
+        return _executeRequest(method, new DefaultResponseHandler<>(method, returnType));
     }
 
     /**
      * Execute HttpRequest.
      *
      * @param method Method and url to be invoked.
-     * @param returnType Type the response should be converted at.
+     * @param requestEntity Entity to be sent in request body.
+     * @param handler Response handler to be used.
+     *
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
      * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
-    public <T extends AbstractEntity> T executeRequest(
-            @Nonnull HttpRequestBase method,
-            @Nullable Class<T> returnType
+    public <T> T executeRequest(
+            @Nonnull HttpEntityEnclosingRequestBase method,
+            @Nonnull Entity requestEntity,
+            @Nonnull ResponseHandler<T> handler
     ) throws ActionFailed {
         method.addHeader(getCrumbHeader());
-        return _executeRequest(method, returnType);
+        method.setEntity(new WrappingEntity(requestEntity));
+        return _executeRequest(method, handler);
+    }
+
+    @VisibleForTesting
+    /*package*/ <T> T executeRequest(
+            @Nonnull HttpEntityEnclosingRequestBase method,
+            @Nonnull ResponseHandler<T> handler
+    ) throws ActionFailed {
+        method.addHeader(getCrumbHeader());
+        return _executeRequest(method, handler);
     }
 
     @CheckForNull
-    private <T extends Entity> T _executeRequest(@Nonnull HttpRequestBase method, @Nullable Class<T> returnType) {
+    private <T> T _executeRequest(@Nonnull HttpRequestBase method, @Nonnull ResponseHandler<T> handler) {
         CloseableHttpClient client = HttpClients.createSystem();
         try {
-            CloseableHttpResponse response = client.execute(method);
-
-            // Check exit code
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode != 200) {
-                try (InputStream is = response.getEntity().getContent()) {
-                    ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
-                            method, response.getStatusLine(), IOUtils.toString(is)
-                    );
-                    LOGGER.info(requestFailed.getMessage());
-                    throw requestFailed;
-                }
-            }
-
-            try {
-                if (returnType == null) {
-                    return null;
-                }
-
-                try (InputStream is = response.getEntity().getContent()) {
-                    return Entity.fromInputStream(is, returnType);
-                } catch (JsonParseException ex) {
-                    throw new ActionFailed.ProtocolMismatch("Unable to create entity: " + returnType, ex);
-                }
-            } finally {
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Unable to close the HttpResponse", e);
-                }
-            }
+            return client.execute(method, handler);
         } catch (IOException e) {
             throw new ActionFailed.CommunicationError("Failed executing REST call: " + method, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Unable to close the HttpClient", e);
+                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e);
             }
         }
     }
@@ -160,14 +143,58 @@ public class RestEndpoint {
     private Header getCrumbHeader() {
         CrumbResponse crumbResponse;
         try {
-            crumbResponse = _executeRequest(new HttpGet(crumbIssuerEndpoint), CrumbResponse.class);
+            HttpGet method = new HttpGet(crumbIssuerEndpoint);
+            crumbResponse = _executeRequest(method, new DefaultResponseHandler<>(method, CrumbResponse.class));
         } catch (ActionFailed.RequestFailed e) {
             if (e.getStatusCode() == 404) { // No crumb issuer used
                 return new BasicHeader("Jenkins-Crumb", "Not-Used");
             }
             throw e;
         }
+        assert crumbResponse != null;
         return new BasicHeader(crumbResponse.getCrumbRequestField(), crumbResponse.getCrumb());
+    }
+
+    @VisibleForTesting
+    /*package*/ static String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
+        try (InputStream is = response.getEntity().getContent()) {
+            return IOUtils.toString(is);
+        }
+    }
+
+    /**
+     * Fail in case of non-200 status code and create response entity.
+     */
+    private static final class DefaultResponseHandler<T extends Entity> implements ResponseHandler<T> {
+
+        private final @Nonnull HttpRequestBase method;
+        private final @Nonnull Class<? extends T> returnType;
+
+        private DefaultResponseHandler(@Nonnull HttpRequestBase method, @Nonnull Class<? extends T> returnType) {
+            this.method = method;
+            this.returnType = returnType;
+        }
+
+        @Override
+        public final @Nonnull T handleResponse(HttpResponse response) throws IOException {
+            // Check exit code
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode != 200) {
+                ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
+                        method, response.getStatusLine(), getPayloadAsString(response)
+                );
+                LOGGER.info(requestFailed.getMessage());
+                throw requestFailed;
+            }
+
+            // Build Entity
+            try (InputStream is = response.getEntity().getContent()) {
+                return Entity.fromInputStream(is, returnType);
+            } catch (JsonParseException ex) {
+                throw new ActionFailed.ProtocolMismatch("Unable to create entity: " + returnType, ex);
+            }
+        }
+
     }
 
     // Wrap transport.Entity into HttpEntity
@@ -175,7 +202,7 @@ public class RestEndpoint {
 
         private final @Nonnull Entity entity;
 
-        public WrappingEntity(@Nonnull Entity entity) {
+        private WrappingEntity(@Nonnull Entity entity) {
             this.entity = entity;
         }
 
@@ -187,7 +214,7 @@ public class RestEndpoint {
             return -1;
         }
 
-        @Override public InputStream getContent() throws IOException, UnsupportedOperationException {
+        @Override public InputStream getContent() throws IOException {
             throw new UnsupportedOperationException(
                     "We should not need this as presumably this is used for receiving entities only"
             );

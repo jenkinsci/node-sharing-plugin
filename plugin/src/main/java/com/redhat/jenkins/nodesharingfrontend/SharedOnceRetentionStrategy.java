@@ -70,10 +70,6 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
             LOGGER.log(Level.INFO, "not terminating {0} because {1} was a flyweight task", new Object[] {c.getName(), exec});
             return;
         }
-//        if (exec instanceof ContinuableExecutable && ((ContinuableExecutable) exec).willContinue()) {
-//            LOGGER.log(Level.FINE, "not terminating {0} because {1} says it will be continued", new Object[] {c.getName(), exec});
-//            return;
-//        }
         LOGGER.log(Level.INFO, "terminating {0} since {1} seems to be finished", new Object[] {c.getName(), exec});
         done(c);
     }

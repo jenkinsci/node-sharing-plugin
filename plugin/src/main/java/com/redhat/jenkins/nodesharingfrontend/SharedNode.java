@@ -17,9 +17,9 @@ import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.util.List;
 
 import java.util.logging.Logger;
@@ -34,8 +34,6 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     private static final long serialVersionUID = -3284884519464420953L;
 
-    @Deprecated // TODO Use id instead,
-    private String cloudName;
     private ProvisioningActivity.Id id;
 
     /**
@@ -62,7 +60,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                 label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
                 label, launcher, strategy, nodeProperties);
         this.id = id;
-        LOGGER.info("Instancing a new SharedNode: name='" + name + "', label='"
+        LOGGER.info("Instantiating a new SharedNode: name='" + name + "', label='"
                 + (label == null ? "<NULL>" : label) + "'");
     }
 
@@ -86,28 +84,30 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     @Override
     protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        LOGGER.info("Terminating the SharedNode: name='" + name + "'");
-
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
         }
 
-        SharedNodeCloud.addDisposableEvent(cloudName, name);
+        LOGGER.finer("Adding the host '" + name + "' to the disposable queue.");
+        SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
+        if (cloud != null) { // Might be deleted or using different config repo
+            cloud.getApi().returnNode(this);
+        }
     }
 
-    public void setCloudName(@Nonnull final String cloudName) {
-        this.cloudName = cloudName;
-    }
-
-    @CheckForNull
+    @Nonnull
     public String getCloudName() {
-        return cloudName;
+        return id.getCloudName();
     }
 
     @Override
     public ProvisioningActivity.Id getId() {
         return id;
+    }
+
+    public void setId(@Nonnull final ProvisioningActivity.Id id) {
+        this.id = id;
     }
 
     @Nonnull

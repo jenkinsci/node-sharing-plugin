@@ -7,21 +7,17 @@ import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.model.Queue;
 import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.OneShotEvent;
 
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
@@ -43,14 +39,12 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
-import jenkins.util.Timer;
-import org.apache.commons.codec.digest.DigestUtils;
-
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -67,9 +61,7 @@ import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 public class SharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(SharedNodeCloud.class.getName());
 
-    private static final int SSH_DEFAULT_PORT = 22;
-
-    public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
+    private static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
     /**
      * Git cloneable URL of config repository.
@@ -264,22 +256,17 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        Node node = Jenkins.getInstance().getNode(getNodeName(nodeName));
-
-System.out.println("nodeName: '"+nodeName+"', real-name: '"+getNodeName(nodeName)+"'");
-if(node != null)
-System.out.println(node.getClass().getCanonicalName());
-
-        if (node != null && node instanceof SharedNode) {
+        Computer computer = Jenkins.getActiveInstance().getComputer(getNodeName(nodeName));
+        if (computer != null && computer instanceof SharedComputer) {
             status = NodeStatusResponse.Status.FOUND;
-            if (node.toComputer().isIdle() && !node.toComputer().isConnecting()) {
+            if (computer.isIdle() && !computer.isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
-            } else if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+            } else if (computer.isOffline() && !computer.isIdle()) {
                 // Offline but BUSY
                 status = NodeStatusResponse.Status.OFFLINE;
-            } else if (!node.toComputer().isIdle()) {
+            } else if (!computer.isIdle()) {
                 status = NodeStatusResponse.Status.BUSY;
-            } else  if (node.toComputer().isConnecting()) {
+            } else  if (computer.isConnecting()) {
                 status = NodeStatusResponse.Status.CONNECTING;
             }
         }
@@ -290,7 +277,13 @@ System.out.println(node.getClass().getCanonicalName());
         final String nodeName = definition.getName();
         Node result = (Node) Jenkins.XSTREAM2.fromXML(
                 definition.getDefinition().replace(nodeName, getNodeName(nodeName)));
-        Jenkins.getInstance().addNode(result);
+        if (result instanceof SharedNode) {
+            SharedNode node = (SharedNode) result;
+            node.setId( new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
+            Jenkins.getInstance().addNode(result);
+        } else {
+            throw new IOException("Unknown definition");
+        }
     }
 
 //    /**
@@ -347,13 +340,10 @@ System.out.println(node.getClass().getCanonicalName());
      * @return a Shared node cloud or null if not found.
      */
     @CheckForNull
-//    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public static SharedNodeCloud getByName(@Nonnull final String name) throws IllegalArgumentException {
-        if (name != null && Jenkins.getInstance().clouds != null) {
-            Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
-            if (cloud instanceof SharedNodeCloud) {
-                return (SharedNodeCloud) cloud;
-            }
+        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
+        if (cloud instanceof SharedNodeCloud) {
+            return (SharedNodeCloud) cloud;
         }
         return null;
     }
@@ -371,13 +361,6 @@ System.out.println(node.getClass().getCanonicalName());
         return out;
     }
 
-    public static DisposableImpl addDisposableEvent(final String cloudName, final String hostName) {
-        LOGGER.finer("Adding the host '" + hostName + "' to the disposable queue.");
-        DisposableImpl disposable = new DisposableImpl(cloudName, hostName);
-        AsyncResourceDisposer.get().dispose(disposable);
-        return disposable;
-    }
-
     /**
      * The cloud is considered operational once it can get data from Config Repo and talk to orchestrator.
      */
@@ -392,14 +375,10 @@ System.out.println(node.getClass().getCanonicalName());
     public static class DescriptorImpl extends Descriptor<Cloud> {
         @Override
         public String getDisplayName() {
-            return "Shared Node";
+            return "Shared Nodes";
         }
 
-        /**
-         * Fill SSH credentials.
-         *
-         * @return list of creds.
-         */
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillCredentialsIdItems() {
             return new StandardListBoxModel()
                     .withMatching(anyOf(
@@ -415,6 +394,7 @@ System.out.println(node.getClass().getCanonicalName());
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
+        @Restricted(DoNotUse.class)
         public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl) throws Exception {
             try {
                 new URI(configRepoUrl);
@@ -435,7 +415,7 @@ System.out.println(node.getClass().getCanonicalName());
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(discover.getVersion()) + "<strong>");
             } catch (TaskLog.TaskFailed e) {
                 ByteArrayOutputStream bout = new ByteArrayOutputStream();
-                try (OutputStreamWriter writer = new OutputStreamWriter(bout)) {
+                try (OutputStreamWriter writer = new OutputStreamWriter(bout, Charset.defaultCharset())) {
                     writer.write("<pre>");
                     e.getLog().getAnnotatedText().writeHtmlTo(0, writer);
                     writer.write("</pre>");

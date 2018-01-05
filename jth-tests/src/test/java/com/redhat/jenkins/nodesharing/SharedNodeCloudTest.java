@@ -126,7 +126,6 @@ public class SharedNodeCloudTest {
         );
     }
 
-//    @Ignore
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
         GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
@@ -183,10 +182,13 @@ public class SharedNodeCloudTest {
                 new NodeDefinition.Xml("solaris2.executor.com",
                         cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition()));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
-        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
 //            System.out.println(n.getNodeName());
+//        }
+//
+//        for (Computer c : Jenkins.getInstance().getComputers()) {
+//            System.out.println(c.getName());
 //        }
 
         computer.waitUntilOnline();
@@ -209,7 +211,6 @@ public class SharedNodeCloudTest {
                 new NodeDefinition.Xml("solaris2.executor.com",
                         cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition()));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
-        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
 //            System.out.println(n.getNodeName());
@@ -238,7 +239,6 @@ public class SharedNodeCloudTest {
                 new NodeDefinition.Xml("solaris2.executor.com",
                         cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition()));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
-        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
 //            System.out.println(n.getNodeName());
@@ -309,11 +309,11 @@ public class SharedNodeCloudTest {
         // Test through plugin frontend API
         RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
         assertThat(
-                rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, new NodeStatusRequest(
-                        Pool.getInstance().getConfigEndpoint(),
+                rest.executeRequest(rest.post("nodeStatus"), new NodeStatusRequest(
+                        Pool.getInstance().getConfigRepoUrl(),
                         "4.2",
                         nodeName
-                )).getStatus(),
+                ), NodeStatusResponse.class).getStatus(),
                 equalTo(nodeStatus)
         );
 
@@ -449,7 +449,7 @@ public class SharedNodeCloudTest {
 //        }
 
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
-        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
+//        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
 
         computer.waitUntilOnline();
 

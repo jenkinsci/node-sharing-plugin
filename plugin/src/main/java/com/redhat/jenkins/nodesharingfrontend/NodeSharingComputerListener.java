@@ -34,13 +34,15 @@ public class NodeSharingComputerListener extends ComputerListener {
         }
         if (c instanceof SharedComputer) {
             SharedComputer fc = (SharedComputer) c;
-            CloudStatistics.get().attach(
-                    CloudStatistics.get().getActivityFor(fc.getId()),
-                    CloudStatistics.get().getActivityFor(fc.getId()).getCurrentPhase(),
-                    new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL,
-                            "Launch failed with:\n" + c.getLog()));
+            ProvisioningActivity activity = CloudStatistics.get().getActivityFor(fc.getId());
+            if (activity != null) {
+                PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
+                        ProvisioningActivity.Status.FAIL, "Launch failed with:\n" + c.getLog()
+                );
+                CloudStatistics.get().attach(activity, activity.getCurrentPhase(), attachment);
+            }
             LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...:\n" + c.getLog());
-            ((SharedComputer) c).terminateComputer(c);
+            SharedComputer.terminateComputer(c);
         }
     }
 
@@ -76,9 +78,9 @@ public class NodeSharingComputerListener extends ComputerListener {
         if (c instanceof SharedComputer) {
             if (c.isIdle()) {
                 try {
-                    ((SharedComputer) c).terminateComputer(c);
-                } catch (InterruptedException e) {
-                } catch (IOException e) {
+                    SharedComputer.terminateComputer(c);
+                } catch (InterruptedException | IOException e) {
+                    LOGGER.log(Level.WARNING, "Uncaught unexpected exception occurred while terminaitng computer", e);
                 }
             }
         }
