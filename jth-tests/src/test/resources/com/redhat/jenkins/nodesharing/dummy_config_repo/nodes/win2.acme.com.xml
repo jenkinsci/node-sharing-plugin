@@ -1,4 +1,4 @@
-<com.redhat.foreman.ForemanSharedNode>
+<com.redhat.jenkins.nodesharingfrontend.SharedNode>
   <name>win2.acme.com</name>
   <description/>
   <remoteFS>W:\\</remoteFS>
@@ -15,4 +15,4 @@
   </launcher>
   <label>windows w2k16</label>
   <nodeProperties/>
-</com.redhat.foreman.ForemanSharedNode>
+</com.redhat.jenkins.nodesharingfrontend.SharedNode>

@@ -7,8 +7,6 @@ import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Computer;
@@ -16,13 +14,10 @@ import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
-import hudson.model.Queue;
 import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.OneShotEvent;
 
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
@@ -44,14 +39,10 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
-import jenkins.util.Timer;
-import org.apache.commons.codec.digest.DigestUtils;
-
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -246,6 +237,17 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
+     * Make unique name per Cloud.
+     *
+     * @param nodeName node name from the config repo.
+     * @return the node name.
+     */
+    @Nonnull
+    public String getNodeName(@Nonnull final String nodeName) {
+        return nodeName + "-" + name;
+    }
+
+    /**
      * Get the node status.
      *
      * @param nodeName The node name.
@@ -254,8 +256,8 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        Computer computer = Jenkins.getActiveInstance().getComputer(nodeName);
-        if (computer != null) {
+        Computer computer = Jenkins.getActiveInstance().getComputer(getNodeName(nodeName));
+        if (computer != null && computer instanceof SharedComputer) {
             status = NodeStatusResponse.Status.FOUND;
             if (computer.isIdle() && !computer.isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
@@ -269,6 +271,20 @@ public class SharedNodeCloud extends Cloud {
             }
         }
         return status;
+    }
+
+    public void createNode(@Nonnull final NodeDefinition definition) throws IOException {
+        final String nodeName = definition.getName();
+        Node result = (Node) Jenkins.XSTREAM2.fromXML(
+                // TODO set name after deserialization to avoid tempering with the definition
+                definition.getDefinition().replace(nodeName, getNodeName(nodeName)));
+        if (result instanceof SharedNode) {
+            SharedNode node = (SharedNode) result;
+            node.setId( new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
+            Jenkins.getActiveInstance().addNode(result);
+        } else {
+            throw new IOException("Unknown definition");
+        }
     }
 
 //    /**

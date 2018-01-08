@@ -21,7 +21,7 @@ public class NodeSharingProvisioningListener extends CloudProvisioningListener {
 
     @Override
     public CauseOfBlockage canProvision(Cloud c, Label l, int n) {
-        LOGGER.fine("NodeSharingProvisioningListener.canProvision() called for '"
+        LOGGER.info("NodeSharingProvisioningListener.canProvision() called for '"
                 + l + ", workload: " + n);
         try {
             super.canProvision(c, l, n);
@@ -34,7 +34,7 @@ public class NodeSharingProvisioningListener extends CloudProvisioningListener {
 
     @Override
     public void onStarted(Cloud c, Label l, Collection<NodeProvisioner.PlannedNode> n) {
-        LOGGER.fine("NodeSharingProvisioningListener.onStarted() called for '"
+        LOGGER.info("NodeSharingProvisioningListener.onStarted() called for '"
                 + l + ", size: " + n.size());
         try {
             super.onStarted(c, l, n);
@@ -46,7 +46,7 @@ public class NodeSharingProvisioningListener extends CloudProvisioningListener {
 
     @Override
     public void onComplete(NodeProvisioner.PlannedNode pn, Node n) {
-        LOGGER.fine("NodeSharingProvisioningListener.onCompleted() called for '"
+        LOGGER.info("NodeSharingProvisioningListener.onCompleted() called for '"
                 + pn.displayName + "'; '" + n.getDisplayName() + "'");
         try {
             super.onComplete(pn, n);
@@ -58,7 +58,7 @@ public class NodeSharingProvisioningListener extends CloudProvisioningListener {
 
     @Override
     public void onFailure(NodeProvisioner.PlannedNode pn, Throwable t) {
-        LOGGER.fine("NodeSharingProvisioningListener.onFailure() called for '"
+        LOGGER.info("NodeSharingProvisioningListener.onFailure() called for '"
                 + pn.displayName + "'; '" + t.getMessage() + "'");
         try {
             super.onFailure(pn, t);

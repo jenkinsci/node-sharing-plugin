@@ -125,7 +125,7 @@ public class PoolTest {
         assertEquals("windows w2k12", win1.getLabelString());
         assertTrue(win1.toComputer().isOnline());
 
-        MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(4));
+        MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(5));
 
         // Same changes re-applied with no inventory change
         git.getWorkTree().child("fake_change").touch(0);
@@ -135,7 +135,7 @@ public class PoolTest {
         for (int i = 0; i < 2; i++) { // Update with no changes preserves state
             getInstance().doRun();
 
-            MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(4));
+            MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(5));
             assertSame(win1, j.getNode("win1.acme.com"));
             assertSame(win1.toComputer(), j.getNode("win1.acme.com").toComputer());
         }

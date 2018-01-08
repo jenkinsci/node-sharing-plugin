@@ -19,6 +19,7 @@ import org.jenkinsci.plugins.cloudstats.TrackedItem;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.util.List;
 
 import java.util.logging.Logger;
@@ -95,13 +96,18 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         }
     }
 
-    public @Nonnull String getCloudName() {
+    @Nonnull
+    public String getCloudName() {
         return id.getCloudName();
     }
 
     @Override
     public ProvisioningActivity.Id getId() {
         return id;
+    }
+
+    public void setId(@Nonnull final ProvisioningActivity.Id id) {
+        this.id = id;
     }
 
     @Nonnull
