@@ -16,6 +16,8 @@ import hudson.slaves.RetentionStrategy;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -30,38 +32,26 @@ import java.util.logging.Logger;
 public class SharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(SharedNode.class.getName());
-    private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
 
     private ProvisioningActivity.Id id;
+    private String hostname;
 
-    /**
-     * Shared Node.
-     *
-     * @param id             id of the provisioning attempt.
-     * @param label          Jenkins label requested.
-     * @param remoteFS       Remote FS root.
-     * @param launcher       Slave launcher.
-     * @param strategy       Retention Strategy.
-     * @param nodeProperties node props.
-     * @throws FormException if occurs.
-     * @throws IOException   if occurs.
-     */
-    public SharedNode(
-            ProvisioningActivity.Id id,
-            String label,
-            String remoteFS,
-            ComputerLauncher launcher,
-            RetentionStrategy<AbstractCloudComputer> strategy,
-            List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
-        //CS IGNORE check FOR NEXT 3 LINES. REASON: necessary inline conditional in super().
-        super(id.getNodeName() + '.' + id.getCloudName(), "", remoteFS, NUM_EXECUTORS,
-                label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
-                label, launcher, strategy, nodeProperties);
+    // Never used, the class is always created from NodeDefinition
+    @Restricted(DoNotUse.class)
+    private SharedNode(
+            String name, String nodeDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties
+    ) throws FormException, IOException {
+        super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
+    }
+
+    /*package*/ void init(@Nonnull final ProvisioningActivity.Id id) {
         this.id = id;
-        LOGGER.info("Instantiating a new SharedNode: name='" + name + "', label='"
-                + (label == null ? "<NULL>" : label) + "'");
+        // Name of the node as defined is its hostname, but we are changing the name of the Jenkins node as we need to
+        // preserve the old value as hostname
+        hostname = name;
+        name = id.getNodeName();
     }
 
     @Override
@@ -97,17 +87,13 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     }
 
     @Nonnull
-    public String getCloudName() {
-        return id.getCloudName();
+    public String getHostName() {
+        return hostname;
     }
 
     @Override
     public ProvisioningActivity.Id getId() {
         return id;
-    }
-
-    public void setId(@Nonnull final ProvisioningActivity.Id id) {
-        this.id = id;
     }
 
     @Nonnull

@@ -136,7 +136,7 @@ public class Api {
                 ? ReturnNodeRequest.Status.OK
                 : ReturnNodeRequest.Status.FAILED
         ;
-        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getId().getNodeName(), status, offlineCause);
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getHostName(), status, offlineCause);
 
         final HttpPost method = rest.post("returnNode");
         rest.executeRequest(method, request, new ResponseHandler<Void>() {
@@ -179,7 +179,7 @@ public class Api {
                 System.out.println("Accepted: " + definition.getDefinition());
 
                 try {
-                    cloud.createNode(definition);
+                    Jenkins.getActiveInstance().addNode(cloud.createNode(definition));
                 } catch (IOException e) {
                     // TODO Report as 5XX HTTP Status code with the exception
                     break;

@@ -178,18 +178,8 @@ public class SharedNodeCloudTest {
     public void nodeStatusTestIdle() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.acme.com",
-                        cloud.getLatestConfig().getNodes().get("solaris2.acme.com").getDefinition()));
+        j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
-
-//        for (Node n : Jenkins.getInstance().getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
-//
-//        for (Computer c : Jenkins.getInstance().getComputers()) {
-//            System.out.println(c.getName());
-//        }
 
         computer.waitUntilOnline();
         assertTrue(computer.isOnline());
@@ -207,9 +197,7 @@ public class SharedNodeCloudTest {
     public void nodeStatusTestBusy() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.acme.com",
-                        cloud.getLatestConfig().getNodes().get("solaris2.acme.com").getDefinition()));
+        j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
@@ -236,9 +224,7 @@ public class SharedNodeCloudTest {
     public void nodeStatusTestOffline() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.acme.com",
-                        cloud.getLatestConfig().getNodes().get("solaris2.acme.com").getDefinition()));
+        j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
@@ -284,9 +270,8 @@ public class SharedNodeCloudTest {
 //        assertTrue(computer.isIdle());
         final ProvisioningActivity.Id id = new ProvisioningActivity.Id(cloud.getNodeName("aConnectingNode"), null, cloud.getNodeName("aConnectingNode"));
         NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher = new NodeSharingJenkinsRule.BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
-        SharedNode connectingSlave = new SharedNode(id, "dummy",
-                j.createTmpDir().getPath(),
-                /*blockingLauncher*/ j.createComputerLauncher(null), new SharedOnceRetentionStrategy(1), Collections.EMPTY_LIST);
+        SharedNode connectingSlave = cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
+        connectingSlave.setLauncher(/*blockingLauncher*/ j.createComputerLauncher(null));
         j.jenkins.addNode(connectingSlave);
         assertTrue(connectingSlave.toComputer().isConnecting());
         blockingLauncher.start.block();
@@ -439,10 +424,8 @@ public class SharedNodeCloudTest {
 //        }
 
         String xmlDef = cloud.getLatestConfig().getNodes().get("solaris2.acme.com").getDefinition();
-        System.out.println(xmlDef);
 
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.acme.com",  xmlDef));
+        j.jenkins.addNode(cloud.createNode(new NodeDefinition.Xml("solaris2.acme.com",  xmlDef)));
 
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {

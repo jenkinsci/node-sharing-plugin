@@ -57,7 +57,7 @@ public class NodeSharingComputerListener extends ComputerListener {
             Node node = c.getNode();
             if (node instanceof SharedNode) {
                SharedNodeCloud cloud =
-                       SharedNodeCloud.getByName(((SharedNode) node).getCloudName());
+                       SharedNodeCloud.getByName(((SharedNode) node).getId().getCloudName());
                if (cloud == null || !cloud.isOperational()) {
                    // TODO these should never be saved (EphemeralNode) - do we still need this?
                    throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
