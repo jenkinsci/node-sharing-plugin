@@ -107,16 +107,16 @@ public class ConfigRepoRule implements TestRule {
         git.getWorkTree().child("jenkinses").write("jenkins1=" + j.getRootUrl(), "UTF-8");
         git.add("jenkinses");
 
-        // Create and store real slave
+        // TODO make all the nodes launchable
         String slave = Util.loadFile(
-                new File(git.getWorkTree().child("nodes/solaris2.orchestrator.xml").getRemote()))
+                new File(git.getWorkTree().child("nodes/solaris2.acme.com.xml").getRemote()))
                 .replace("<agentCommand />",
                         String.format("<agentCommand>%s -jar %s</agentCommand>",
                                 System.getProperty("java.home") + "/bin/java",
                                 new File(Jenkins.getInstance().getJnlpJars("slave.jar").getURL().toURI()).getAbsolutePath())
                 );
-        git.getWorkTree().child("nodes").child("solaris2.orchestrator.xml").write(slave, "UTF-8");
-        git.add("nodes/solaris2.orchestrator.xml");
+        git.getWorkTree().child("nodes").child("solaris2.acme.com.xml").write(slave, "UTF-8");
+        git.add("nodes/solaris2.acme.com.xml");
 
         git.commit("Update");
         return git;

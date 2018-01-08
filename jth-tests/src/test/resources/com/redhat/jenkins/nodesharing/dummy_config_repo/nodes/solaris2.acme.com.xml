@@ -1,6 +1,6 @@
 <!--TODO: Fix the name duality-->
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
-  <name>solaris2.executor.com</name>
+  <name>solaris2.acme.com</name>
   <description/>
   <remoteFS>/tmp/remoteFSRoot</remoteFS>
   <numExecutors>1</numExecutors>
