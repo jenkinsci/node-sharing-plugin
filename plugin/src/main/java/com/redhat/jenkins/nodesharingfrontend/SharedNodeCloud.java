@@ -274,17 +274,11 @@ public class SharedNodeCloud extends Cloud {
     }
 
     public void createNode(@Nonnull final NodeDefinition definition) throws IOException {
+        SharedNode node = SharedNodeFactory.transform(definition);
         final String nodeName = definition.getName();
-        Node result = (Node) Jenkins.XSTREAM2.fromXML(
-                // TODO set name after deserialization to avoid tempering with the definition
-                definition.getDefinition().replace(nodeName, getNodeName(nodeName)));
-        if (result instanceof SharedNode) {
-            SharedNode node = (SharedNode) result;
-            node.setId( new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
-            Jenkins.getActiveInstance().addNode(result);
-        } else {
-            throw new IOException("Unknown definition");
-        }
+        node.setNodeName(getNodeName(nodeName));
+        node.setId(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
+        Jenkins.getActiveInstance().addNode(node);
     }
 
 //    /**

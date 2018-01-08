@@ -1,4 +1,3 @@
-<!--TODO: Fix the name duality-->
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
   <name>solaris2.acme.com</name>
   <description/>

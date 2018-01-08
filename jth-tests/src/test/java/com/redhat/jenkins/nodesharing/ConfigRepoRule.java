@@ -23,8 +23,15 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharingfrontend.SharedNode;
+import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
+import hudson.ExtensionList;
+import hudson.FilePath;
 import hudson.Util;
+import hudson.remoting.Launcher;
+import hudson.remoting.Which;
+import hudson.slaves.CommandLauncher;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
@@ -34,6 +41,8 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -106,19 +115,29 @@ public class ConfigRepoRule implements TestRule {
 
         git.getWorkTree().child("jenkinses").write("jenkins1=" + j.getRootUrl(), "UTF-8");
         git.add("jenkinses");
-
-        // TODO make all the nodes launchable
-        String slave = Util.loadFile(
-                new File(git.getWorkTree().child("nodes/solaris2.acme.com.xml").getRemote()))
-                .replace("<agentCommand />",
-                        String.format("<agentCommand>%s -jar %s</agentCommand>",
-                                System.getProperty("java.home") + "/bin/java",
-                                new File(Jenkins.getInstance().getJnlpJars("slave.jar").getURL().toURI()).getAbsolutePath())
-                );
-        git.getWorkTree().child("nodes").child("solaris2.acme.com.xml").write(slave, "UTF-8");
-        git.add("nodes/solaris2.acme.com.xml");
-
         git.commit("Update");
+
+        // Register conversion handler that delegates to production implementation and decorates with local launcher
+        final File slaveJar = Which.jarFile(Launcher.class).getAbsoluteFile();
+        ExtensionList<SharedNodeFactory> el = ExtensionList.lookup(SharedNodeFactory.class);
+        final List<SharedNodeFactory> oldFactories = new ArrayList<>(el);
+        el.clear();
+        el.add(0, new SharedNodeFactory() {
+            @CheckForNull @Override public SharedNode create(@Nonnull NodeDefinition def) {
+                for (SharedNodeFactory factory : oldFactories) {
+                    System.out.println(factory);
+                    SharedNode node = factory.create(def);
+                    if (node != null) {
+                        node.setLauncher(new CommandLauncher(
+                                System.getProperty("java.home") + "/bin/java -jar " + slaveJar
+                        ));
+                        return node;
+                    }
+                }
+
+                throw new IllegalArgumentException("No SharedNodeFactory to process " + def + '/' + def.getDeclaringFileName());
+            }
+        });
         return git;
     }
 }
