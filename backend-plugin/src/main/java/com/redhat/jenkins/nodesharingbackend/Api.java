@@ -294,7 +294,7 @@ public class Api implements RootAction {
 
         if (!(c instanceof ShareableComputer)) {
             LOGGER.warning(
-                    "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + "that is not reservable"
+                    "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + " that is not reservable"
             );
             rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
             rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
