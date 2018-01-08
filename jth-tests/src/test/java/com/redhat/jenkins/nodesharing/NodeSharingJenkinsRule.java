@@ -145,6 +145,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     @Nonnull
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
         SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", null);
+        cloud.getLatestConfig();
         jenkins.clouds.add(cloud);
         return cloud;
     }
@@ -171,7 +172,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
         @Override
         public void launch(SlaveComputer computer, final TaskListener listener) {
-System.out.println("Launching...");
             start.signal();
             try {
                 end.block();
