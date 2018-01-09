@@ -21,7 +21,6 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.util.List;
 
 import java.util.logging.Logger;

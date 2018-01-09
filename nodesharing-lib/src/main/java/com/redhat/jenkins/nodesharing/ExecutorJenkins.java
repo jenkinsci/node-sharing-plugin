@@ -52,13 +52,16 @@ public class ExecutorJenkins {
         } catch (Failure ex) {
             throw new IllegalArgumentException(ex);
         }
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
         try {
             this.url = new URL(url);
             this.url.toURI();
         } catch (MalformedURLException|URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
-        rest = new RestEndpoint(url,  "/cloud/" + inferCloudName(configRepoUrl) + "/api");
+        rest = new RestEndpoint(url, "/cloud/" + inferCloudName(configRepoUrl) + "/api");
     }
 
     public static String inferCloudName(String url) {
@@ -110,5 +113,9 @@ public class ExecutorJenkins {
         } catch (URISyntaxException e) {
             throw new AssertionError(e);
         }
+    }
+
+    @Override public String toString() {
+        return name + ":" + url;
     }
 }

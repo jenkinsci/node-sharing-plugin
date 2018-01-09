@@ -97,7 +97,7 @@ public class PoolTest {
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
     }
 
-    private Throwable getConfigTaskException(String context) throws IOException, InterruptedException {
+    private Throwable getConfigTaskException(String context) {
         return Pool.ADMIN_MONITOR.getErrors().get(context);
     }
 

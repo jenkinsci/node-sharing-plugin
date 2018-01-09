@@ -32,7 +32,7 @@ import static org.junit.Assert.assertNotEquals;
 
 public class ExecutorJenkinsTest {
 
-    private static final String VALID_URL = "https://as.df:8080/orchestrator";
+    private static final String VALID_URL = "https://as.df:8080/orchestrator/";
     private static final String VALID_NAME = "as.df";
     private static final String VALID_CONFIG_REPO_URL = "/tmp/config-repo";
 
@@ -52,7 +52,7 @@ public class ExecutorJenkinsTest {
 
         assertEquals(VALID_NAME, ej.getName());
         assertEquals(new URL(VALID_URL), ej.getUrl());
-        assertEquals(new URL("https://as.df:8080/orchestrator"), ej.getEndpointUrl());
+        assertEquals(new URL("https://as.df:8080/orchestrator/"), ej.getEndpointUrl());
     }
 
     @Test

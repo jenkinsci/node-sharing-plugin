@@ -23,11 +23,11 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
 import hudson.ExtensionList;
-import hudson.FilePath;
 import hudson.Util;
 import hudson.remoting.Launcher;
 import hudson.remoting.Which;
@@ -61,22 +61,20 @@ import static org.junit.Assert.assertTrue;
  */
 public class ConfigRepoRule implements TestRule {
 
-    public static final String ENDPOINT_PROPERTY_NAME = "com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT";
-
     private final List<File> repos = new ArrayList<>();
 
     @Override
     public Statement apply(final Statement base, Description description) {
         return new Statement() {
             @Override public void evaluate() throws Throwable {
-                String oldEndpoint = System.getProperty(ENDPOINT_PROPERTY_NAME);
+                String oldEndpoint = System.getProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
                 try {
                     base.evaluate();
                 } finally {
                     if (oldEndpoint == null) {
-                        System.clearProperty(ENDPOINT_PROPERTY_NAME);
+                        System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
                     } else {
-                        System.setProperty(ENDPOINT_PROPERTY_NAME, oldEndpoint);
+                        System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, oldEndpoint);
                     }
                     for (File repo : repos) {
                         Util.deleteRecursive(repo);
@@ -123,9 +121,8 @@ public class ConfigRepoRule implements TestRule {
         final List<SharedNodeFactory> oldFactories = new ArrayList<>(el);
         el.clear();
         el.add(0, new SharedNodeFactory() {
-            @CheckForNull @Override public SharedNode create(@Nonnull NodeDefinition def) {
+            @Override public SharedNode create(@Nonnull NodeDefinition def) {
                 for (SharedNodeFactory factory : oldFactories) {
-                    System.out.println(factory);
                     SharedNode node = factory.create(def);
                     if (node != null) {
                         node.setLauncher(new CommandLauncher(

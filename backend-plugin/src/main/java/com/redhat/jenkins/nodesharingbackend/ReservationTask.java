@@ -123,10 +123,11 @@ public class ReservationTask extends AbstractQueueTask {
 
     public static class ReservationExecutable implements Queue.Executable {
 
-        private final ReservationTask task;
-        private OneShotEvent done = new OneShotEvent();
+        private final @Nonnull ReservationTask task;
+        private @CheckForNull String nodeName; // Assigned as soon as execution starts
+        private @Nonnull OneShotEvent done = new OneShotEvent();
 
-        public ReservationExecutable(ReservationTask task) {
+        public ReservationExecutable(@Nonnull ReservationTask task) {
             this.task = task;
         }
 
@@ -140,9 +141,14 @@ public class ReservationTask extends AbstractQueueTask {
             return task.getEstimatedDuration();
         }
 
+        public @CheckForNull String getNodeName() {
+            return nodeName;
+        }
+
         @Override
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
+            nodeName = computer.getName();
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError();
             Api.getInstance().utilizeNode(task.jenkins, node);
@@ -157,9 +163,9 @@ public class ReservationTask extends AbstractQueueTask {
         }
 
 
-        public @Nonnull ShareableComputer getExecutingComputer() {
+        private @Nonnull ShareableComputer getExecutingComputer() {
             Executor executor = Executor.currentExecutor();
-            if (executor == null) throw new AssertionError();
+            if (executor == null) throw new IllegalStateException("No running on any executor");
             Computer owner = executor.getOwner();
             if (!(owner instanceof ShareableComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
 
