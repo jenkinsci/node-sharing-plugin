@@ -184,7 +184,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
         @Override
         public void launch(SlaveComputer computer, final TaskListener listener) {
-System.out.println("Launching...");
             start.signal();
             try {
                 end.block();

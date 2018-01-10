@@ -153,16 +153,34 @@ public class ReservationTask extends AbstractQueueTask {
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
+            LOGGER.info("Reservation of " + nodeName + " started for " + task.getOwner());
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError();
-            boolean accepted = Api.getInstance().utilizeNode(task.jenkins, node);
-            if (!accepted) {
-                LOGGER.fine("Executor rejected the node");
-                return;
+            while (true) {
+                boolean accepted;
+                try {
+                    accepted = Api.getInstance().utilizeNode(task.jenkins, node);
+                } catch (Pool.PoolMisconfigured ex) {
+                    // Loop for as long as the pool is broken
+                    LOGGER.warning(ex.getMessage());
+                    try {
+                        Thread.sleep(1000 * 60 * 5);
+                    } catch (InterruptedException e) {
+                        LOGGER.log(Level.INFO, "Task interrupted", e);
+                        return;
+                    }
+                    continue;
+                }
+                if (!accepted) {
+                    LOGGER.info("Executor rejected the node");
+                    return; // Abort reservation
+                } else {
+                    break; // Wait for return
+                }
             }
             try {
                 done.block();
-                LOGGER.fine("Task completed");
+                LOGGER.info("Task completed");
             } catch (InterruptedException e) {
                 LOGGER.log(Level.INFO, "Task interrupted", e);
             }
