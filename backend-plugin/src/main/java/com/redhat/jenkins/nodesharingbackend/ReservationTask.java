@@ -40,6 +40,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Phony queue task that simulates build execution on executor Jenkins.
@@ -51,6 +53,8 @@ import java.util.Objects;
  * @author ogondza.
  */
 public class ReservationTask extends AbstractQueueTask {
+    private static final Logger LOGGER = Logger.getLogger(ReservationTask.class.getName());
+
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
     private final @Nonnull String taskName;
@@ -151,14 +155,16 @@ public class ReservationTask extends AbstractQueueTask {
             nodeName = computer.getName();
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError();
-            Api.getInstance().utilizeNode(task.jenkins, node);
+            boolean accepted = Api.getInstance().utilizeNode(task.jenkins, node);
+            if (!accepted) {
+                LOGGER.fine("Executor rejected the node");
+                return;
+            }
             try {
                 done.block();
-                System.out.println("Task completed");
+                LOGGER.fine("Task completed");
             } catch (InterruptedException e) {
-                System.out.println("Task interrupted");
-                // Interrupted
-                e.printStackTrace();
+                LOGGER.log(Level.INFO, "Task interrupted", e);
             }
         }
 
