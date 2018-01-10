@@ -86,8 +86,9 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
         Computer.threadPoolForRemoting.submit(new Runnable() {
             @Override
             public void run() {
-                Queue.withLock(new NotReallyRoleSensitiveCallable<Void,RuntimeException>() {
-                    @Override public Void call() {
+                // https://github.com/jenkinsci/durable-task-plugin/commit/0bf67ad1c37cf390e62049c8229bf0d536f6221a#r19531777
+                //Queue.withLock(new NotReallyRoleSensitiveCallable<Void,RuntimeException>() {
+                //    @Override public Void call() {
                         try {
                             AbstractCloudSlave node = c.getNode();
                             if (node != null) {
@@ -104,9 +105,9 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                                 terminating = false;
                             }
                         }
-                        return null;
-                    }
-                });
+                //        return null;
+                //    }
+                //});
             }
         });
     }
