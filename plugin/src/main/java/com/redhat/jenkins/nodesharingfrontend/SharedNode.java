@@ -33,6 +33,12 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     private static final Logger LOGGER = Logger.getLogger(SharedNode.class.getName());
 
     private static final long serialVersionUID = -3284884519464420953L;
+    private static final CauseOfBlockage COB_NO_FLYWEIGHTS = new CauseOfBlockage() {
+        @Override public String getShortDescription() { return "Cannot build flyweight tasks"; }
+    };
+    private static final CauseOfBlockage COB_NO_RESERVATIONS = new CauseOfBlockage() {
+        @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
+    };
 
     private ProvisioningActivity.Id id;
     private String hostname;
@@ -61,18 +67,16 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     @Override
     public CauseOfBlockage canTake(BuildableItem item) {
         if (item.task instanceof Queue.FlyweightTask) {
-            return new CauseOfBlockage() {
-                @Override
-                public String getShortDescription() {
-                    return "Cannot build flyweight tasks on " + name;
-                }
-            };
+            return COB_NO_FLYWEIGHTS;
+        }
+        if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) { // jth-tests hack
+            return COB_NO_RESERVATIONS;
         }
         return super.canTake(item);
     }
 
     @Override
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+    protected void _terminate(TaskListener listener) {
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);

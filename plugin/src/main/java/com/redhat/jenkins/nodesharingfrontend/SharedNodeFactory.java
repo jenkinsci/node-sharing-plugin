@@ -40,10 +40,15 @@ public abstract class SharedNodeFactory implements ExtensionPoint {
     public static @Nonnull SharedNode transform(@Nonnull NodeDefinition def) throws IllegalArgumentException {
         for (SharedNodeFactory factory : ExtensionList.lookup(SharedNodeFactory.class)) {
             SharedNode node = factory.create(def);
-            if (node != null) return node;
+            if (node != null) return decorate(node);
         }
 
         throw new IllegalArgumentException("No SharedNodeFactory to process " + def.getDeclaringFileName());
+    }
+
+    private static @Nonnull SharedNode decorate(@Nonnull SharedNode node) {
+        node.setRetentionStrategy(new SharedOnceRetentionStrategy(2));
+        return node;
     }
 
     public abstract @CheckForNull SharedNode create(@Nonnull NodeDefinition def);

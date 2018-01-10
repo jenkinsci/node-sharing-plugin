@@ -1,7 +1,7 @@
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
   <name>solaris1.acme.com</name>
   <description/>
-  <remoteFS>/var/jenkins-workspace</remoteFS>
+  <remoteFS>./var/jenkins-workspace</remoteFS>
   <numExecutors>1</numExecutors>
   <mode>EXCLUSIVE</mode>
   <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.21">
