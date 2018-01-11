@@ -23,8 +23,15 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharingbackend.Pool;
+import com.redhat.jenkins.nodesharingfrontend.SharedNode;
+import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
+import hudson.ExtensionList;
 import hudson.Util;
+import hudson.remoting.Launcher;
+import hudson.remoting.Which;
+import hudson.slaves.CommandLauncher;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
@@ -34,6 +41,8 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -52,22 +61,20 @@ import static org.junit.Assert.assertTrue;
  */
 public class ConfigRepoRule implements TestRule {
 
-    public static final String ENDPOINT_PROPERTY_NAME = "com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT";
-
     private final List<File> repos = new ArrayList<>();
 
     @Override
     public Statement apply(final Statement base, Description description) {
         return new Statement() {
             @Override public void evaluate() throws Throwable {
-                String oldEndpoint = System.getProperty(ENDPOINT_PROPERTY_NAME);
+                String oldEndpoint = System.getProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
                 try {
                     base.evaluate();
                 } finally {
                     if (oldEndpoint == null) {
-                        System.clearProperty(ENDPOINT_PROPERTY_NAME);
+                        System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
                     } else {
-                        System.setProperty(ENDPOINT_PROPERTY_NAME, oldEndpoint);
+                        System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, oldEndpoint);
                     }
                     for (File repo : repos) {
                         Util.deleteRecursive(repo);
@@ -106,19 +113,28 @@ public class ConfigRepoRule implements TestRule {
 
         git.getWorkTree().child("jenkinses").write("jenkins1=" + j.getRootUrl(), "UTF-8");
         git.add("jenkinses");
-
-        // Create and store real slave
-        String slave = Util.loadFile(
-                new File(git.getWorkTree().child("nodes/solaris2.orchestrator.xml").getRemote()))
-                .replace("<agentCommand />",
-                        String.format("<agentCommand>%s -jar %s</agentCommand>",
-                                System.getProperty("java.home") + "/bin/java",
-                                new File(Jenkins.getInstance().getJnlpJars("slave.jar").getURL().toURI()).getAbsolutePath())
-                );
-        git.getWorkTree().child("nodes").child("solaris2.orchestrator.xml").write(slave, "UTF-8");
-        git.add("nodes/solaris2.orchestrator.xml");
-
         git.commit("Update");
+
+        // Register conversion handler that delegates to production implementation and decorates with local launcher
+        final File slaveJar = Which.jarFile(Launcher.class).getAbsoluteFile();
+        ExtensionList<SharedNodeFactory> el = ExtensionList.lookup(SharedNodeFactory.class);
+        final List<SharedNodeFactory> oldFactories = new ArrayList<>(el);
+        el.clear();
+        el.add(0, new SharedNodeFactory() {
+            @Override public SharedNode create(@Nonnull NodeDefinition def) {
+                for (SharedNodeFactory factory : oldFactories) {
+                    SharedNode node = factory.create(def);
+                    if (node != null) {
+                        node.setLauncher(new CommandLauncher(
+                                System.getProperty("java.home") + "/bin/java -jar " + slaveJar
+                        ));
+                        return node;
+                    }
+                }
+
+                throw new IllegalArgumentException("No SharedNodeFactory to process " + def + '/' + def.getDeclaringFileName());
+            }
+        });
         return git;
     }
 }

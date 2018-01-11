@@ -32,6 +32,7 @@ import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedComputer;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import com.redhat.jenkins.nodesharingfrontend.SharedOnceRetentionStrategy;
 import hudson.FilePath;
 import hudson.model.Computer;
@@ -182,23 +183,13 @@ public class SharedNodeCloudTest {
     public void nodeStatusTestIdle() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.executor.com",
-                        cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition()));
-        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
-
-//        for (Node n : Jenkins.getInstance().getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
-//
-//        for (Computer c : Jenkins.getInstance().getComputers()) {
-//            System.out.println(c.getName());
-//        }
+        j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
+        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 
         computer.waitUntilOnline();
         assertTrue(computer.isOnline());
         assertTrue(computer.isIdle());
-        checkNodeStatus(cloud, "solaris2.executor.com", NodeStatusResponse.Status.IDLE);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.IDLE);
 
         // still IDLE status although offline
         assertFalse(computer.isConnecting());
@@ -209,17 +200,15 @@ public class SharedNodeCloudTest {
         }
         assertTrue(computer.isOffline());
         assertFalse(computer.isConnecting());
-        checkNodeStatus(cloud, "solaris2.executor.com", NodeStatusResponse.Status.IDLE);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.IDLE);
     }
 
     @Test
     public void nodeStatusTestBusy() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.executor.com",
-                        cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition()));
-        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
+        j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
+        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
 //            System.out.println(n.getNodeName());
@@ -228,6 +217,7 @@ public class SharedNodeCloudTest {
         computer.waitUntilOnline();
         assertTrue(computer.isOnline());
         assertTrue(computer.isIdle());
+
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedNode(computer.getNode());
         NodeSharingJenkinsRule.BlockingBuilder builder = new NodeSharingJenkinsRule.BlockingBuilder();
@@ -236,7 +226,7 @@ public class SharedNodeCloudTest {
         builder.start.block();
         assertTrue(job.isBuilding());
         assertFalse(computer.isIdle());
-        checkNodeStatus(cloud, "solaris2.executor.com", NodeStatusResponse.Status.BUSY);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.BUSY);
         builder.end.signal();
     }
 
@@ -244,10 +234,8 @@ public class SharedNodeCloudTest {
     public void nodeStatusTestOffline() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.executor.com",
-                        cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition()));
-        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
+        j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
+        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
 //            System.out.println(n.getNodeName());
@@ -268,7 +256,7 @@ public class SharedNodeCloudTest {
         computer.waitUntilOffline();
         assertTrue(computer.isOffline());
         assertFalse(computer.isIdle());
-        checkNodeStatus(cloud, "solaris2.executor.com", NodeStatusResponse.Status.OFFLINE);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.OFFLINE);
         builder.end.signal();
     }
 
@@ -282,8 +270,13 @@ public class SharedNodeCloudTest {
                 null, cloud.getNodeName("aConnectingNode"));
         NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher =
                 new NodeSharingJenkinsRule.BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
-        SharedNode connectingSlave = new SharedNode(id, "dummy", j.createTmpDir().getPath(),
-                blockingLauncher, new SharedOnceRetentionStrategy(1), Collections.EMPTY_LIST);
+
+//        SharedNode connectingSlave = new SharedNode(id, "dummy", j.createTmpDir().getPath(),
+//                blockingLauncher, new SharedOnceRetentionStrategy(1), Collections.EMPTY_LIST);
+//        SharedNode connectingSlave = SharedNodeFactory.transform(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
+        SharedNode connectingSlave = cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
+        connectingSlave.setLauncher(blockingLauncher);
+        connectingSlave.setNodeName(cloud.getNodeName("aConnectingNode"));
         j.jenkins.addNode(connectingSlave);
         assertTrue(connectingSlave.toComputer().isConnecting());
         blockingLauncher.start.block();
@@ -437,18 +430,16 @@ public class SharedNodeCloudTest {
 //            System.out.println(nd.getName() + ": " + nd.getDefinition());
 //        }
 
-        String xmlDef = cloud.getLatestConfig().getNodes().get("solaris2.orchestrator").getDefinition();
-        System.out.println(xmlDef);
+        String xmlDef = cloud.getLatestConfig().getNodes().get("solaris2.acme.com").getDefinition();
 
-        cloud.createNode(
-                new NodeDefinition.Xml("solaris2.executor.com",  xmlDef));
+        j.jenkins.addNode(cloud.createNode(new NodeDefinition.Xml("solaris2.acme.com",  xmlDef)));
 
 
 //        for (Node n : Jenkins.getInstance().getNodes()) {
 //            System.out.println(n.getNodeName());
 //        }
 
-        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.executor.com"));
+        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 //        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
 
         computer.waitUntilOnline();

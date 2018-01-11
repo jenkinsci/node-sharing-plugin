@@ -232,7 +232,7 @@ public class ConfigRepo {
     /**
      * Snapshot of the configuration at particular point in time.
      */
-    public static final class Snapshot {
+    public static class Snapshot {
         private final @Nonnull ObjectId source;
         private final @Nonnull HashMap<String, String> config;
         private final @Nonnull Set<ExecutorJenkins> jenkinses;

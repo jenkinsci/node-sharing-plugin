@@ -44,9 +44,12 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 public class ReturnNodeTest {
 
@@ -60,31 +63,32 @@ public class ReturnNodeTest {
     public void returnNodeThatDoesNotExist() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
+        NodeDefinition def = Pool.getInstance().getConfig().getNodes().values().iterator().next();
 
         // Removing node that does not exists should not fail as that is expected when removed from inventory
-        SharedNode foo = new SharedNode(
-                new ProvisioningActivity.Id("c", "t", "foo"), "", "", null, null, Collections.<NodeProperty<?>>emptyList()
-        );
+        SharedNode foo = spy(cloud.createNode(def));
+        when(foo.getHostName()).thenReturn("no_such_node");
+        assertEquals(null, j.jenkins.getNode(foo.getHostName()));
         cloud.getApi().returnNode(foo);
 
         // Removing node of different type is an error
         DumbSlave slave = j.createOnlineSlave();
-        foo = new SharedNode(
-                new ProvisioningActivity.Id("c", "t", slave.getNodeName()), "", "", null, null, Collections.<NodeProperty<?>>emptyList()
-        );
+        j.jenkins.removeNode(slave);
+        slave.setNodeName("foo");
+        j.jenkins.addNode(slave);
+
         try {
+            when(foo.getHostName()).thenReturn("foo");
             cloud.getApi().returnNode(foo);
             fail();
         } catch (ActionFailed.RequestFailed ex) {
             // Expected
         }
 
-        // Node is free
-        ShareableNode shareableNode = new ShareableNode(Pool.getInstance().getConfig().getNodes().values().iterator().next());
+        // Returning free node should pass
+        ShareableNode shareableNode = new ShareableNode(def);
         j.jenkins.addNode(shareableNode);
-        foo = new SharedNode(
-                new ProvisioningActivity.Id("c", "t", shareableNode.getNodeName()), "", "", null, null, Collections.<NodeProperty<?>>emptyList()
-        );
+        foo = cloud.createNode(def);
         cloud.getApi().returnNode(foo); // No error as it is idle already
     }
 
@@ -104,9 +108,7 @@ public class ReturnNodeTest {
         reservationFuture.getStartCondition().get(1, TimeUnit.SECONDS);
         assertFalse(j.jenkins.getComputer(shareableNode.getNodeName()).isIdle());
 
-        SharedNode shared = new SharedNode(
-                new ProvisioningActivity.Id("c", "t", shareableNode.getNodeName()), "", "", null, null, Collections.<NodeProperty<?>>emptyList()
-        );
+        SharedNode shared = cloud.createNode(nodeDefinition);
         cloud.getApi().returnNode(shared);
         reservationFuture.get(1, TimeUnit.SECONDS);
         Thread.sleep(500);

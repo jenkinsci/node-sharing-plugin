@@ -40,6 +40,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Phony queue task that simulates build execution on executor Jenkins.
@@ -51,14 +53,24 @@ import java.util.Objects;
  * @author ogondza.
  */
 public class ReservationTask extends AbstractQueueTask {
+    private static final Logger LOGGER = Logger.getLogger(ReservationTask.class.getName());
+
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
     private final @Nonnull String taskName;
+    // The task is created for reservation we failed to track so the node is already utilized by the executor and therefore
+    // the REST call must not be reattempted.
+    private final boolean backfill;
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName) {
+        this(owner, label, taskName, false);
+    }
+
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName, boolean backfill) {
         this.jenkins = owner;
         this.label = label;
         this.taskName = taskName;
+        this.backfill = backfill;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
@@ -123,10 +135,11 @@ public class ReservationTask extends AbstractQueueTask {
 
     public static class ReservationExecutable implements Queue.Executable {
 
-        private final ReservationTask task;
-        private OneShotEvent done = new OneShotEvent();
+        private final @Nonnull ReservationTask task;
+        private @CheckForNull String nodeName; // Assigned as soon as execution starts
+        private @Nonnull OneShotEvent done = new OneShotEvent();
 
-        public ReservationExecutable(ReservationTask task) {
+        public ReservationExecutable(@Nonnull ReservationTask task) {
             this.task = task;
         }
 
@@ -140,26 +153,55 @@ public class ReservationTask extends AbstractQueueTask {
             return task.getEstimatedDuration();
         }
 
+        public @CheckForNull String getNodeName() {
+            return nodeName;
+        }
+
         @Override
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
+            nodeName = computer.getName();
+            LOGGER.info("Reservation of " + nodeName + " started for " + task.getOwner());
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError();
-            Api.getInstance().utilizeNode(task.jenkins, node);
+
+            if (!task.backfill) {
+                while (true) {
+                    boolean accepted;
+                    try {
+                        accepted = Api.getInstance().utilizeNode(task.jenkins, node);
+                    } catch (Pool.PoolMisconfigured ex) {
+                        // Loop for as long as the pool is broken
+                        LOGGER.warning(ex.getMessage());
+                        try {
+                            Thread.sleep(1000 * 60 * 5);
+                        } catch (InterruptedException e) {
+                            LOGGER.log(Level.INFO, "Task interrupted", e);
+                            return;
+                        }
+                        continue;
+                    }
+                    if (!accepted) {
+                        LOGGER.info("Executor rejected the node");
+                        return; // Abort reservation
+                    } else {
+                        break; // Wait for return
+                    }
+                }
+            }
+
             try {
                 done.block();
-                System.out.println("Task completed");
+                LOGGER.info("Task completed");
             } catch (InterruptedException e) {
-                System.out.println("Task interrupted");
-                // Interrupted
-                e.printStackTrace();
+                LOGGER.log(Level.INFO, "Task interrupted", e);
             }
         }
 
 
-        public @Nonnull ShareableComputer getExecutingComputer() {
+        private @Nonnull ShareableComputer getExecutingComputer() {
             Executor executor = Executor.currentExecutor();
-            if (executor == null) throw new AssertionError();
+            if (executor == null) throw new IllegalStateException("No running on any executor");
             Computer owner = executor.getOwner();
             if (!(owner instanceof ShareableComputer)) throw new IllegalStateException(getClass().getSimpleName() + " running on unexpected computer " + owner);
 

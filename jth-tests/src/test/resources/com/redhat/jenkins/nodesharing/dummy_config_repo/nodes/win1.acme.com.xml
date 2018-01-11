@@ -1,7 +1,7 @@
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
-  <name>solaris1.executor.com</name>
+  <name>win1.acme.com</name>
   <description/>
-  <remoteFS>/var/jenkins-workspace</remoteFS>
+  <remoteFS>W:\\</remoteFS>
   <numExecutors>1</numExecutors>
   <mode>EXCLUSIVE</mode>
   <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.21">
@@ -13,6 +13,6 @@
     <maxNumRetries>0</maxNumRetries>
     <retryWaitTime>0</retryWaitTime>
   </launcher>
-  <label>solaris11 sparc</label>
+  <label>windows w2k12</label>
   <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

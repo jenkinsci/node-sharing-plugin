@@ -26,38 +26,29 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.util.FormValidation;
-import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.TestBuilder;
 
-import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Future;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertSame;
 
 public class ReservationTest {
 
@@ -89,10 +80,10 @@ public class ReservationTest {
         assertThat(validation.renderHtml(), containsString("Orchestrator version is " + prop.getProperty("version")));
     }
 
-    @Test @Ignore // TODO Keep hacking until this passes
+    @Test
     public void runBuildSuccessfully() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
+        SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         // When I schedule a bunch of tasks on executor
         Label winLabel = Label.get("w2k12");
@@ -100,42 +91,73 @@ public class ReservationTest {
         winJob.setAssignedLabel(winLabel);
         NodeSharingJenkinsRule.BlockingBuilder winBuilder = new NodeSharingJenkinsRule.BlockingBuilder();
         winJob.getBuildersList().add(winBuilder);
+
         Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
         FreeStyleProject solarisJob = j.createFreeStyleProject("sol");
         solarisJob.setAssignedLabel(solarisLabel);
         NodeSharingJenkinsRule.BlockingBuilder solarisBuilder = new NodeSharingJenkinsRule.BlockingBuilder();
         solarisJob.getBuildersList().add(solarisBuilder);
-        Future<FreeStyleBuild> winStart = winJob.scheduleBuild2(0).getStartCondition();
-        Future<FreeStyleBuild> solarisStart = solarisJob.scheduleBuild2(0).getStartCondition();
-        Future<FreeStyleBuild> scheduledSolarisRun = solarisJob.scheduleBuild2(0).getStartCondition();
+
+        FreeStyleProject solaris2Job = j.createFreeStyleProject("sol2");
+        solaris2Job.setAssignedLabel(solarisLabel);
+        NodeSharingJenkinsRule.BlockingBuilder solaris2Builder = new NodeSharingJenkinsRule.BlockingBuilder();
+        solaris2Job.getBuildersList().add(solaris2Builder);
+
+        QueueTaskFuture<FreeStyleBuild> winBuildFuture = winJob.scheduleBuild2(0);
+        QueueTaskFuture<FreeStyleBuild> solBuildFuture =  solarisJob.scheduleBuild2(0);
+        QueueTaskFuture<FreeStyleBuild> scheduledSolBuildFuture = solaris2Job.scheduleBuild2(0);
+        Thread.sleep(1000);
+
+        assertEquals(3, j.jenkins.getQueue().getBuildableItems().size());
 
         j.reportWorkloadToOrchestrator();
+        Thread.sleep(1000);
 
         // Then there should be reservation tasks on orchestrator
-        List<ReservationTask> scheduledReservations = j.getScheduledReservations();
-        assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
+        assertEquals(2, j.getPendingReservations().size());
+        assertEquals(1, j.getScheduledReservations().size());
+        assertEquals(solarisLabel, j.getComputer("solaris1.acme.com").getReservation().getParent().getAssignedLabel());
+        assertEquals(winLabel, j.getComputer("win1.acme.com").getReservation().getParent().getAssignedLabel());
 
-        winStart.get();
-        solarisStart.get();
-        assertFalse(scheduledSolarisRun.isDone());
+        // Unblocked builds are run, the rest is not
+        FreeStyleBuild winBuild = winBuildFuture.getStartCondition().get();
+        FreeStyleBuild solBuild = solBuildFuture.getStartCondition().get();
+        assertFalse(scheduledSolBuildFuture.getStartCondition().isDone());
+        Thread.sleep(1000);
 
         // They start occupying real computers or they stay in the queue
-        assertEquals(solarisLabel, j.getComputer("solaris1.executor.com").getReservation().getParent().getAssignedLabel());
-        assertEquals(winLabel, j.getComputer("win1.executor.com").getReservation().getParent().getAssignedLabel());
-        assertNull(j.getComputer("win2.executor.com").getReservation());
-        assertFalse(scheduledSolarisRun.isDone());
+        assertSame(j.jenkins.getNode("win1.acme.com-" + cloud.name), winBuild.getBuiltOn());
+        assertSame(j.jenkins.getNode("solaris1.acme.com-" + cloud.name), solBuild.getBuiltOn());
+        assertNull(j.jenkins.getComputer("win2.acme.com-" + cloud.name));
+        assertNull(j.jenkins.getComputer("solaris2.acme.com-" + cloud.name));
 
+        // Completing the executor build will remove the executor node and complete the reservation
         winBuilder.end.signal();
+        winBuildFuture.get();
         j.assertBuildStatusSuccess(winJob.getBuildByNumber(1));
-        assertNull(j.getComputer("win1.executor.com").getReservation());
-        assertNull(j.getComputer("win2.executor.com").getReservation());
+        Thread.sleep(1000);
+        assertNull(j.jenkins.getNode("win1.acme.com-" + cloud.name));
+        assertNull(j.getComputer("win1.acme.com").getReservation());
+
+        assertEquals(1, j.getPendingReservations().size());
+        assertEquals(1, j.getScheduledReservations().size());
 
         // When first solaris task completes
         solarisBuilder.end.signal();
+        solBuildFuture.get();
         j.assertBuildStatusSuccess(solarisJob.getBuildByNumber(1));
-        scheduledSolarisRun.get();
-        assertTrue("Blocked task should resume", scheduledSolarisRun.isDone());
-        assertNotNull(j.getComputer("solaris1.executor.com").getReservation());
+
+        // Queued solaris build gets unblocked
+        scheduledSolBuildFuture.getStartCondition().get();
+        assertFalse(scheduledSolBuildFuture.isDone());
+        assertEquals(1, j.getPendingReservations().size());
+        assertEquals(0, j.getScheduledReservations().size());
+
+        solaris2Builder.end.signal();
+        j.assertBuildStatusSuccess(scheduledSolBuildFuture);
+        Thread.sleep(1000);
+        assertEquals(0, j.getPendingReservations().size());
+        assertEquals(0, j.getScheduledReservations().size());
     }
 
     @Test

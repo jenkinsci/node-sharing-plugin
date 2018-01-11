@@ -24,7 +24,6 @@ public class NodeSharingComputerListener extends ComputerListener {
     private static final Logger LOGGER = Logger.getLogger(NodeSharingComputerListener.class.getName());
 
     @Override
-    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public void onLaunchFailure(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
         try {
             super.onLaunchFailure(c, taskListener);
@@ -47,7 +46,6 @@ public class NodeSharingComputerListener extends ComputerListener {
     }
 
     @Override
-    @SuppressFBWarnings(value = "BC_VACUOUS_INSTANCEOF")
     public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
         try {
             super.preLaunch(c, taskListener);
@@ -59,8 +57,9 @@ public class NodeSharingComputerListener extends ComputerListener {
             Node node = c.getNode();
             if (node instanceof SharedNode) {
                SharedNodeCloud cloud =
-                       SharedNodeCloud.getByName(((SharedNode) node).getCloudName());
+                       SharedNodeCloud.getByName(((SharedNode) node).getId().getCloudName());
                if (cloud == null || !cloud.isOperational()) {
+                   // TODO these should never be saved (EphemeralNode) - do we still need this?
                    throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
                }
            }

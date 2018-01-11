@@ -33,6 +33,8 @@ import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageRequest;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
@@ -40,6 +42,7 @@ import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Util;
 import hudson.model.Computer;
+import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
 import jenkins.model.Jenkins;
@@ -59,6 +62,7 @@ import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -129,14 +133,14 @@ public class Api {
     public void returnNode(@Nonnull SharedNode node) {
         Computer computer = node.toComputer();
         String offlineCause = null;
-        if (computer != null) {
+        if (computer != null && computer.getOfflineCause() != null) {
             offlineCause = computer.getOfflineCause().toString();
         }
         final ReturnNodeRequest.Status status = offlineCause == null
                 ? ReturnNodeRequest.Status.OK
                 : ReturnNodeRequest.Status.FAILED
         ;
-        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getNodeName(), status, offlineCause);
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getHostName(), status, offlineCause);
 
         final HttpPost method = rest.post("returnNode");
         rest.executeRequest(method, request, new ResponseHandler<Void>() {
@@ -176,10 +180,10 @@ public class Api {
         Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
         for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
             if (item.getAssignedLabel().matches(nodeLabels)) {
-                System.out.println("Accepted: " + definition.getDefinition());
+                LOGGER.fine("Accepted: " + definition.getDefinition());
 
                 try {
-                    cloud.createNode(definition);
+                    Jenkins.getActiveInstance().addNode(cloud.createNode(definition));
                 } catch (IOException e) {
                     // TODO Report as 5XX HTTP Status code with the exception
                     break;
@@ -200,15 +204,33 @@ public class Api {
      */
     @RequirePOST
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), NodeStatusRequest.class);
-        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusRequest request = Entity.fromInputStream(req.getInputStream(), NodeStatusRequest.class);
+        String nodeName = request.getNodeName();
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
         if (nodeName != null)
             status = cloud.getNodeStatus(request.getNodeName());
         NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
         rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());
+    }
+
+    @RequirePOST
+    public void doReportUsage(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        ReportUsageRequest request = Entity.fromInputStream(req.getInputStream(), ReportUsageRequest.class);
+        ArrayList<String> usedNodes = new ArrayList<>();
+        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+            if (node instanceof SharedNode) {
+                SharedNode sharedNode = (SharedNode) node;
+                SharedNodeCloud cloud = SharedNodeCloud.getByName(sharedNode.getId().getCloudName());
+                if (cloud != null) {
+                    if (request.getConfigRepoUrl().equals(cloud.getConfigRepoUrl())) {
+                        usedNodes.add(sharedNode.getHostName());
+                    }
+                }
+            }
+        }
+
+        new ReportUsageResponse(fingerprint, usedNodes).toOutputStream(rsp.getOutputStream());
     }
 
 //    /**

@@ -1,5 +1,5 @@
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
-  <name>win1.executor.com</name>
+  <name>win2.acme.com</name>
   <description/>
   <remoteFS>W:\\</remoteFS>
   <numExecutors>1</numExecutors>
@@ -13,6 +13,6 @@
     <maxNumRetries>0</maxNumRetries>
     <retryWaitTime>0</retryWaitTime>
   </launcher>
-  <label>windows w2k12</label>
+  <label>windows w2k16</label>
   <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

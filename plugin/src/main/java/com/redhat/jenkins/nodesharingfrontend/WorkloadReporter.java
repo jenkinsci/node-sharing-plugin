@@ -29,11 +29,9 @@ import hudson.Extension;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.ArrayUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +56,7 @@ public class WorkloadReporter extends PeriodicWork {
     }
 
     @Override @VisibleForTesting
-    public void doRun() throws Exception {
+    public void doRun() {
         Map<SharedNodeCloud, ReportWorkloadRequest.Workload> workloadMapping = new HashMap<>();
         // Make sure those scheduled sooner are at the beginning
         List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();

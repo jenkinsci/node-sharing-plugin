@@ -33,6 +33,8 @@ import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageRequest;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
@@ -41,6 +43,7 @@ import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
+import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
@@ -134,10 +137,11 @@ public class Api implements RootAction {
      * Most useful when Orchestrator boots after crash with all the reservation info possibly lost or outdated.
      *
      * @param owner Jenkins instance to query.
-     * @return List of host names the instance is using.
      */
-    public @Nonnull Collection<String> reportUsage(@Nonnull ExecutorJenkins owner) {
-        throw new UnsupportedOperationException();
+    public @Nonnull ReportUsageResponse reportUsage(@Nonnull ExecutorJenkins owner) {
+        RestEndpoint rest = owner.getRest();
+        ReportUsageRequest request = new ReportUsageRequest(Pool.getInstance().getConfigRepoUrl(), version);
+        return rest.executeRequest(rest.post("reportUsage"), request, ReportUsageResponse.class);
     }
 
     /**
@@ -282,7 +286,8 @@ public class Api implements RootAction {
             return;
         }
 
-        Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
+        Jenkins jenkins = Jenkins.getActiveInstance();
+        Computer c = jenkins.getComputer(request.getNodeName());
         if (c == null) {
             LOGGER.info(
                     "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + " that does not exists"

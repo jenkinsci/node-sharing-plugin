@@ -71,7 +71,6 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
 
     public SharedComputer(SharedNode slave) {
         super(slave);
-        LOGGER.fine("Instancing a new SharedComputer: name='" + slave.getNodeName() + "'");
         id = slave.getId();
     }
 

@@ -16,10 +16,11 @@ import hudson.slaves.RetentionStrategy;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.util.List;
 
 import java.util.logging.Logger;
@@ -30,38 +31,32 @@ import java.util.logging.Logger;
 public class SharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(SharedNode.class.getName());
-    private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
+    private static final CauseOfBlockage COB_NO_FLYWEIGHTS = new CauseOfBlockage() {
+        @Override public String getShortDescription() { return "Cannot build flyweight tasks"; }
+    };
+    private static final CauseOfBlockage COB_NO_RESERVATIONS = new CauseOfBlockage() {
+        @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
+    };
 
     private ProvisioningActivity.Id id;
+    private String hostname;
 
-    /**
-     * Shared Node.
-     *
-     * @param id             id of the provisioning attempt.
-     * @param label          Jenkins label requested.
-     * @param remoteFS       Remote FS root.
-     * @param launcher       Slave launcher.
-     * @param strategy       Retention Strategy.
-     * @param nodeProperties node props.
-     * @throws FormException if occurs.
-     * @throws IOException   if occurs.
-     */
-    public SharedNode(
-            ProvisioningActivity.Id id,
-            String label,
-            String remoteFS,
-            ComputerLauncher launcher,
-            RetentionStrategy<AbstractCloudComputer> strategy,
-            List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
-        //CS IGNORE check FOR NEXT 3 LINES. REASON: necessary inline conditional in super().
-        super(id.getNodeName(), "", remoteFS, NUM_EXECUTORS,
-                label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
-                label, launcher, strategy, nodeProperties);
+    // Never used, the class is always created from NodeDefinition
+    @Restricted(DoNotUse.class)
+    private SharedNode(
+            String name, String nodeDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties
+    ) throws FormException, IOException {
+        super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
+    }
+
+    /*package*/ void init(@Nonnull final ProvisioningActivity.Id id) {
         this.id = id;
-        LOGGER.info("Instantiating a new SharedNode: name='" + name + "', label='"
-                + (label == null ? "<NULL>" : label) + "'");
+        // Name of the node as defined is its hostname, but we are changing the name of the Jenkins node as we need to
+        // preserve the old value as hostname
+        hostname = name;
+        name = id.getNodeName();
     }
 
     @Override
@@ -72,18 +67,16 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     @Override
     public CauseOfBlockage canTake(BuildableItem item) {
         if (item.task instanceof Queue.FlyweightTask) {
-            return new CauseOfBlockage() {
-                @Override
-                public String getShortDescription() {
-                    return "Cannot build flyweight tasks on " + name;
-                }
-            };
+            return COB_NO_FLYWEIGHTS;
+        }
+        if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) { // jth-tests hack
+            return COB_NO_RESERVATIONS;
         }
         return super.canTake(item);
     }
 
     @Override
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+    protected void _terminate(TaskListener listener) {
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
@@ -97,17 +90,13 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     }
 
     @Nonnull
-    public String getCloudName() {
-        return id.getCloudName();
+    public String getHostName() {
+        return hostname;
     }
 
     @Override
     public ProvisioningActivity.Id getId() {
         return id;
-    }
-
-    public void setId(@Nonnull final ProvisioningActivity.Id id) {
-        this.id = id;
     }
 
     @Nonnull

@@ -45,6 +45,7 @@ import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
@@ -61,6 +62,14 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     @GuardedBy("nodeSharingAttributesLock")
     private @Nonnull NodeDefinition nodeDefinition;
 
+    public static @CheckForNull ShareableNode getNodeByName(@Nonnull String name) throws IllegalStateException{
+        Node node = Jenkins.getActiveInstance().getNode(name);
+        if (node == null) return null;
+        if (node instanceof ShareableNode) return ((ShareableNode) node);
+
+        throw new IllegalStateException("Node '" + name + "' is of " + node.getClass());
+    }
+
     public ShareableNode(@Nonnull NodeDefinition def) throws Descriptor.FormException, IOException {
         super(def.getName(), def.getName(), "/unused", 1, Mode.EXCLUSIVE, def.getLabel(), new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
         nodeDefinition = def;
@@ -74,8 +83,12 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         return this;
     }
 
-    @Nonnull public NodeDefinition getNodeDefinition() {
+    public @Nonnull NodeDefinition getNodeDefinition() {
         return nodeDefinition;
+    }
+
+    public @CheckForNull ShareableComputer getComputer() {
+        return ((ShareableComputer) toComputer());
     }
 
     @Override public CauseOfBlockage canTake(Queue.BuildableItem item) {

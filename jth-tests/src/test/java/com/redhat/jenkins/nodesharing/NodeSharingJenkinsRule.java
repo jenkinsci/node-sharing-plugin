@@ -31,6 +31,7 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.model.Executor;
@@ -90,6 +91,18 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             }
         }
         Collections.reverse(out);
+        return out;
+    }
+
+    protected List<ReservationTask.ReservationExecutable> getPendingReservations() {
+        ArrayList<ReservationTask.ReservationExecutable> out = new ArrayList<>();
+        for (Computer c : jenkins.getComputers()) {
+            if (c instanceof ShareableComputer) {
+                ReservationTask.ReservationExecutable reservation = ((ShareableComputer) c).getReservation();
+                if (reservation == null) continue;
+                out.add(reservation);
+            }
+        }
         return out;
     }
 
