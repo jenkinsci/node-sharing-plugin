@@ -31,14 +31,19 @@ import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ReservationVerifier;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
+import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.model.Queue;
+import hudson.model.Slave;
+import hudson.model.queue.QueueTaskFuture;
 import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.TestBuilder;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -50,6 +55,8 @@ import static com.redhat.jenkins.nodesharingbackend.Pool.getInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -62,7 +69,7 @@ public class ReportUsageTest {
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
 
-    @Test @Ignore
+    @Test
     public void reportExecutorUsage() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
@@ -84,7 +91,6 @@ public class ReportUsageTest {
         assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(declaredNodes.size() * 2));
 
         for (int i = 0; i < 3; i++) {
-
             // When usage is reported
             ReservationVerifier.getInstance().doRun();
 
@@ -125,23 +131,43 @@ public class ReportUsageTest {
         assertThat(j.getPendingReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
     }
 
-    @Test @Ignore
+    @Test
     public void missedReturnNodeCall() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
         ConfigRepo.Snapshot c = cloud.getLatestConfig();
 
-        ExecutorJenkins owner = c.getJenkinses().iterator().next();
         NodeDefinition node = c.getNodes().values().iterator().next();
-        ReservationTask reservationTask = new ReservationTask(owner, Label.get(node.getLabel().replaceAll("[ ]+", "&&")), "foo");
-        ReservationTask.ReservationExecutable executable = (ReservationTask.ReservationExecutable) reservationTask.schedule().getFuture().getStartCondition().get();
+        Label label = Label.get(node.getLabel().replaceAll("[ ]+", "&&"));
+        FreeStyleProject project = j.createFreeStyleProject();
+        project.setAssignedLabel(label);
+        project.getBuildersList().add(new TestBuilder() {
+            @Override public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+                ((Slave) build.getBuiltOn()).setRetentionStrategy(null); // deliberately cause the node to leak after build completion
+                return true;
+            }
+        });
+        QueueTaskFuture<FreeStyleBuild> f = project.scheduleBuild2(0);
+        // Make sure it is buildable so it is not ignored while reporting the workload
+        // TODO remove once workload is reported on queue change events
+        while (j.jenkins.getQueue().getBuildableItems().size() != 1) {
+            Thread.sleep(100);
+        }
+        j.reportWorkloadToOrchestrator();
+        f.getStartCondition().get();
+        FreeStyleBuild build = f.get();
 
-        assertThat(j.getScheduledReservations(), emptyIterable());
-        assertThat(j.getPendingReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(1));
+        assertNotEquals(null, build.getBuiltOn());
 
-        // TODO As there is no need for the reservation, executor rejects it immediately
-        assertThat(j.jenkins.getNodes().toString(), j.jenkins.getNodes().size(), equalTo(c.getNodes().size() + 1));
+        // This does not invoke termination routine so returnNode is not sent
+        j.jenkins.removeNode(build.getBuiltOn());
+        assertEquals(1, j.getPendingReservations().size());
+        Thread.sleep(5000); // Make sure it is not caused by timing
+        assertEquals(1, j.getPendingReservations().size());
 
-        executable.complete();
+        ReservationVerifier.getInstance().doRun();
+        Thread.sleep(1000);
+
+        assertEquals(0, j.getPendingReservations().size());
     }
 }

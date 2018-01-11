@@ -39,6 +39,7 @@ import org.antlr.v4.runtime.misc.MultiMap;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,24 +57,24 @@ import java.util.logging.Logger;
  * <h2>Agreement</h2>
  *
  * <ul>
- *     <li>All nodes agree the host is idle,</li>
- *     <li>Orchestrator agree with the ony executor that claims the host.</li>
+ *     <li>A1: All nodes agree the host is idle,</li>
+ *     <li>A2: Orchestrator agree with the ony executor that claims the host.</li>
  * </ul>
  * No action needed here as grid is in sync.
  *
  * <h2>No collision</h2>
  *
  * <ul>
- *     <li>Orchestrator tracks no reservation for the host yet one executor claims it. UC: Orchestrator failover.</li>
- *     <li>Orchestrator tracks a reservation for executor that does not report the host being reserved. UC: Executor failover or Missed returnNode call</li>
- *     <li>Executor reports reservation for host not tracked by Orchestrator. UC:Host removal and Orchestrator failover</li>
+ *     <li>NC1: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Orchestrator failover.</li>
+ *     <li>NC2: Orchestrator tracks a reservation for executor that does not report the host being reserved. UC: Executor failover or Missed returnNode call</li>
+ *     <li>NC3: Executor reports reservation for host not tracked by Orchestrator. UC:Host removal and Orchestrator failover</li>
  * </ul>
  *
  * <h2>Collision</h2>
  *
  * <ul>
- *     <li>Orchestrator tracks reservation but extra executors report usage of the host. Bug or race condition.</li>
- *     <li>Several executors report reservation but orchestrator tracks none. Bug or race condition.</li>
+ *     <li>C1: Orchestrator tracks reservation but extra executors report usage of the host. Bug or race condition.</li>
+ *     <li>C2: Several executors report reservation but orchestrator tracks none. Bug or race condition.</li>
  * </ul>
  */
 @Extension
@@ -120,16 +121,26 @@ public class ReservationVerifier extends PeriodicWork {
 
             List<ReservationTask.ReservationExecutable> trackedExecutorReservations = trackedReservations.get(executor);
             hosts: for (String host: er.getValue()) {
-                for (ReservationTask.ReservationExecutable e: trackedExecutorReservations) {
+                for (Iterator<ReservationTask.ReservationExecutable> iterator = trackedExecutorReservations.iterator(); iterator.hasNext(); ) {
+                    ReservationTask.ReservationExecutable e = iterator.next();
                     if (host.equals(e.getNodeName())) {
-                        // Orchestrator and executor are in sync - host is reserved for the executor
+                        // A2: Orchestrator and executor are in sync - host is reserved for the executor
+                        iterator.remove();
                         continue hosts;
                     }
                 }
                 // TODO node can be already occupied
-                // TODO schedule all and then wait
-                // Schedule new reservation
-                startingTasks.add(new ReservationTask(executor, Label.get(host), host).schedule().getFuture().getStartCondition());
+                // NC1: Schedule backfill reservation
+                LOGGER.info("Starting backfill reservation for " + executor.getName() + " and " + host);
+                startingTasks.add(new ReservationTask(executor, Label.get(host), host, true).schedule().getFuture().getStartCondition());
+            }
+
+            // NC2: Cancel reservation no longer reported by executor
+            for (ReservationTask.ReservationExecutable reservation : trackedExecutorReservations) {
+                // TODO: prone to race conditions
+                ReservationTask parent = reservation.getParent();
+                LOGGER.info("Cancelling dangling reservation for " + parent.getOwner() + " and " + parent.getName());
+                reservation.complete();
             }
 
 //            for (Map.Entry<ExecutorJenkins, List<ReservationTask.ReservationExecutable>> tr : trackedReservations.entrySet()) {

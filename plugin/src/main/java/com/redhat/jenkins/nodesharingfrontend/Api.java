@@ -180,7 +180,7 @@ public class Api {
         Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
         for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
             if (item.getAssignedLabel().matches(nodeLabels)) {
-                System.out.println("Accepted: " + definition.getDefinition());
+                LOGGER.fine("Accepted: " + definition.getDefinition());
 
                 try {
                     Jenkins.getActiveInstance().addNode(cloud.createNode(definition));
