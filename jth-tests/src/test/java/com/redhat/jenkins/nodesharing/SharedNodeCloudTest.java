@@ -204,6 +204,9 @@ public class SharedNodeCloudTest {
         assertFalse(computer.isConnecting());
         computer.setTemporarilyOffline(true);
         computer.waitUntilOffline();
+        while (computer.isConnecting()) {
+            Thread.sleep(50);
+        }
         assertTrue(computer.isOffline());
         assertFalse(computer.isConnecting());
         checkNodeStatus(cloud, "solaris2.executor.com", NodeStatusResponse.Status.IDLE);
