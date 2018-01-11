@@ -148,13 +148,6 @@ public class ReportUsageTest {
             }
         });
         QueueTaskFuture<FreeStyleBuild> f = project.scheduleBuild2(0);
-        // Make sure it is buildable so it is not ignored while reporting the workload
-        // TODO remove once workload is reported on queue change events
-        while (j.jenkins.getQueue().getBuildableItems().size() != 1) {
-            Thread.sleep(100);
-        }
-        j.reportWorkloadToOrchestrator();
-        f.getStartCondition().get();
         FreeStyleBuild build = f.get();
 
         assertNotEquals(null, build.getBuiltOn());

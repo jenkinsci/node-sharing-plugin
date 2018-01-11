@@ -195,7 +195,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     /**
      * Trigger workload update now from executor
      */
-    protected void reportWorkloadToOrchestrator() throws Exception {
+    protected void reportWorkloadToOrchestrator() {
         WorkloadReporter.all().get(WorkloadReporter.class).doRun();
     }
 }

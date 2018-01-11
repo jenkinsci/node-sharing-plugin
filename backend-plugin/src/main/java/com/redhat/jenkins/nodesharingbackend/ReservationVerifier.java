@@ -114,6 +114,7 @@ public class ReservationVerifier extends PeriodicWork {
         assert executorReservations.keySet().equals(trackedReservations.keySet());
 
         // TODO verify multiple executors are not using same host
+        // TODO the executor might no longer use the plugin
 
         ArrayList<Future<Queue.Executable>> startingTasks = new ArrayList<>();
         for (Map.Entry<ExecutorJenkins, List<String>> er: executorReservations.entrySet()) {

@@ -28,24 +28,24 @@ import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import hudson.Extension;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
+import hudson.model.queue.QueueListener;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Report executor Queue workload to orchestrator periodically.
  *
  * @author ogondza.
  */
-// TODO periodic reporting on is probably not sufficient in the long run as there is no good compromise between prompt
-// provisioning and not hammering the backend with needless requests. I would probably be for the best if:
-// - sudden load can generate update
-// - queue will be rechecked even when no listener was called periodically
-// - the same workload will not be sent repeatedly
 @Extension
 @Restricted(NoExternalUse.class)
 public class WorkloadReporter extends PeriodicWork {
@@ -80,11 +80,49 @@ public class WorkloadReporter extends PeriodicWork {
             }
         }
 
-        // TODO do not resend the same data
+        // TODO do not resend the same data to decrease the load
         for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> entry : workloadMapping.entrySet()) {
             ReportWorkloadRequest.Workload workload = entry.getValue();
             SharedNodeCloud cloud = entry.getKey();
             cloud.getApi().reportWorkload(workload);
+        }
+    }
+
+    /**
+     * Schedule reportWorkload call for near future once buildable items change. Ignore all changes until the time the
+     * push takes place.
+     */
+    @Extension @Restricted(NoExternalUse.class)
+    public static final class Detector extends QueueListener implements Runnable {
+        private volatile Future<?> nextPush;
+
+        @Inject WorkloadReporter wr;
+
+        @Override
+        public void onEnterBuildable(Queue.BuildableItem bi) {
+            push();
+        }
+
+        @Override
+        public void onLeaveBuildable(Queue.BuildableItem bi) {
+            push();
+        }
+
+        @Override
+        public void onLeft(Queue.LeftItem li) {
+            push();
+        }
+
+        private void push() {
+            // Can be done or canceled in case of a bug or external intervention - do not allow it to hang there forever
+            if (nextPush != null && !(nextPush.isDone() || nextPush.isCancelled())) return;
+            nextPush = Timer.get().schedule(this, 10, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public void run() {
+            nextPush = null;
+            wr.doRun();
         }
     }
 }
