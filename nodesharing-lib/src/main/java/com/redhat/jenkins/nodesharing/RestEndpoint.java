@@ -34,6 +34,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -60,6 +61,12 @@ import java.util.logging.Logger;
  */
 public class RestEndpoint {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
+    private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
+            .setConnectTimeout(5000)
+            .setConnectionRequestTimeout(5000)
+            .setSocketTimeout(5000)
+            .build()
+    ;
 
     private final @Nonnull String endpoint;
     private final @Nonnull String crumbIssuerEndpoint;
@@ -67,6 +74,7 @@ public class RestEndpoint {
     public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath) {
         this.endpoint = jenkinsUrl + endpointPath;
         this.crumbIssuerEndpoint = jenkinsUrl + "crumbIssuer/api/json";
+
     }
 
     public HttpPost post(@Nonnull String path) {
@@ -131,6 +139,8 @@ public class RestEndpoint {
     @CheckForNull
     private <T> T _executeRequest(@Nonnull HttpRequestBase method, @Nonnull ResponseHandler<T> handler) {
         CloseableHttpClient client = HttpClients.createSystem();
+        method.setConfig(REQUEST_CONFIG);
+
         try {
             return client.execute(method, handler);
         } catch (IOException e) {

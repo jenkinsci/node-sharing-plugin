@@ -56,11 +56,13 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.jar.Manifest;
 import java.util.logging.Logger;
 
 /**
@@ -79,9 +81,15 @@ public class Api implements RootAction {
 
     public Api() {
         try {
-            Properties properties = new Properties();
-            properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
-            version = properties.getProperty("version");
+            // TODO getClass().getPackage().getImplementationVersion() might work equally well
+            InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
+            if (resource == null) {
+                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+            } else {
+                Properties properties = new Properties();
+                properties.load(resource);
+                version = properties.getProperty("version");
+            }
             if (version == null) throw new AssertionError("No version in assembly properties");
         } catch (IOException e) {
             throw new AssertionError("Cannot load assembly properties", e);

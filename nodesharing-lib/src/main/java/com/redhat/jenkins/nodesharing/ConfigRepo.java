@@ -263,6 +263,7 @@ public class ConfigRepo {
         }
 
         public @Nonnull ExecutorJenkins getJenkinsByUrl(@Nonnull String url) throws NoSuchElementException {
+            if (url == null) throw new IllegalArgumentException("null url provided");
             try {
                 URI uri = new URI(url);
                 for (ExecutorJenkins jenkins : jenkinses) {

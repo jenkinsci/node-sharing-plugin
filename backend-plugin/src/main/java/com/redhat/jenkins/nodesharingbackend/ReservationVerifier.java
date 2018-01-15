@@ -34,13 +34,13 @@ import hudson.model.Label;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
-import org.antlr.v4.runtime.misc.MultiMap;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -109,18 +109,18 @@ public class ReservationVerifier extends PeriodicWork {
         // When executor is removed from config repo, it might have ReservationTasks running for a while so it is
         // necessary to query these executors so the task completion can be detected.
         Set<ExecutorJenkins> jenkinses = new HashSet<>(config.getJenkinses());
-        MultiMap<ExecutorJenkins, ReservationTask.ReservationExecutable> trackedReservations = trackedReservations(jenkinses);
-        MultiMap<ExecutorJenkins, String> executorReservations = queryExecutorReservations(jenkinses, api);
+        Map<ExecutorJenkins, Collection<ReservationTask.ReservationExecutable>> trackedReservations = trackedReservations(jenkinses);
+        Map<ExecutorJenkins, Collection<String>> executorReservations = queryExecutorReservations(jenkinses, api);
         assert executorReservations.keySet().equals(trackedReservations.keySet());
 
         // TODO verify multiple executors are not using same host
         // TODO the executor might no longer use the plugin
 
         ArrayList<Future<Queue.Executable>> startingTasks = new ArrayList<>();
-        for (Map.Entry<ExecutorJenkins, List<String>> er: executorReservations.entrySet()) {
+        for (Map.Entry<ExecutorJenkins, Collection<String>> er: executorReservations.entrySet()) {
             ExecutorJenkins executor = er.getKey();
 
-            List<ReservationTask.ReservationExecutable> trackedExecutorReservations = trackedReservations.get(executor);
+            Collection<ReservationTask.ReservationExecutable> trackedExecutorReservations = trackedReservations.get(executor);
             hosts: for (String host: er.getValue()) {
                 for (Iterator<ReservationTask.ReservationExecutable> iterator = trackedExecutorReservations.iterator(); iterator.hasNext(); ) {
                     ReservationTask.ReservationExecutable e = iterator.next();
@@ -185,10 +185,10 @@ public class ReservationVerifier extends PeriodicWork {
 //        }
     }
 
-    private static @Nonnull MultiMap<ExecutorJenkins, String> queryExecutorReservations(
+    private static @Nonnull Map<ExecutorJenkins, Collection<String>> queryExecutorReservations(
             @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Api api
     ) {
-        MultiMap<ExecutorJenkins, String> responses = new MultiMap<>();
+        Map<ExecutorJenkins, Collection<String>> responses = new HashMap<>();
         for (ExecutorJenkins executorJenkins : jenkinses) {
             responses.put(executorJenkins, api.reportUsage(executorJenkins).getUsedNodes());
         }
@@ -200,8 +200,8 @@ public class ReservationVerifier extends PeriodicWork {
      *
      * Executors that does not utilize any node will be reported with empty mapping.
      */
-    private static @Nonnull MultiMap<ExecutorJenkins, ReservationTask.ReservationExecutable> trackedReservations(Set<ExecutorJenkins> jenkinses) {
-        MultiMap<ExecutorJenkins, ReservationTask.ReservationExecutable> all = new MultiMap<>();
+    private static @Nonnull Map<ExecutorJenkins, Collection<ReservationTask.ReservationExecutable>> trackedReservations(Set<ExecutorJenkins> jenkinses) {
+        Map<ExecutorJenkins, Collection<ReservationTask.ReservationExecutable>> all = new HashMap<>();
         for (ExecutorJenkins jenkins : jenkinses) {
             // Make sure tracked executors without running reservation will be reported with empty mapping
             all.put(jenkins, new ArrayList<ReservationTask.ReservationExecutable>());
@@ -215,7 +215,7 @@ public class ReservationVerifier extends PeriodicWork {
                     if (executable instanceof ReservationTask.ReservationExecutable) {
                         ReservationTask.ReservationExecutable rex = (ReservationTask.ReservationExecutable) executable;
                         ExecutorJenkins owner = rex.getParent().getOwner();
-                        List<ReservationTask.ReservationExecutable> list = all.get(owner);
+                        Collection<ReservationTask.ReservationExecutable> list = all.get(owner);
                         if (list == null) {
                             list = new ArrayList<>();
                             all.put(owner, list);

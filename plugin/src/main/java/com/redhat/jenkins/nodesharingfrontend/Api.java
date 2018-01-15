@@ -89,9 +89,15 @@ public class Api {
         this.cloud = cloud;
 
         try {
-            Properties properties = new Properties();
-            properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
-            version = properties.getProperty("version");
+            // TODO getClass().getPackage().getImplementationVersion() might work equally well
+            InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
+            if (resource == null) {
+                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+            } else {
+                Properties properties = new Properties();
+                properties.load(resource);
+                version = properties.getProperty("version");
+            }
             if (version == null) throw new AssertionError("No version in assembly properties");
         } catch (IOException e) {
             throw new AssertionError("Cannot load assembly properties", e);
