@@ -313,7 +313,7 @@ public class SharedNodeCloud extends Cloud {
         }
 
         for (NodeDefinition node : latestConfig.getNodes().values()) {
-            if (label.matches(node.getLabelAtoms())) {
+            if (label != null && label.matches(node.getLabelAtoms())) {
                 return true;
             }
         }

@@ -213,4 +213,19 @@ public class ReservationTest {
         assertEquals("introduce", items[1].task.getName());
         assertEquals("introduce", ((ReservationTask) items[0].task).getTaskName());
     }
+
+    @Test
+    public void buildWithNoLabelShouldNotBeBuilt() throws Exception {
+        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
+        assertFalse(cloud.canProvision(null));
+
+        j.jenkins.setNumExecutors(0);
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.scheduleBuild2(0);
+        Thread.sleep(1000);
+        assertEquals(1, j.jenkins.getQueue().getBuildableItems().size());
+        assertEquals(0, j.getPendingReservations().size());
+        assertEquals(0, j.getScheduledReservations().size());
+    }
 }

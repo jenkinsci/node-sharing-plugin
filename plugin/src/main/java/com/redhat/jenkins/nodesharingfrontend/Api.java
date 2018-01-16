@@ -174,7 +174,8 @@ public class Api {
         // Utilize when there is some load for it
         Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
         for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
-            if (item.getAssignedLabel().matches(nodeLabels)) {
+            // Do not schedule unrestricted items here
+            if (item.getAssignedLabel() != null && item.getAssignedLabel().matches(nodeLabels)) {
                 LOGGER.fine("Accepted: " + definition.getDefinition());
 
                 try {
