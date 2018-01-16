@@ -42,6 +42,7 @@ import jenkins.model.Jenkins;
 import java.util.Collections;
 import java.util.logging.Logger;
 
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -277,6 +278,7 @@ public class SharedNodeCloud extends Cloud {
         SharedNode node = SharedNodeFactory.transform(definition);
         final String nodeName = definition.getName();
         node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
+        assert CloudStatistics.get().getActivityFor(node.getId()) != null;
         return node;
     }
 
