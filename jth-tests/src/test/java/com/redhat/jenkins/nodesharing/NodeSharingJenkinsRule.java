@@ -158,6 +158,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     @Nonnull
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
         SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", null);
+        cloud.getLatestConfig();
         jenkins.clouds.add(cloud);
         return cloud;
     }

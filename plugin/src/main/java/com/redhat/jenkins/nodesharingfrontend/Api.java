@@ -212,7 +212,6 @@ public class Api {
         if (nodeName != null)
             status = cloud.getNodeStatus(request.getNodeName());
         NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
-        rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());
     }
 

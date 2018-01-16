@@ -14,6 +14,7 @@ import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
@@ -57,6 +58,18 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         // preserve the old value as hostname
         hostname = name;
         name = id.getNodeName();
+
+        // Make a current phase of provisioning activity failed if exists for any node with the same name
+        for (ProvisioningActivity a : CloudStatistics.get().getActivities()) {
+            if (a.getId().getNodeName().equals(name)) {
+                PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
+                        ProvisioningActivity.Status.FAIL, "Performed operation stuck!");
+                CloudStatistics.get().attach(a, a.getCurrentPhase(), attachment);
+                a.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
+            }
+        }
+
+        CloudStatistics.ProvisioningListener.get().onStarted(id);
     }
 
     @Override
