@@ -19,7 +19,7 @@ public class DiscoverTest {
         DiscoverRequest received = Entity.fromString(sent.toString(), DiscoverRequest.class);
         assertEquals(sent.getConfigRepoUrl(), received.getConfigRepoUrl());
         assertEquals(sent.getVersion(), received.getVersion());
-        assertEquals(sent.getExecutorName(), received.getExecutorName());
+        assertEquals(sent.getExecutorUrl(), received.getExecutorUrl());
     }
 
     @Test

@@ -23,7 +23,7 @@ public class ReportWorkloadTest {
         ReportWorkloadRequest received = Entity.fromString(sent.toString(), ReportWorkloadRequest.class);
         assertEquals(sent.getConfigRepoUrl(), received.getConfigRepoUrl());
         assertEquals(sent.getVersion(), received.getVersion());
-        assertEquals(sent.getExecutorName(), received.getExecutorName());
+        assertEquals(sent.getExecutorUrl(), received.getExecutorUrl());
         assertThat(sent.getWorkload().getItems(), equalTo(received.getWorkload().getItems()));
     }
 }

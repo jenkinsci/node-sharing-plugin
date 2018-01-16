@@ -100,7 +100,7 @@ public class Api {
         this.fingerprint = new ExecutorEntity.Fingerprint(
                 configRepoUrl,
                 version,
-                snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
+                JenkinsLocationConfiguration.get().getUrl()
         );
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
     }

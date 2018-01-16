@@ -43,7 +43,6 @@ import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
-import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
@@ -241,7 +240,7 @@ public class Api implements RootAction {
 
         final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
         final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
-        final ExecutorJenkins executor = config.getJenkinsByName(request.getExecutorName());
+        final ExecutorJenkins executor = config.getJenkinsByUrl(request.getExecutorUrl());
         for (ReportWorkloadRequest.Workload.WorkloadItem item : reportedItems) {
             reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName()));
         }
@@ -290,7 +289,7 @@ public class Api implements RootAction {
         Computer c = jenkins.getComputer(request.getNodeName());
         if (c == null) {
             LOGGER.info(
-                    "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + " that does not exists"
+                    "An attempt to return a node '" + request.getNodeName() + "' that does not exist by " + request.getExecutorUrl()
             );
             rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
             rsp.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -299,7 +298,7 @@ public class Api implements RootAction {
 
         if (!(c instanceof ShareableComputer)) {
             LOGGER.warning(
-                    "An attempt to return a node '" + request.getNodeName() + "' from " + request.getExecutorName() + "that is not reservable"
+                    "An attempt to return a node '" + request.getNodeName() + "' that is not reservable by " + request.getExecutorUrl()
             );
             rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
             rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
