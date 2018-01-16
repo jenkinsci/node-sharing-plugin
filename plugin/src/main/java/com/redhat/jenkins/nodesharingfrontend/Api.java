@@ -49,6 +49,7 @@ import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpPost;
 import org.kohsuke.accmod.Restricted;
@@ -143,21 +144,15 @@ public class Api {
         ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getHostName(), status, offlineCause);
 
         final HttpPost method = rest.post("returnNode");
-        rest.executeRequest(method, request, new ResponseHandler<Void>() {
+        rest.executeRequest(method, request, new RestEndpoint.AbstractResponseHandler<Void>(method) {
             @Override
-            public Void handleResponse(HttpResponse response) throws IOException {
-                // Check exit code
-                int statusCode = response.getStatusLine().getStatusCode();
-                if (statusCode != 200 && statusCode != 404) {
-                    try (InputStream is = response.getEntity().getContent()) {
-                        ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
-                                method, response.getStatusLine(), IOUtils.toString(is)
-                        );
-                        throw requestFailed;
-                    }
-                }
+            protected boolean shouldFail(@Nonnull StatusLine sl) {
+                return sl.getStatusCode() != 200 && sl.getStatusCode() != 404;
+            }
 
-                return null;
+            @Override
+            protected boolean shouldWarn(@Nonnull StatusLine sl) {
+                return false;
             }
         });
     }

@@ -31,6 +31,8 @@ import com.redhat.jenkins.nodesharing.transport.Entity;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
@@ -46,6 +48,8 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -141,53 +145,73 @@ public class RestEndpoint {
     }
 
     private Header getCrumbHeader() {
-        CrumbResponse crumbResponse;
-        try {
-            HttpGet method = new HttpGet(crumbIssuerEndpoint);
-            crumbResponse = _executeRequest(method, new DefaultResponseHandler<>(method, CrumbResponse.class));
-        } catch (ActionFailed.RequestFailed e) {
-            if (e.getStatusCode() == 404) { // No crumb issuer used
-                return new BasicHeader("Jenkins-Crumb", "Not-Used");
+        final HttpGet method = new HttpGet(crumbIssuerEndpoint);
+        CrumbResponse crumbResponse = _executeRequest(method, new AbstractResponseHandler<CrumbResponse>(method) {
+            private final List<Integer> ACCEPTED_CODES = Arrays.asList(200, 404);
+
+            @Override
+            protected boolean shouldFail(@Nonnull StatusLine sl) {
+                return !ACCEPTED_CODES.contains(sl.getStatusCode());
             }
-            throw e;
+
+            @Override
+            protected boolean shouldWarn(@Nonnull StatusLine sl) {
+                return !ACCEPTED_CODES.contains(sl.getStatusCode());
+            }
+
+            @Override
+            protected @CheckForNull CrumbResponse consumeEntity(@Nonnull HttpResponse response) throws IOException {
+                if (response.getStatusLine().getStatusCode() == 404) return null;
+                return createEntity(response, CrumbResponse.class);
+            }
+        });
+
+        if (crumbResponse == null) { // No crumb issuer used by other side
+            return new BasicHeader("Jenkins-Crumb", "Not-Used");
         }
-        assert crumbResponse != null;
+
         return new BasicHeader(crumbResponse.getCrumbRequestField(), crumbResponse.getCrumb());
     }
 
-    @VisibleForTesting
-    /*package*/ static String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
-        try (InputStream is = response.getEntity().getContent()) {
-            return IOUtils.toString(is);
-        }
-    }
-
-    /**
-     * Fail in case of non-200 status code and create response entity.
-     */
-    private static final class DefaultResponseHandler<T extends Entity> implements ResponseHandler<T> {
-
-        private final @Nonnull HttpRequestBase method;
-        private final @Nonnull Class<? extends T> returnType;
-
-        private DefaultResponseHandler(@Nonnull HttpRequestBase method, @Nonnull Class<? extends T> returnType) {
+    public static class AbstractResponseHandler<T> implements ResponseHandler<T> {
+        protected final @Nonnull HttpRequestBase method;
+        public AbstractResponseHandler(@Nonnull HttpRequestBase method) {
             this.method = method;
-            this.returnType = returnType;
         }
 
         @Override
-        public final @Nonnull T handleResponse(HttpResponse response) throws IOException {
-            // Check exit code
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode != 200) {
+        public @CheckForNull T handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+            StatusLine sl = response.getStatusLine();
+            boolean fail = shouldFail(sl);
+            boolean warn = shouldWarn(sl);
+            if (fail || warn) {
                 ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
                         method, response.getStatusLine(), getPayloadAsString(response)
                 );
-                LOGGER.info(requestFailed.getMessage());
-                throw requestFailed;
+                if (warn) {
+                    LOGGER.info(requestFailed.getMessage());
+                }
+                if (fail) {
+                    throw requestFailed;
+                }
             }
 
-            // Build Entity
+            return consumeEntity(response);
+        }
+
+        protected boolean shouldFail(@Nonnull StatusLine sl) {
+            return sl.getStatusCode() != 200;
+        }
+
+        protected boolean shouldWarn(@Nonnull StatusLine sl) {
+            return sl.getStatusCode() != 200;
+        }
+
+        protected @CheckForNull T consumeEntity(@Nonnull HttpResponse response) throws IOException {
+            return null;
+        }
+
+        protected final @Nonnull T createEntity(@Nonnull HttpResponse response, @Nonnull Class<? extends T> returnType) throws IOException {
             try (InputStream is = response.getEntity().getContent()) {
                 return Entity.fromInputStream(is, returnType);
             } catch (JsonParseException ex) {
@@ -195,6 +219,36 @@ public class RestEndpoint {
             }
         }
 
+        protected final @Nonnull String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
+            try (InputStream is = response.getEntity().getContent()) {
+                return IOUtils.toString(is);
+            }
+        }
+    }
+
+    /**
+     * Fail in case of non-200 status code and create response entity.
+     */
+    private static final class DefaultResponseHandler<T extends Entity> extends AbstractResponseHandler<T> {
+
+        private final @Nonnull Class<? extends T> returnType;
+
+        private DefaultResponseHandler(@Nonnull HttpRequestBase method, @Nonnull Class<? extends T> returnType) {
+            super(method);
+            this.returnType = returnType;
+        }
+
+        @Override
+        public final @Nonnull T handleResponse(HttpResponse response) throws IOException {
+            T out = super.handleResponse(response);
+            assert out != null;
+            return out;
+        }
+
+        @Override
+        protected @Nonnull T consumeEntity(@Nonnull HttpResponse response) throws IOException {
+            return createEntity(response, returnType);
+        }
     }
 
     // Wrap transport.Entity into HttpEntity

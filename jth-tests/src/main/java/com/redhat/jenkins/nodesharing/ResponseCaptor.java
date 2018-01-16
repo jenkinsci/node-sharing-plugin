@@ -28,7 +28,9 @@ import org.apache.http.StatusLine;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
+import org.apache.http.client.methods.HttpRequestBase;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
@@ -36,11 +38,18 @@ import java.io.IOException;
  *
  * To be used as a {@link ResponseHandler} for {@link RestEndpoint}<tt>#executeRequest</tt>.
  */
-public final class ResponseCaptor implements ResponseHandler<ResponseCaptor.Capture> {
+public final class ResponseCaptor extends RestEndpoint.AbstractResponseHandler<ResponseCaptor.Capture> {
+    public ResponseCaptor() {
+        super(null);
+    }
+
+    @Override protected boolean shouldFail(@Nonnull StatusLine sl) { return false; }
+
+    @Override protected boolean shouldWarn(@Nonnull StatusLine sl) { return false; }
 
     @Override
-    public Capture handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
-        return new Capture(response.getStatusLine(), RestEndpoint.getPayloadAsString(response));
+    public Capture handleResponse(HttpResponse response) throws IOException {
+        return new Capture(response.getStatusLine(), getPayloadAsString(response));
     }
 
     public static final class Capture {
