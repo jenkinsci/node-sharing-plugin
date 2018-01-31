@@ -69,6 +69,7 @@ import java.util.Properties;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -393,7 +394,36 @@ public class SharedNodeCloudTest {
 //        );
 //    }
 
-    // TODO Cover SharedNodeCloud.getByName(String) by test
+    @Test
+    public void testGetByName() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+
+        assertTrue(cloud.isOperational());
+
+        assertThat(SharedNodeCloud.getByName(cloud.name), equalTo(cloud));
+        assertThat(SharedNodeCloud.getByName("foo"), equalTo(null));
+        assertThat(SharedNodeCloud.getByName(""), equalTo(null));
+        assertThat(SharedNodeCloud.getByName(null), equalTo(null));
+    }
+
+    @Test
+    public void testGetNodeName() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+
+        assertTrue(cloud.isOperational());
+
+        assertThat(cloud.getNodeName("foo"), equalTo("foo-" + cloud.name));
+        assertThat(cloud.getNodeName(""), equalTo("-" + cloud.name));
+        assertThat(cloud.getNodeName(null), equalTo("-" + cloud.name));
+        assertThat(cloud.getNodeName(" "), equalTo(" -" + cloud.name));
+        assertThat(cloud.getNodeName("-"), equalTo("--" + cloud.name));
+        assertThat(cloud.getNodeName(":"), equalTo(":-" + cloud.name));
+        assertThat(cloud.getNodeName("- "), equalTo("- -" + cloud.name));
+        assertThat(cloud.getNodeName(": "), equalTo(": -" + cloud.name));
+        assertThat(cloud.getNodeName("-:"), equalTo("-:-" + cloud.name));
+    }
 
     @Ignore
     @Test
