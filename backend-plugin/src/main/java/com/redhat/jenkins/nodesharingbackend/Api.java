@@ -82,6 +82,7 @@ public class Api implements RootAction {
     public Api() {
         try {
             // TODO getClass().getPackage().getImplementationVersion() might work equally well
+            // PJ: Not working, during JUnit phase execution there aren't made packages...
             InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
             if (resource == null) {
                 version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
