@@ -254,7 +254,6 @@ public class Api {
     /**
      * Immediately return node to orchestrator. (Nice to have feature)
      */
-    // TODO rename not to be confused with executor->orchestrator call named 'returnNode'
     @RequirePOST
     public void doImmediatelyReturnNode() {
         throw new UnsupportedOperationException("TODO");
