@@ -90,6 +90,7 @@ public class Api {
 
         try {
             // TODO getClass().getPackage().getImplementationVersion() might work equally well
+            // PJ: Not working, during JUnit phase execution there aren't made packages...
             InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
             if (resource == null) {
                 version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
@@ -255,7 +256,7 @@ public class Api {
      */
     // TODO rename not to be confused with executor->orchestrator call named 'returnNode'
     @RequirePOST
-    public void doReturnNode() {
+    public void doImmediatelyReturnNode() {
         throw new UnsupportedOperationException("TODO");
     }
 }
