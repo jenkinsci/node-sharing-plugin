@@ -26,6 +26,8 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharingbackend.Pool;
@@ -41,6 +43,7 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.model.labels.LabelAtom;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.DumbSlave;
@@ -70,6 +73,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -425,55 +429,161 @@ public class SharedNodeCloudTest {
         assertThat(cloud.getNodeName("-:"), equalTo("-:-" + cloud.name));
     }
 
-    @Ignore
     @Test
-    public void myTest() throws Exception {
-//        String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
-//                "  <name>solaris1.executor.com</name>\n" +
-//                "  <description/>\n" +
-//                "  <remoteFS>/var/jenkins-workspace</remoteFS>\n" +
-//                "  <numExecutors>1</numExecutors>\n" +
-//                "  <mode>EXCLUSIVE</mode>\n" +
-//                "  <launcher class=\"hudson.plugins.sshslaves.SSHLauncher\" plugin=\"ssh-slaves@1.21\">\n" +
-//                "    <host></host>\n" +
-//                "    <port>22</port>\n" +
-//                "    <credentialsId></credentialsId>\n" +
-//                "    <javaPath>/path/to/launcher</javaPath>\n" +
-//                "    <launchTimeoutSeconds>600</launchTimeoutSeconds>\n" +
-//                "    <maxNumRetries>0</maxNumRetries>\n" +
-//                "    <retryWaitTime>0</retryWaitTime>\n" +
-//                "  </launcher>\n" +
-//                "  <label>solaris11 sparc</label>\n" +
-//                "  <nodeProperties/>\n" +
-//                "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
-//        source = source.replace("<name>solaris1.executor.com", "<name>solaris1.redhat.com");
-//        Node result = (Node) Jenkins.XSTREAM2.fromXML(source);
-//        if (result== null) {
-//            System.out.println("Result is NULL!");
-//        } else {
-//            System.out.println("Name result: " + result.getNodeName());
-//        }
+    public void testCreateNode() throws Exception {
+        String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
+                "  <name>solaris1.redhat.com</name>\n" +
+                "  <description/>\n" +
+                "  <remoteFS>/var/jenkins-workspace</remoteFS>\n" +
+                "  <numExecutors>1</numExecutors>\n" +
+                "  <mode>EXCLUSIVE</mode>\n" +
+                "  <launcher class=\"hudson.slaves.CommandLauncher\">\n" +
+                "    <agentCommand />\n" +
+                "    <env serialization=\"custom\">\n" +
+                "      <unserializable-parents/>\n" +
+                "      <tree-map>\n" +
+                "        <default>\n" +
+                "          <comparator class=\"hudson.util.CaseInsensitiveComparator\"/>\n" +
+                "        </default>\n" +
+                "        <int>0</int>\n" +
+                "      </tree-map>\n" +
+                "    </env>\n" +
+                "  </launcher>\n" +
+                "  <label>foo</label>\n" +
+                "  <nodeProperties/>\n" +
+                "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
-//        for (NodeDefinition nd : cloud.getLatestConfig().getNodes().values()) {
-//            System.out.println(nd.getName() + ": " + nd.getDefinition());
-//        }
+        SharedNode node = cloud.createNode(new NodeDefinition.Xml("ok-node.xml", source));
+        assertThat(node, notNullValue());
 
-        String xmlDef = cloud.getLatestConfig().getNodes().get("solaris2.acme.com").getDefinition();
+        source = source.replace("SharedNode", "SharedNodeFoo");
+        boolean exceptionThrown = false;
+        try {
+            node = cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
+        } catch (IllegalArgumentException e) {
+            if (e.toString().compareTo("java.lang.IllegalArgumentException: Misunderstand definition") == 0) {
+                exceptionThrown = true;
+            }
+        }
+        assertThat(exceptionThrown, equalTo(true));
+    }
 
-        j.jenkins.addNode(cloud.createNode(new NodeDefinition.Xml("solaris2.acme.com",  xmlDef)));
+    // TODO Test nodesharingfrontend.Api.doUtilizeNode()
+    @Test
+    public void testDoUtilizeNode() throws Exception {
+        String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
+                "  <name>solaris1.redhat.com</name>\n" +
+                "  <description/>\n" +
+                "  <remoteFS>/var/jenkins-workspace</remoteFS>\n" +
+                "  <numExecutors>1</numExecutors>\n" +
+                "  <mode>EXCLUSIVE</mode>\n" +
+                "  <launcher class=\"hudson.slaves.CommandLauncher\">\n" +
+                "    <agentCommand />\n" +
+                "    <env serialization=\"custom\">\n" +
+                "      <unserializable-parents/>\n" +
+                "      <tree-map>\n" +
+                "        <default>\n" +
+                "          <comparator class=\"hudson.util.CaseInsensitiveComparator\"/>\n" +
+                "        </default>\n" +
+                "        <int>0</int>\n" +
+                "      </tree-map>\n" +
+                "    </env>\n" +
+                "  </launcher>\n" +
+                "  <label>foo</label>\n" +
+                "  <nodeProperties/>\n" +
+                "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
 
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
-//        for (Node n : Jenkins.getInstance().getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
+        FreeStyleProject job = j.createFreeStyleProject();
+        job.setAssignedLabel(new LabelAtom("foo"));
+        job.scheduleBuild2(0).getStartCondition();
+        assertFalse(job.isBuilding());
 
-        Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
-//        ((SharedNode) computer.getNode()).setCloudName(cloud.getName());
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+        rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
+                Pool.getInstance().getConfigRepoUrl(),
+                "4.2",
+                new NodeDefinition.Xml("ok-node.xml", source)
+        ), UtilizeNodeResponse.class);
 
-        computer.waitUntilOnline();
+        source  = source.replace("SharedNode", "SharedNodeFoo");
+        boolean exceptionThrown = false;
+        try {
+            rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+            rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
+                    Pool.getInstance().getConfigRepoUrl(),
+                    "4.2",
+                    new NodeDefinition.Xml("failed-node.xml", source)
+            ), UtilizeNodeResponse.class);
+        } catch (ActionFailed.RequestFailed e) {
+            if (e.toString().contains("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST")
+                    && e.toString().contains("java.lang.IllegalArgumentException: Misunderstand definition")) {
+                exceptionThrown = true;
+            }
+        }
+        assertThat(exceptionThrown, equalTo(true));
+    }
 
+    @Ignore
+    @Test
+    public void myTest() throws Exception {
+        String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
+                "  <name>solaris1.executor.com</name>\n" +
+                "  <description/>\n" +
+                "  <remoteFS>/var/jenkins-workspace</remoteFS>\n" +
+                "  <numExecutors>1</numExecutors>\n" +
+                "  <mode>EXCLUSIVE</mode>\n" +
+                "  <launcher class=\"hudson.plugins.sshslaves.SSHLauncher\" plugin=\"ssh-slaves@1.21\">\n" +
+                "    <host></host>\n" +
+                "    <port>22</port>\n" +
+                "    <credentialsId></credentialsId>\n" +
+                "    <javaPath>/path/to/launcher</javaPath>\n" +
+                "    <launchTimeoutSeconds>600</launchTimeoutSeconds>\n" +
+                "    <maxNumRetries>0</maxNumRetries>\n" +
+                "    <retryWaitTime>0</retryWaitTime>\n" +
+                "  </launcher>\n" +
+                "  <label>foo</label>\n" +
+                "  <nodeProperties/>\n" +
+                "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
+        source = source.replace("<name>solaris1.executor.com", "<name>solaris1.redhat.com");
+        Node result = (Node) Jenkins.XSTREAM2.fromXML(source);
+        if (result== null) {
+            System.out.println("Result is NULL!");
+        } else {
+            System.out.println("Name result: " + result.getNodeName());
+        }
+
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+
+        for (Node n : Jenkins.getInstance().getNodes()) {
+            System.out.println(n.getNodeName());
+        }
+
+        FreeStyleProject job = j.createFreeStyleProject();
+        job.setAssignedLabel(new LabelAtom("foo"));
+        job.scheduleBuild2(0).getStartCondition();
+        assertFalse(job.isBuilding());
+
+        String xmlDef = source.replace("SharedNode", "SharedNodeFoo");
+        System.out.println(xmlDef);
+//        SharedNode node = cloud.createNode(new NodeDefinition.Xml("failed-node", xmlDef));
+//        System.out.println(node);
+
+        try {
+            RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+            rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
+                    Pool.getInstance().getConfigRepoUrl(),
+                    "4.2",
+                    new NodeDefinition.Xml("failed-node.xml", xmlDef)
+            ), UtilizeNodeResponse.class);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
     }
 }
 
