@@ -28,6 +28,8 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import jenkins.model.Jenkins;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -36,6 +38,7 @@ import javax.annotation.Nonnull;
  * An extension point turning {@link com.redhat.jenkins.nodesharing.NodeDefinition}s into {@link SharedNode}s.
  * @author ogondza.
  */
+@Restricted(NoExternalUse.class)
 public abstract class SharedNodeFactory implements ExtensionPoint {
     public static @Nonnull SharedNode transform(@Nonnull NodeDefinition def) throws IllegalArgumentException {
         for (SharedNodeFactory factory : ExtensionList.lookup(SharedNodeFactory.class)) {
@@ -58,10 +61,16 @@ public abstract class SharedNodeFactory implements ExtensionPoint {
 
         @CheckForNull @Override public SharedNode create(@Nonnull NodeDefinition def) {
             if (def instanceof NodeDefinition.Xml) {
-                SharedNode node = (SharedNode) Jenkins.XSTREAM2.fromXML(def.getDefinition());
-                assert node != null;
+                SharedNode node = null;
+                try {
+                    node = (SharedNode) Jenkins.XSTREAM2.fromXML(def.getDefinition());
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Misunderstand definition", e);
+                }
+                if (node == null) {
+                    throw new IllegalArgumentException("Misunderstand definition");
+                }
                 return node;
-
             }
             return null;
         }

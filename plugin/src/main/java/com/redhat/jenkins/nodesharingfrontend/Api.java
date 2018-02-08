@@ -63,6 +63,7 @@ import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
@@ -187,9 +188,10 @@ public class Api {
 
                 try {
                     Jenkins.getActiveInstance().addNode(cloud.createNode(definition));
-                } catch (IOException e) {
-                    // TODO Report as 5XX HTTP Status code with the exception
-                    break;
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace(new PrintStream(rsp.getOutputStream()));
+                    rsp.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+                    return;
                 }
 
                 new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
