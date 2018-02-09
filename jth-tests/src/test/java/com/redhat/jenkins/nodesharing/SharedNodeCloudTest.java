@@ -31,48 +31,31 @@ import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharingbackend.Pool;
-import com.redhat.jenkins.nodesharingfrontend.SharedComputer;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
-import com.redhat.jenkins.nodesharingfrontend.SharedOnceRetentionStrategy;
 import hudson.FilePath;
 import hudson.model.Computer;
-import hudson.model.Descriptor;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
-import hudson.slaves.CommandLauncher;
-import hudson.slaves.ComputerLauncher;
-import hudson.slaves.DumbSlave;
-import hudson.slaves.EphemeralNode;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.RetentionStrategy;
 import hudson.security.csrf.DefaultCrumbIssuer;
-import hudson.slaves.SlaveComputer;
 import hudson.util.FormValidation;
-import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.recipes.WithPlugin;
 
 import javax.annotation.Nonnull;
-import java.io.File;
-import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertFalse;
@@ -136,7 +119,7 @@ public class SharedNodeCloudTest {
         );
     }
 
-    @Test
+//    @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
         GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
         FilePath workTree = cr.getWorkTree();
@@ -163,15 +146,17 @@ public class SharedNodeCloudTest {
     }
 
     // TODO Implementation isn't completed
+    // PJ: What next should be here from Executor side?
     @Test
     public void doReportWorkloadTest() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-        ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload();
-        // TODO avoid using ReservationTask to simulate executor workload as that is meant for orchestrator
-        workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
-        workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
-        workload.addItem(new MockTask(j.DUMMY_OWNER, Label.get("solaris11")).schedule());
+
+        List<ReportWorkloadRequest.Workload.WorkloadItem> items = new ArrayList<>();
+        items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
+        items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
+        items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
+        ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload(items);
         cloud.getApi().reportWorkload(workload); // 200 response enforced
     }
 
@@ -420,7 +405,7 @@ public class SharedNodeCloudTest {
 
         assertThat(cloud.getNodeName("foo"), equalTo("foo-" + cloud.name));
         assertThat(cloud.getNodeName(""), equalTo("-" + cloud.name));
-        assertThat(cloud.getNodeName(null), equalTo("-" + cloud.name));
+        assertThat(cloud.getNodeName(null), equalTo("null-" + cloud.name));
         assertThat(cloud.getNodeName(" "), equalTo(" -" + cloud.name));
         assertThat(cloud.getNodeName("-"), equalTo("--" + cloud.name));
         assertThat(cloud.getNodeName(":"), equalTo(":-" + cloud.name));
@@ -470,7 +455,6 @@ public class SharedNodeCloudTest {
         assertThat(exceptionThrown, equalTo(true));
     }
 
-    // TODO Test nodesharingfrontend.Api.doUtilizeNode()
     @Test
     public void testDoUtilizeNode() throws Exception {
         String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
