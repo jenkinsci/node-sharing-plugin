@@ -12,7 +12,6 @@ import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
