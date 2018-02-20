@@ -71,7 +71,7 @@ public class WorkloadReporter extends PeriodicWork {
                 if (cloud.canProvision(item.getAssignedLabel())) {
                     ReportWorkloadRequest.Workload workload = workloadMapping.get(cloud);
                     if (workload == null) {
-                        workload = new ReportWorkloadRequest.Workload();
+                        workload = new ReportWorkloadRequest.Workload.WorkloadBuilder().build();
                         workloadMapping.put(cloud, workload);
                     }
 

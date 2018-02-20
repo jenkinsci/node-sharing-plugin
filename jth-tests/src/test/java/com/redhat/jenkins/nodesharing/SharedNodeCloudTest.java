@@ -36,7 +36,6 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
-import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
 import hudson.security.csrf.DefaultCrumbIssuer;
@@ -156,7 +155,7 @@ public class SharedNodeCloudTest {
         items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
         items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
         items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
-        ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload(items);
+        ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload.WorkloadBuilder(items).build();
         cloud.getApi().reportWorkload(workload); // 200 response enforced
     }
 
