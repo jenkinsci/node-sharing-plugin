@@ -232,6 +232,7 @@ public class SharedNodeCloud extends Cloud {
                 cloud.updateConfigSnapshot();
 
                 // TODO Check and fire cfg. was changed if necessary
+                // PJ: We don't need such a behavior
             }
         }
     }

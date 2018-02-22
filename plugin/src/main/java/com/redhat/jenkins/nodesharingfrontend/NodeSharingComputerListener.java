@@ -60,6 +60,7 @@ public class NodeSharingComputerListener extends ComputerListener {
                        SharedNodeCloud.getByName(((SharedNode) node).getId().getCloudName());
                if (cloud == null || !cloud.isOperational()) {
                    // TODO these should never be saved (EphemeralNode) - do we still need this?
+                   // PJ: We should do that because here is the last chance where we can drop the slave (otherwise it can exists forever)
                    throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
                }
            }
