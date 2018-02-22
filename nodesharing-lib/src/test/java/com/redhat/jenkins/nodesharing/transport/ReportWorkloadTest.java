@@ -16,7 +16,7 @@ public class ReportWorkloadTest {
         List<ReportWorkloadRequest.Workload.WorkloadItem> lwi = new ArrayList<>();
         lwi.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "Item 1", "foo&&bar"));
         lwi.add(new ReportWorkloadRequest.Workload.WorkloadItem(2, "Item 2", "dead||beaf"));
-        ReportWorkloadRequest.Workload w = new ReportWorkloadRequest.Workload(lwi);
+        ReportWorkloadRequest.Workload w = new ReportWorkloadRequest.Workload.WorkloadBuilder(lwi).build();
 
         ExecutorEntity.Fingerprint fingerprint = new ExecutorEntity.Fingerprint("configRepo", "4.2", "my-executor");
         ReportWorkloadRequest sent = new ReportWorkloadRequest(fingerprint, w);
