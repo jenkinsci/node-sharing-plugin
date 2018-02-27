@@ -48,7 +48,6 @@ import org.kohsuke.stapler.StaplerResponse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
@@ -82,7 +81,7 @@ public class Pool {
 
     public static @Nonnull Pool getInstance() {
         ExtensionList<Pool> list = Jenkins.getActiveInstance().getExtensionList(Pool.class);
-        assert list.size() == 1;
+        assert list.size() == 1; // $COVERAGE-IGNORE$
         return list.iterator().next();
     }
 
@@ -212,7 +211,7 @@ public class Pool {
         }
 
         @Override
-        public void generateResponse(StaplerRequest req, StaplerResponse rsp, Object node) throws IOException, ServletException {
+        public void generateResponse(StaplerRequest req, StaplerResponse rsp, Object node) throws IOException {
             rsp.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, getMessage());
         }
     }

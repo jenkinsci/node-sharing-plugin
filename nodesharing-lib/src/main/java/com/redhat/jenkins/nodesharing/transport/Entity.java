@@ -82,7 +82,7 @@ public abstract class Entity {
         try {
             GSON.toJson(this, new PrintStream(out, false, TRANSPORT_CHARSET.name()));
         } catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
+            throw new AssertionError(e); // $COVERAGE-IGNORE$
         }
     }
 
@@ -99,7 +99,7 @@ public abstract class Entity {
         try {
             return baos.toString(TRANSPORT_CHARSET.name());
         } catch (UnsupportedEncodingException e) {
-            throw new AssertionError(e);
+            throw new AssertionError(e); // $COVERAGE-IGNORE$
         }
     }
 }

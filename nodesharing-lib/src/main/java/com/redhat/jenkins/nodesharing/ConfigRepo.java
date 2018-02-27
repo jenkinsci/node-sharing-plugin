@@ -131,7 +131,7 @@ public class ConfigRepo {
                     .getClient()
             ;
         } catch (IOException e) {
-            throw new AssertionError("Creating local git client has failed", e);
+            throw new AssertionError("Creating local git client has failed", e); // $COVERAGE-IGNORE$
         }
     }
 

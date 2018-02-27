@@ -109,9 +109,9 @@ public class ScalabilityOrchestratorTest {
         }
         win.delete();sol.delete();
 
-System.out.println("Sourced from " + j.jenkins.getRootPath());
-System.out.println(Pool.getInstance().getConfig().getJenkinses());
-//j.interactiveBreak();
+//        System.out.println("Sourced from " + j.jenkins.getRootPath());
+//        System.out.println(Pool.getInstance().getConfig().getJenkinses());
+//        j.interactiveBreak();
 
         Map<String, String> executors = new HashMap<>();
         for (Map.Entry<String, ScheduledFuture<URL>> launchingExecutor : launchingExecutors.entrySet()) {

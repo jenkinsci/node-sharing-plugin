@@ -25,10 +25,10 @@ package com.redhat.jenkins.nodesharing;
 
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
-import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -40,7 +40,6 @@ import hudson.model.labels.LabelAtom;
 import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -56,9 +55,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author pjanouse
@@ -179,6 +180,7 @@ public class SharedNodeCloudTest {
 
         // still IDLE status although offline
         assertFalse(computer.isConnecting());
+        //noinspection deprecation
         computer.setTemporarilyOffline(true);
         computer.waitUntilOffline();
         while (computer.isConnecting()) {
@@ -238,6 +240,7 @@ public class SharedNodeCloudTest {
         builder.start.block();
         assertTrue(job.isBuilding());
         assertFalse(computer.isIdle());
+        //noinspection deprecation
         computer.setTemporarilyOffline(true);
         computer.waitUntilOffline();
         assertTrue(computer.isOffline());
@@ -431,15 +434,12 @@ public class SharedNodeCloudTest {
         assertThat(node, notNullValue());
 
         source = source.replace("SharedNode", "SharedNodeFoo");
-        boolean exceptionThrown = false;
         try {
-            node = cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
+            cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
+            fail();
         } catch (IllegalArgumentException e) {
-            if (e.toString().compareTo("java.lang.IllegalArgumentException: Misunderstand definition") == 0) {
-                exceptionThrown = true;
-            }
+            assertEquals("java.lang.IllegalArgumentException: Misunderstand definition", e.toString());
         }
-        assertThat(exceptionThrown, equalTo(true));
     }
 
     @Test
@@ -482,7 +482,6 @@ public class SharedNodeCloudTest {
         ), UtilizeNodeResponse.class);
 
         source  = source.replace("SharedNode", "SharedNodeFoo");
-        boolean exceptionThrown = false;
         try {
             rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
             rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
@@ -490,13 +489,11 @@ public class SharedNodeCloudTest {
                     "4.2",
                     new NodeDefinition.Xml("failed-node.xml", source)
             ), UtilizeNodeResponse.class);
+            fail();
         } catch (ActionFailed.RequestFailed e) {
-            if (e.toString().contains("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST")
-                    && e.toString().contains("java.lang.IllegalArgumentException: Misunderstand definition")) {
-                exceptionThrown = true;
-            }
+            assertThat(e.toString(), containsString("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST"));
+            assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Misunderstand definition"));
         }
-        assertThat(exceptionThrown, equalTo(true));
     }
 
     @Ignore

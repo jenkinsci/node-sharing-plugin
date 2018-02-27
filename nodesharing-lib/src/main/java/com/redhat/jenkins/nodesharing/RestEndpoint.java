@@ -34,13 +34,11 @@ import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
-import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
@@ -54,7 +52,6 @@ import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 
@@ -104,10 +101,6 @@ public class RestEndpoint {
 
     public HttpPost post(@Nonnull String path) {
         return new HttpPost(endpoint + '/' + path);
-    }
-
-    public HttpGet get(@Nonnull String path) {
-        return new HttpGet(endpoint + '/' + path);
     }
 
     /**
@@ -174,7 +167,7 @@ public class RestEndpoint {
             try {
                 client.close();
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e);
+                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e); // $COVERAGE-IGNORE$
             }
         }
     }
@@ -226,12 +219,12 @@ public class RestEndpoint {
 
     public static class AbstractResponseHandler<T> implements ResponseHandler<T> {
         protected final @Nonnull HttpRequestBase method;
-        public AbstractResponseHandler(@Nonnull HttpRequestBase method) {
+        protected AbstractResponseHandler(@Nonnull HttpRequestBase method) {
             this.method = method;
         }
 
         @Override
-        public @CheckForNull T handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+        public @CheckForNull T handleResponse(HttpResponse response) throws IOException {
             StatusLine sl = response.getStatusLine();
             boolean fail = shouldFail(sl);
             boolean warn = shouldWarn(sl);
@@ -319,18 +312,18 @@ public class RestEndpoint {
             return -1;
         }
 
-        @Override public InputStream getContent() throws IOException {
-            throw new UnsupportedOperationException(
-                    "We should not need this as presumably this is used for receiving entities only"
-            );
-        }
-
-        @Override public void writeTo(OutputStream outstream) throws IOException {
+        @Override public void writeTo(OutputStream outstream) {
             entity.toOutputStream(outstream);
         }
 
+        // We should not need this as presumably this is used for receiving entities only
+        @Override public InputStream getContent() {
+            throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
+        }
+
+        // We should not need this as presumably this is used for receiving entities only
         @Override public boolean isStreaming() {
-            return false;
+            return false; // $COVERAGE-IGNORE$
         }
     }
 }
