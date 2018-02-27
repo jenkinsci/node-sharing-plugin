@@ -28,7 +28,6 @@ import hudson.model.Descriptor;
 import hudson.model.Executor;
 import hudson.model.Queue;
 import hudson.model.Slave;
-import hudson.model.queue.SubTask;
 import hudson.remoting.Channel;
 import hudson.security.Permission;
 import hudson.slaves.EphemeralNode;
@@ -36,7 +35,6 @@ import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import hudson.util.Futures;
 import jenkins.model.Jenkins;
-import org.apache.tools.ant.taskdefs.Exec;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
@@ -62,16 +60,19 @@ import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
 /**
  * Placeholder computer representing shareable computer.
  *
- * The computer is always "up" with no channel so the real system. The purpose of this abstraction is to schedule here
+ * The computer is always "up" with no channel to the real system. The purpose of this abstraction is to schedule implement
+ * label aware queuing.
+ *
+ * @see ReservationTask
  */
 @Restricted(NoExternalUse.class)
-public class SharedComputer extends SlaveComputer implements EphemeralNode {
+public class ShareableComputer extends SlaveComputer implements EphemeralNode {
     private final Channel channel;
-    /*package*/ SharedComputer(Slave slave) {
+    /*package*/ ShareableComputer(Slave slave) {
         super(slave);
         // A lot of Jenkins abstractions presumes Computers are either SlaveComputers or a single MasterComputer which
-        // effectively forces us to implement SharedComputer as SlaveComputer. That, however, needs to have Channel associated
-        // but again, the API enforces that to be a "real" channel which is undesirable. Constructing such channel to do
+        // effectively forces us to implement ShareableComputer as SlaveComputer. That, however, needs to have Channel associated
+        // but again, the API enforces that to be a "real" Channel which is undesirable. Constructing such channel to do
         // nothing turned to be tricky as it perform transport negotiation in constructor so we are creating our Dummy
         // subtype without invoking constructor here.
         String typeName = NoopChannel.class.getName().replace("$", "_-");
@@ -102,11 +103,11 @@ public class SharedComputer extends SlaveComputer implements EphemeralNode {
                 Queue.Executable executable = executables.get(0);
                 if (!(executable instanceof ReservationTask.ReservationExecutable)) {
                     throw new IllegalStateException(
-                            "Unknown task running on SharedComputer: " + executable.getClass().getName()
+                            "Unknown task running on ShareableComputer: " + executable.getClass().getName()
                     );
                 }
                 return (ReservationTask.ReservationExecutable) executable;
-            default: throw new IllegalStateException("More than a single task running on SharedComputer: " + executables);
+            default: throw new IllegalStateException("More than a single task running on ShareableComputer: " + executables);
         }
     }
 
@@ -138,8 +139,16 @@ public class SharedComputer extends SlaveComputer implements EphemeralNode {
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
+    public void doDelete() { // Override delete.jelly
+        throw HttpResponses.status(SC_BAD_REQUEST);
+    }
+
     @Override
     public void doConfigSubmit(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException, Descriptor.FormException {
+        throw HttpResponses.status(SC_BAD_REQUEST);
+    }
+
+    public void doConfigure() { // Override configure.jelly
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
@@ -172,13 +181,13 @@ public class SharedComputer extends SlaveComputer implements EphemeralNode {
     }
 
     @Override
-    public SharedNode asNode() {
+    public ShareableNode asNode() {
         return getNode();
     }
 
     @Override
-    public @CheckForNull SharedNode getNode() {
-        return (SharedNode) super.getNode();
+    public @CheckForNull ShareableNode getNode() {
+        return (ShareableNode) super.getNode();
     }
 
 }

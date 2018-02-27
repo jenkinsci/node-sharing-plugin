@@ -33,30 +33,37 @@ import javax.annotation.Nonnull;
  * @author ogondza.
  */
 public class ExecutorEntity extends AbstractEntity {
-    @Nonnull private final String executorName;
+
+    /**
+     * Note that a) this is convenience mechanism rather than a security one as it is so easy to fake and b) we can not
+     * use name as that has to be resolved against config repo which might not work (executor was removed, etc.).
+     */
+    private final @Nonnull String executorUrl;
 
     public ExecutorEntity(@Nonnull Fingerprint fingerprint) {
         super(fingerprint.configRepoUrl, fingerprint.version);
-        this.executorName = fingerprint.executorName;
+        this.executorUrl = fingerprint.executorUrl;
     }
 
-    public @Nonnull String getExecutorName() {
-        return executorName;
+    public @Nonnull String getExecutorUrl() {
+        return executorUrl;
     }
 
     /**
      * Mandatory fields specified to every {@link ExecutorEntity}.
      */
     public static final class Fingerprint {
-        @Nonnull private final String configRepoUrl;
-        @Nonnull private final String version;
-        @Nonnull private final String executorName;
+        private final @Nonnull String configRepoUrl;
+        private final @Nonnull String version;
+        private final @Nonnull String executorUrl;
 
-        public Fingerprint(@Nonnull String configRepoUrl, @Nonnull String version, @Nonnull String executorName) {
-
+        public Fingerprint(@Nonnull String configRepoUrl, @Nonnull String version, @Nonnull String executorUrl) {
+            if (configRepoUrl == null) throw new IllegalArgumentException();
+            if (version == null) throw new IllegalArgumentException();
+            if (executorUrl == null) throw new IllegalArgumentException();
             this.configRepoUrl = configRepoUrl;
             this.version = version;
-            this.executorName = executorName;
+            this.executorUrl = executorUrl;
         }
     }
 }

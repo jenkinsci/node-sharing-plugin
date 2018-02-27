@@ -23,23 +23,30 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageRequest;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.model.Queue;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
+import org.apache.http.HttpStatus;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -47,10 +54,13 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -60,18 +70,34 @@ import java.util.logging.Logger;
 @Extension
 @Restricted(NoExternalUse.class)
 // TODO Check permission
-// TODO Fail fast if there is no ConfigRepo.Snapshot - Broken orchestrator
 public class Api implements RootAction {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
 
     private static final String HIDDEN = null;
 
-    private Properties properties = null;
-    private static final String PROPERTY_VERSION = "version";
+    private final @Nonnull String version;
+
+    public Api() {
+        try {
+            // TODO getClass().getPackage().getImplementationVersion() might work equally well
+            // PJ: Not working, during JUnit phase execution there aren't made packages...
+            InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
+            if (resource == null) {
+                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+            } else {
+                Properties properties = new Properties();
+                properties.load(resource);
+                version = properties.getProperty("version");
+            }
+            if (version == null) throw new AssertionError("No version in assembly properties");
+        } catch (IOException e) {
+            throw new AssertionError("Cannot load assembly properties", e);
+        }
+    }
 
     public static @Nonnull Api getInstance() {
-        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
+        ExtensionList<Api> list = Jenkins.getActiveInstance().getExtensionList(Api.class);
         assert list.size() == 1;
         return list.iterator().next();
     }
@@ -88,35 +114,29 @@ public class Api implements RootAction {
         return "node-sharing-orchestrator";
     }
 
-    /**
-     * Get properties.
-     *
-     * @return Properties.
-     */
-    @Nonnull
-    private Properties getProperties() {
-        if(properties == null) {
-            properties = new Properties();
-            try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
-            } catch (IOException e) {
-                LOGGER.severe("Cannot load properties from ");
-                properties = new Properties();
-            }
-        }
-        return properties;
-    }
-
     //// Outgoing
 
     /**
      * Signal to Executor Jenkins to start using particular node.
      *
-     * @param owner Jenkins instance the node is reserved for.
+     * @param executor Jenkins instance the node is reserved for.
      * @param node Node to be reserved.
+     * @return true is the client accepted the node, false otherwise.
      */
-    public void utilizeNode(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
-        throw new UnsupportedOperationException();
+    public boolean utilizeNode(@Nonnull ExecutorJenkins executor, @Nonnull ShareableNode node) {
+        Pool pool = Pool.getInstance();
+        String configRepoUrl = pool.getConfigRepoUrl();
+        UtilizeNodeRequest request = new UtilizeNodeRequest(configRepoUrl, version, node.getNodeDefinition());
+        RestEndpoint rest = executor.getRest(configRepoUrl, pool.getCredential());
+        try {
+            rest.executeRequest(rest.post("utilizeNode"), request, UtilizeNodeResponse.class);
+            return true;
+        } catch (ActionFailed.RequestFailed ex) {
+            if (ex.getStatusCode() == HttpStatus.SC_GONE) {
+                return false;
+            }
+            throw ex;
+        }
     }
 
     /**
@@ -126,38 +146,38 @@ public class Api implements RootAction {
      * Most useful when Orchestrator boots after crash with all the reservation info possibly lost or outdated.
      *
      * @param owner Jenkins instance to query.
-     * @return List of host names the instance is using.
      */
-    public @Nonnull Collection<String> reportUsage(@Nonnull ExecutorJenkins owner) {
-        throw new UnsupportedOperationException();
+    public @Nonnull ReportUsageResponse reportUsage(@Nonnull ExecutorJenkins owner) {
+        Pool pool = Pool.getInstance();
+        String configRepoUrl = pool.getConfigRepoUrl();
+        ReportUsageRequest request = new ReportUsageRequest(configRepoUrl, version);
+        RestEndpoint rest = owner.getRest(configRepoUrl, pool.getCredential());
+        return rest.executeRequest(rest.post("reportUsage"), request, ReportUsageResponse.class);
     }
 
     /**
-     * Determine whether the host is still used by executor.
+     * Determine whether the host is still used by particular executor.
      *
-     * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, SharedNode)} was send and
-     * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to be delivered for some
-     * reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or plugin was uninstalled so
-     * we can not rely on node-sharing API on Executor end.
+     * Ideally, the host is utilized between {@link #utilizeNode(ExecutorJenkins, ShareableNode)} was send and
+     * {@link #doReturnNode(StaplerRequest, StaplerResponse)} was received but in case of any of the requests failed to
+     * be delivered for some reason, there is this way to recheck. Note this has to recognise Jenkins was stopped or
+     * plugin was uninstalled so we can not rely on node-sharing API on Executor end.
      *
      * @param owner Jenkins instance to query.
      * @param node The node to query.
      * @return true if the computer is still connected there, false if we know it is not, null otherwise.
      */
-    public Boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull SharedNode node) {
+    public Boolean isUtilized(@Nonnull ExecutorJenkins owner, @Nonnull ShareableNode node) {
         throw new UnsupportedOperationException();
     }
 
     @Nonnull
     public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
         Pool pool = Pool.getInstance();
-        NodeStatusRequest request = new NodeStatusRequest(
-                pool.getConfigEndpoint(),
-                getProperties().getProperty("version", ""),
-                nodeName
-        );
-        RestEndpoint rest = jenkins.getRest(pool.getConfigEndpoint(), pool.getCredential());
-        NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), NodeStatusResponse.class, request);
+        String configRepoUrl = pool.getConfigRepoUrl();
+        NodeStatusRequest request = new NodeStatusRequest(configRepoUrl, version, nodeName);
+        RestEndpoint rest = jenkins.getRest(configRepoUrl, pool.getCredential());
+        NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), request, NodeStatusResponse.class);
         return nodeStatus.getStatus();
     }
 
@@ -176,15 +196,17 @@ public class Api implements RootAction {
     //// Incoming
 
     /**
-     * Dummy request to test the connection/compatibility.
+     * Initial request to test the connection/compatibility.
      */
     @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+        Pool pool = Pool.getInstance();
+        Collection<NodeDefinition> nodes = pool.getConfig().getNodes().values(); // Fail early when there is no config
 
         DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
-        Pool pool = Pool.getInstance();
-        String version = getProperties().getProperty("version", "");
+
+        String version = this.version;
 
         // Sanity checking
         StringBuilder diagnosisBuilder = new StringBuilder();
@@ -196,7 +218,7 @@ public class Api implements RootAction {
                     .append(". ")
             ;
         }
-        String configEndpoint = pool.getConfigEndpoint();
+        String configEndpoint = pool.getConfigRepoUrl();
         if (!request.getConfigRepoUrl().equals(configEndpoint)) {
             diagnosisBuilder.append("Orchestrator is configured from ")
                     .append(request.getConfigRepoUrl())
@@ -207,9 +229,7 @@ public class Api implements RootAction {
         }
 
         String diagnosis = diagnosisBuilder.toString();
-        DiscoverResponse response = new DiscoverResponse(
-                configEndpoint, version, diagnosis, pool.getConfig().getNodes().values()
-        );
+        DiscoverResponse response = new DiscoverResponse(configEndpoint, version, diagnosis, nodes);
 
         rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());
@@ -225,14 +245,14 @@ public class Api implements RootAction {
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
 
-        final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
-
         Pool pool = Pool.getInstance();
-        final ConfigRepo.Snapshot config = pool.getConfig();
+        final ConfigRepo.Snapshot config = pool.getConfig(); // Fail early when there is no config
+
+        final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
 
         final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
         final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
-        final ExecutorJenkins executor = config.getJenkinsByName(request.getExecutorName());
+        final ExecutorJenkins executor = config.getJenkinsByUrl(request.getExecutorUrl());
         for (ReportWorkloadRequest.Workload.WorkloadItem item : reportedItems) {
             reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName()));
         }
@@ -242,7 +262,7 @@ public class Api implements RootAction {
                 Queue queue = Jenkins.getActiveInstance().getQueue();
                 for (Queue.Item item : queue.getItems()) {
                     if (item.task instanceof ReservationTask) {
-                        // Cancel items executor is no longer interested in and keep in those it is
+                        // Cancel items executor is no longer interested in and keep those it cares for
                         if (!reportedTasks.contains(item.task)) {
                             queue.cancel(item);
                         }
@@ -250,18 +270,17 @@ public class Api implements RootAction {
                     }
                 }
 
-                // Add new tasks
-                // TODO these might have been reported just before the build started the execution on Executor so
-                // now the ReservationTask might be executing on even completed on orchestrator. Adding it to queue is
-                // not desirable even though the grid should be able to recover.
+                // These might have been reported just before the build started the execution on Executor so now the
+                // ReservationTask might be executing or even completed on executor, though there is no way for orchestrator
+                // to know. This situation will be handled by executor rejecting the `utilizeNode` call.
                 for (ReservationTask newTask : reportedTasks) {
                     queue.schedule2(newTask, 0);
                 }
             }
         });
 
-        String version = getProperties().getProperty("version", "");
-        new ReportWorkloadResponse(pool.getConfigEndpoint(), version).toOutputStream(rsp.getOutputStream());
+        String version = this.version;
+        new ReportWorkloadResponse(pool.getConfigRepoUrl(), version).toOutputStream(rsp.getOutputStream());
     }
 
     /**
@@ -270,21 +289,44 @@ public class Api implements RootAction {
     @RequirePOST
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
-
+        String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
-        Computer c = Jenkins.getActiveInstance().getComputer(request.getNodeName());
-        if (!(c instanceof SharedComputer)) {
-            // TODO computer not reservable
+        String ecr = request.getConfigRepoUrl();
+        if (!Objects.equals(ocr, ecr)) {
+            rsp.getWriter().println("Unable to return node - config repo mismatch " + ocr + " != " + ecr);
+            rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
             return;
         }
-        SharedComputer computer = (SharedComputer) c;
+
+        Jenkins jenkins = Jenkins.getActiveInstance();
+        Computer c = jenkins.getComputer(request.getNodeName());
+        if (c == null) {
+            LOGGER.info(
+                    "An attempt to return a node '" + request.getNodeName() + "' that does not exist by " + request.getExecutorUrl()
+            );
+            rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
+            rsp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        if (!(c instanceof ShareableComputer)) {
+            LOGGER.warning(
+                    "An attempt to return a node '" + request.getNodeName() + "' that is not reservable by " + request.getExecutorUrl()
+            );
+            rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
+            rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            return;
+        }
+
+        ShareableComputer computer = (ShareableComputer) c;
         ReservationTask.ReservationExecutable executable = computer.getReservation();
         if (executable == null) {
-            // TODO computer not reserved
+            rsp.setStatus(HttpServletResponse.SC_OK);
             return;
         }
-        // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(request.getExecutorName());
+
+        executable.complete();
         // TODO Report status
+        rsp.setStatus(HttpServletResponse.SC_OK);
     }
 }

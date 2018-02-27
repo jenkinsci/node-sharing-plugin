@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharing;
 import hudson.logging.LogRecorder;
 import hudson.logging.LogRecorderManager;
 import hudson.model.AdministrativeMonitor;
+import hudson.util.CopyOnWriteMap;
 import jenkins.model.Jenkins;
 
 import javax.annotation.Nonnull;
@@ -40,7 +41,7 @@ import java.util.logging.Level;
  */
 public class ConfigRepoAdminMonitor extends AdministrativeMonitor {
 
-    private final @Nonnull Map<String, Throwable> errors = new HashMap<>();
+    private final @Nonnull Map<String, Throwable> errors = new CopyOnWriteMap.Hash<>();
 
     public ConfigRepoAdminMonitor() {
         // Configure UI logger for ease of maintenance

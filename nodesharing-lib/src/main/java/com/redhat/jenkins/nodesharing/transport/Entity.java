@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 
 /**
@@ -53,7 +54,7 @@ public abstract class Entity {
      * @throws JsonSyntaxException if json is not a valid representation for an object of type.
      */
     public static @Nonnull <T> T fromInputStream(@Nonnull InputStream inputStream, @Nonnull Class<T> type) throws JsonSyntaxException, JsonIOException {
-        T out = GSON.fromJson(new InputStreamReader(inputStream), type);
+        T out = GSON.fromJson(new InputStreamReader(inputStream, TRANSPORT_CHARSET), type);
         if (out == null) throw new JsonSyntaxException("There was nothing in the stream");
         return out;
     }
@@ -78,7 +79,11 @@ public abstract class Entity {
      * @throws JsonIOException if there was a problem writing to the writer.
      */
     public void toOutputStream(@Nonnull OutputStream out) throws JsonIOException {
-        GSON.toJson(this, new PrintStream(out));
+        try {
+            GSON.toJson(this, new PrintStream(out, false, TRANSPORT_CHARSET.name()));
+        } catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
     }
 
     /**
@@ -91,6 +96,10 @@ public abstract class Entity {
     public @Nonnull String toString() throws JsonIOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         toOutputStream(baos);
-        return baos.toString();
+        try {
+            return baos.toString(TRANSPORT_CHARSET.name());
+        } catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
     }
 }

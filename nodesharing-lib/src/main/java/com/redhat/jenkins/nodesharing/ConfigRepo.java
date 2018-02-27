@@ -25,7 +25,6 @@ package com.redhat.jenkins.nodesharing;
 
 import hudson.EnvVars;
 import hudson.FilePath;
-import hudson.model.labels.LabelAtom;
 import hudson.plugins.git.GitException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.jenkinsci.plugins.gitclient.Git;
@@ -50,7 +49,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -60,6 +58,7 @@ import java.util.logging.Logger;
  * from multiple threads.
  */
 public class ConfigRepo {
+    private final static String ORCHESTRATOR_URL = "orchestrator.url";
     private static final Logger LOGGER = Logger.getLogger(ConfigRepo.class.getName());
 
     // Ensure content of repository is no manipulated while being read
@@ -103,9 +102,12 @@ public class ConfigRepo {
             }
         } catch (IOException|GitException ex) {
             taskLog.error(ex, "Unable to update config repo from %s", url);
+        } finally {
+            taskLog.close();
         }
 
         taskLog.throwIfFailed("Unable to read snapshot from " + url);
+        assert snapshot != null;
         return snapshot;
     }
 
@@ -141,15 +143,15 @@ public class ConfigRepo {
             Set<ExecutorJenkins> jenkinses = null;
             Map<String, NodeDefinition> hosts = null;
 
-            String orchestratorUrl = null;
+            String orchestratorUrl;
             FilePath configFile = new FilePath(workingDir).child("config");
             if (!configFile.exists()) {
                 taskLog.error("No file named 'config' found in Config Repository");
             } else {
                 config = getProperties(configFile);
-                orchestratorUrl = config.get("orchestrator.url");
+                orchestratorUrl = config.get(ORCHESTRATOR_URL);
                 if (orchestratorUrl == null) {
-                    taskLog.error("No orchestrator.url specified by Config Repository");
+                    taskLog.error("No " + ORCHESTRATOR_URL + " specified by Config Repository");
                 } else try { // Yep, an else-try statement
                     new URL(orchestratorUrl);
                 } catch (MalformedURLException e) {
@@ -172,6 +174,7 @@ public class ConfigRepo {
             }
 
             taskLog.throwIfFailed("Unable to read config repository");
+            if (config == null || jenkinses == null || hosts == null) throw new AssertionError();
             return new Snapshot(head, config, jenkinses, hosts);
         }
     }
@@ -229,10 +232,7 @@ public class ConfigRepo {
     /**
      * Snapshot of the configuration at particular point in time.
      */
-    public static final class Snapshot {
-
-        private final static String ORCHESTRATOR_URL = "orchestrator.url";
-
+    public static class Snapshot {
         private final @Nonnull ObjectId source;
         private final @Nonnull HashMap<String, String> config;
         private final @Nonnull Set<ExecutorJenkins> jenkinses;
@@ -263,6 +263,7 @@ public class ConfigRepo {
         }
 
         public @Nonnull ExecutorJenkins getJenkinsByUrl(@Nonnull String url) throws NoSuchElementException {
+            if (url == null) throw new IllegalArgumentException("null url provided");
             try {
                 URI uri = new URI(url);
                 for (ExecutorJenkins jenkins : jenkinses) {
@@ -287,6 +288,10 @@ public class ConfigRepo {
             throw new NoSuchElementException("No Jenkins executor configured for url: " + name);
         }
 
-        public @CheckForNull String getOrchestratorUrl() { return config.get(ORCHESTRATOR_URL); }
+        public @Nonnull String getOrchestratorUrl() {
+            String url = config.get(ORCHESTRATOR_URL);
+            if (url == null) throw new AssertionError(); // Should not be instantiated by ConfigRepo
+            return url;
+        }
     }
 }

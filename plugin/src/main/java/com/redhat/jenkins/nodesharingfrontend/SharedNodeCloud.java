@@ -9,9 +9,9 @@ import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
-import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -39,9 +39,11 @@ import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 
 import java.util.Collections;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -55,27 +57,21 @@ import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 
 /**
- * Foreman Shared Node Cloud implementation.
+ * Shared Node Cloud implementation.
  */
 public class SharedNodeCloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(SharedNodeCloud.class.getName());
 
-    private static final int SSH_DEFAULT_PORT = 22;
+    private static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
-    public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
+    /** Git cloneable URL of config repository. */
+    private @Nonnull String configRepoUrl;
 
-    /**
-     * Git cloneable URL of config repository.
-     */
-    @Nonnull
-    private String configRepoUrl;
+    /** Credentials ID for orchestrator REST communication */
+    private @Nonnull String orchestratorCredentialsId;
 
-    private String restCredentialId;
-
-    /**
-     * The id of the ssh credentials for hosts.
-     */
-    private String credentialsId;
+    /** The id of the ssh credentials for hosts. */
+    private String sshCredentialsId;
 
     /**
      * The time in seconds to attempt to establish a SSH connection.
@@ -90,19 +86,19 @@ public class SharedNodeCloud extends Cloud {
     /**
      * Constructor for Config Page.
      *
-     * @param configRepoUrl        ConfigRepo url
-     * @param restCredentialId     Orchestrator credential.
-     * @param credentialsId        creds to use to connect to slave.
+     * @param configRepoUrl ConfigRepo url
+     * @param orchestratorCredentialsId Orchestrator credential.
+     * @param sshCredentialsId Creds to use to connect to slave.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String restCredentialId, String credentialsId, Integer sshConnectionTimeOut) {
+    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId, @Nonnull String sshCredentialsId, Integer sshConnectionTimeOut) {
         super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
-        this.restCredentialId = restCredentialId;
+        this.orchestratorCredentialsId = orchestratorCredentialsId;
         this.configRepo = getConfigRepo();
-        this.credentialsId = credentialsId;
+        this.sshCredentialsId = sshCredentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
     }
 
@@ -115,7 +111,7 @@ public class SharedNodeCloud extends Cloud {
         if (this.api == null) {
             ConfigRepo.Snapshot latestConfig = getLatestConfig();
             if (latestConfig == null) throw new IllegalStateException("No latest config found");
-            this.api = new Api(this);
+            this.api = new Api(latestConfig, configRepoUrl, this);
         }
         return this.api;
     }
@@ -141,16 +137,6 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set Config repo url.
-     *
-     * @param configRepoUrl
-     */
-    @DataBoundSetter
-    public void setConfigRepoUrl(@Nonnull final String configRepoUrl) {
-        this.configRepoUrl = configRepoUrl;
-    }
-
-    /**
      * Get SSH connection time in seconds.
      *
      * @return timeout in secs.
@@ -161,38 +147,28 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set SSH connection time in seconds.
-     *
-     * @param sshConnectionTimeOut timeout in secs.
-     */
-    @DataBoundSetter
-    public void setSshConnectionTimeOut(@Nonnull final Integer sshConnectionTimeOut) {
-        this.sshConnectionTimeOut = sshConnectionTimeOut;
-    }
-
-    /**
      * Get credentials for SSH connection.
      *
      * @return credential id.
      */
     @Nonnull @Restricted(DoNotUse.class) // View Only
-    public String getCredentialsId() {
-        return credentialsId;
+    public String getSshCredentialsId() {
+        return sshCredentialsId;
     }
 
     @Nonnull
-    public String getRestCredentialId() {
-        return restCredentialId;
+    public String getOrchestratorCredentialsId() {
+        return orchestratorCredentialsId;
     }
 
     /**
      * Setter for credentialsId.
      *
-     * @param credentialsId to use to connect to slaves with.
+     * @param sshCredentialsId to use to connect to slaves with.
      */
     @DataBoundSetter
-    public void setCredentialsId(@Nonnull final String credentialsId) {
-        this.credentialsId = credentialsId;
+    public void setSshCredentialsId(@Nonnull final String sshCredentialsId) {
+        this.sshCredentialsId = sshCredentialsId;
     }
 
     private @Nonnull ConfigRepo getConfigRepo() {
@@ -227,6 +203,7 @@ public class SharedNodeCloud extends Cloud {
             latestConfig = getConfigRepo().getSnapshot();
         } catch (IOException|TaskLog.TaskFailed ex) {
             ADMIN_MONITOR.report(configRepoUrl, ex);
+            LOGGER.log(Level.SEVERE, "Failed updating config", ex);
         }
     }
 
@@ -248,6 +225,17 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
+     * Make unique name per Cloud.
+     *
+     * @param nodeName node name from the config repo.
+     * @return the node name.
+     */
+    @Nonnull
+    public String getNodeName(@Nonnull final String nodeName) {
+        return nodeName + "-" + name;
+    }
+
+    /**
      * Get the node status.
      *
      * @param nodeName The node name.
@@ -256,21 +244,29 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        Node node = Jenkins.getActiveInstance().getNode(nodeName);
-        if (node != null) {
+        Computer computer = Jenkins.getActiveInstance().getComputer(getNodeName(nodeName));
+        if (computer != null && computer instanceof SharedComputer) {
             status = NodeStatusResponse.Status.FOUND;
-            if (node.toComputer().isIdle() && !node.toComputer().isConnecting()) {
+            if (computer.isIdle() && !computer.isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
-            } else if (node.toComputer().isOffline() && !node.toComputer().isIdle()) {
+            } else if (computer.isOffline() && !computer.isIdle()) {
                 // Offline but BUSY
                 status = NodeStatusResponse.Status.OFFLINE;
-            } else if (!node.toComputer().isIdle()) {
+            } else if (!computer.isIdle()) {
                 status = NodeStatusResponse.Status.BUSY;
-            } else  if (node.toComputer().isConnecting()) {
+            } else  if (computer.isConnecting()) {
                 status = NodeStatusResponse.Status.CONNECTING;
             }
         }
         return status;
+    }
+
+    public SharedNode createNode(@Nonnull final NodeDefinition definition) {
+        SharedNode node = SharedNodeFactory.transform(definition);
+        final String nodeName = definition.getName();
+        node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
+        assert CloudStatistics.get().getActivityFor(node.getId()) != null;
+        return node;
     }
 
 //    /**
@@ -306,7 +302,7 @@ public class SharedNodeCloud extends Cloud {
         }
 
         for (NodeDefinition node : latestConfig.getNodes().values()) {
-            if (label.matches(node.getLabelAtoms())) {
+            if (label != null && label.matches(node.getLabelAtoms())) {
                 return true;
             }
         }
@@ -327,13 +323,10 @@ public class SharedNodeCloud extends Cloud {
      * @return a Shared node cloud or null if not found.
      */
     @CheckForNull
-//    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public static SharedNodeCloud getByName(@Nonnull final String name) throws IllegalArgumentException {
-        if (name != null && Jenkins.getInstance().clouds != null) {
-            Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
-            if (cloud instanceof SharedNodeCloud) {
-                return (SharedNodeCloud) cloud;
-            }
+        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
+        if (cloud instanceof SharedNodeCloud) {
+            return (SharedNodeCloud) cloud;
         }
         return null;
     }
@@ -351,13 +344,6 @@ public class SharedNodeCloud extends Cloud {
         return out;
     }
 
-    public static DisposableImpl addDisposableEvent(final String cloudName, final String hostName) {
-        LOGGER.finer("Adding the host '" + hostName + "' to the disposable queue.");
-        DisposableImpl disposable = new DisposableImpl(cloudName, hostName);
-        AsyncResourceDisposer.get().dispose(disposable);
-        return disposable;
-    }
-
     /**
      * The cloud is considered operational once it can get data from Config Repo and talk to orchestrator.
      */
@@ -372,14 +358,10 @@ public class SharedNodeCloud extends Cloud {
     public static class DescriptorImpl extends Descriptor<Cloud> {
         @Override
         public String getDisplayName() {
-            return "Shared Node";
+            return "Shared Nodes";
         }
 
-        /**
-         * Fill SSH credentials.
-         *
-         * @return list of creds.
-         */
+        @Restricted(DoNotUse.class)
         public ListBoxModel doFillCredentialsIdItems() {
             return new StandardListBoxModel()
                     .withMatching(anyOf(
@@ -395,9 +377,10 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
+        @Restricted(DoNotUse.class)
         public FormValidation doTestConnection(
                 @Nonnull @QueryParameter("configRepoUrl") String configRepoUrl,
-                @Nonnull @QueryParameter("restCredentialId") String restCredentialId
+                @Nonnull @QueryParameter("orchestratorCredentialsId") String restCredentialId
         ) throws Exception {
             try {
                 new URI(configRepoUrl);
@@ -408,15 +391,15 @@ public class SharedNodeCloud extends Cloud {
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
                 SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId, "", null);
-
-                DiscoverResponse discover = new Api(cloud).discover();
+                Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud);
+                DiscoverResponse discover = api.discover();
                 if (!discover.getDiagnosis().isEmpty()) {
                     return FormValidation.warning(discover.getDiagnosis());
                 }
                 return FormValidation.okWithMarkup("<strong>" + Messages.TestConnectionOK(discover.getVersion()) + "<strong>");
             } catch (TaskLog.TaskFailed e) {
                 ByteArrayOutputStream bout = new ByteArrayOutputStream();
-                try (OutputStreamWriter writer = new OutputStreamWriter(bout)) {
+                try (OutputStreamWriter writer = new OutputStreamWriter(bout, Charset.defaultCharset())) {
                     writer.write("<pre>");
                     e.getLog().getAnnotatedText().writeHtmlTo(0, writer);
                     writer.write("</pre>");

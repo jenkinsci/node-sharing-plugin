@@ -14,10 +14,12 @@ import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
@@ -25,46 +27,49 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * Foreman Shared Node.
+ * Shared execution node.
  */
 public class SharedNode extends AbstractCloudSlave implements EphemeralNode, TrackedItem {
 
     private static final Logger LOGGER = Logger.getLogger(SharedNode.class.getName());
-    private static final int NUM_EXECUTORS = 1;
 
     private static final long serialVersionUID = -3284884519464420953L;
+    private static final CauseOfBlockage COB_NO_FLYWEIGHTS = new CauseOfBlockage() {
+        @Override public String getShortDescription() { return "Cannot build flyweight tasks"; }
+    };
+    private static final CauseOfBlockage COB_NO_RESERVATIONS = new CauseOfBlockage() {
+        @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
+    };
 
-    @Deprecated // Use id instead,
-    private String cloudName;
     private ProvisioningActivity.Id id;
+    private String hostname;
 
-    /**
-     * Foreman Shared Node.
-     *
-     * @param id             id of the provisioning attempt.
-     * @param label          Jenkins label requested.
-     * @param remoteFS       Remote FS root.
-     * @param launcher       Slave launcher.
-     * @param strategy       Retention Strategy.
-     * @param nodeProperties node props.
-     * @throws FormException if occurs.
-     * @throws IOException   if occurs.
-     */
-    public SharedNode(
-            ProvisioningActivity.Id id,
-            String label,
-            String remoteFS,
-            ComputerLauncher launcher,
-            RetentionStrategy<AbstractCloudComputer> strategy,
-            List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
-        //CS IGNORE check FOR NEXT 3 LINES. REASON: necessary inline conditional in super().
-        super(id.getNodeName(), "", remoteFS, NUM_EXECUTORS,
-                label == null ? Node.Mode.NORMAL : Node.Mode.EXCLUSIVE,
-                label, launcher, strategy, nodeProperties);
+    // Never used, the class is always created from NodeDefinition
+    @Restricted(DoNotUse.class)
+    private SharedNode(
+            String name, String nodeDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties
+    ) throws FormException, IOException {
+        super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
+    }
+
+    /*package*/ void init(@Nonnull final ProvisioningActivity.Id id) {
         this.id = id;
-        this.cloudName = id.getCloudName();
-        LOGGER.info("Instancing a new SharedNode: name='" + name + "', label='"
-                + (label == null ? "<NULL>" : label) + "'");
+        // Name of the node as defined is its hostname, but we are changing the name of the Jenkins node as we need to
+        // preserve the old value as hostname
+        hostname = name;
+        name = id.getNodeName();
+
+        // Make a current phase of provisioning activity failed if exists for any node with the same name
+        for (ProvisioningActivity a : CloudStatistics.get().getActivities()) {
+            if (a.getId().getNodeName().equals(name)) {
+                PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
+                        ProvisioningActivity.Status.FAIL, "Performed operation stuck!");
+                CloudStatistics.get().attach(a, a.getCurrentPhase(), attachment);
+                a.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
+            }
+        }
+
+        CloudStatistics.ProvisioningListener.get().onStarted(id);
     }
 
     @Override
@@ -75,31 +80,31 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     @Override
     public CauseOfBlockage canTake(BuildableItem item) {
         if (item.task instanceof Queue.FlyweightTask) {
-            return new CauseOfBlockage() {
-                @Override
-                public String getShortDescription() {
-                    return "Cannot build flyweight tasks on " + name;
-                }
-            };
+            return COB_NO_FLYWEIGHTS;
+        }
+        if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) { // jth-tests hack
+            return COB_NO_RESERVATIONS;
         }
         return super.canTake(item);
     }
 
     @Override
-    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-        LOGGER.info("Terminating the SharedNode: name='" + name + "'");
-
+    protected void _terminate(TaskListener listener) {
         ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
         if (activity != null) {
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
         }
 
-        SharedNodeCloud.addDisposableEvent(cloudName, name);
+        LOGGER.finer("Adding the host '" + name + "' to the disposable queue.");
+        SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
+        if (cloud != null) { // Might be deleted or using different config repo
+            cloud.getApi().returnNode(this);
+        }
     }
 
-    @CheckForNull
-    public String getCloudName() {
-        return cloudName;
+    @Nonnull
+    public String getHostName() {
+        return hostname;
     }
 
     @Override
@@ -120,7 +125,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
         @Override
         public String getDisplayName() {
-            return "Foreman Shared Node";
+            return "Shared Node";
         }
 
         @Override

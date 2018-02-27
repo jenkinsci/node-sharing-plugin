@@ -70,10 +70,6 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
             LOGGER.log(Level.INFO, "not terminating {0} because {1} was a flyweight task", new Object[] {c.getName(), exec});
             return;
         }
-//        if (exec instanceof ContinuableExecutable && ((ContinuableExecutable) exec).willContinue()) {
-//            LOGGER.log(Level.FINE, "not terminating {0} because {1} says it will be continued", new Object[] {c.getName(), exec});
-//            return;
-//        }
         LOGGER.log(Level.INFO, "terminating {0} since {1} seems to be finished", new Object[] {c.getName(), exec});
         done(c);
     }
@@ -90,8 +86,9 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
         Computer.threadPoolForRemoting.submit(new Runnable() {
             @Override
             public void run() {
-                Queue.withLock(new NotReallyRoleSensitiveCallable<Void,RuntimeException>() {
-                    @Override public Void call() {
+                // https://github.com/jenkinsci/durable-task-plugin/commit/0bf67ad1c37cf390e62049c8229bf0d536f6221a#r19531777
+                //Queue.withLock(new NotReallyRoleSensitiveCallable<Void,RuntimeException>() {
+                //    @Override public Void call() {
                         try {
                             AbstractCloudSlave node = c.getNode();
                             if (node != null) {
@@ -108,9 +105,9 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                                 terminating = false;
                             }
                         }
-                        return null;
-                    }
-                });
+                //        return null;
+                //    }
+                //});
             }
         });
     }

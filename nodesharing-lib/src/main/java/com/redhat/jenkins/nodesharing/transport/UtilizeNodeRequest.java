@@ -23,37 +23,29 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
-import javax.annotation.CheckForNull;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
+
 import javax.annotation.Nonnull;
 
-public class ReturnNodeRequest extends ExecutorEntity {
-    private final @Nonnull String nodeName;
-    private final @Nonnull Status status;
-    private final @CheckForNull String message;
+/**
+ * @author ogondza.
+ */
+public class UtilizeNodeRequest extends AbstractEntity {
 
-    public ReturnNodeRequest(@Nonnull Fingerprint f, @Nonnull String nodeName, @Nonnull Status status, @CheckForNull String message) {
-        super(f);
-        this.nodeName = nodeName;
-        this.status = status;
-        this.message = message;
+    private final @Nonnull String fileName;
+    private final @Nonnull String definition;
+
+    public UtilizeNodeRequest(@Nonnull String configRepoUrl, @Nonnull String version, @Nonnull NodeDefinition node) {
+        super(configRepoUrl, version);
+        fileName = node.getDeclaringFileName();
+        definition = node.getDefinition();
     }
 
-    public @Nonnull String getNodeName() {
-        return nodeName;
+    public @Nonnull String getFileName() {
+        return fileName;
     }
 
-    public @Nonnull Status getStatus() {
-        return status;
-    }
-
-    public @CheckForNull String getMessage() {
-        return message;
-    }
-
-    public enum Status {
-        /** When the host was used successfully. */
-        OK,
-        /** When executor failed to get the node online, */
-        FAILED
+    public @Nonnull String getDefinition() {
+        return definition;
     }
 }

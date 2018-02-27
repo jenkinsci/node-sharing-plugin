@@ -19,12 +19,11 @@ import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
  * Computer listener to cleanup after failed launches.
  */
 @Extension
-public class ForemanComputerListener extends ComputerListener {
+public class NodeSharingComputerListener extends ComputerListener {
 
-    private static final Logger LOGGER = Logger.getLogger(ForemanComputerListener.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(NodeSharingComputerListener.class.getName());
 
     @Override
-    @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
     public void onLaunchFailure(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
         try {
             super.onLaunchFailure(c, taskListener);
@@ -34,18 +33,19 @@ public class ForemanComputerListener extends ComputerListener {
         }
         if (c instanceof SharedComputer) {
             SharedComputer fc = (SharedComputer) c;
-            CloudStatistics.get().attach(
-                    CloudStatistics.get().getActivityFor(fc.getId()),
-                    CloudStatistics.get().getActivityFor(fc.getId()).getCurrentPhase(),
-                    new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL,
-                            "Launch failed with:\n" + c.getLog()));
+            ProvisioningActivity activity = CloudStatistics.get().getActivityFor(fc.getId());
+            if (activity != null) {
+                PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
+                        ProvisioningActivity.Status.FAIL, "Launch failed with:\n" + c.getLog()
+                );
+                CloudStatistics.get().attach(activity, activity.getCurrentPhase(), attachment);
+            }
             LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...:\n" + c.getLog());
-            ((SharedComputer) c).terminateComputer(c);
+            SharedComputer.terminateComputer(c);
         }
     }
 
     @Override
-    @SuppressFBWarnings(value = "BC_VACUOUS_INSTANCEOF")
     public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
         try {
             super.preLaunch(c, taskListener);
@@ -56,9 +56,10 @@ public class ForemanComputerListener extends ComputerListener {
         if (c instanceof SharedComputer) {
             Node node = c.getNode();
             if (node instanceof SharedNode) {
-               SharedNodeCloud foremanCloud =
-                       SharedNodeCloud.getByName(((SharedNode) node).getCloudName());
-               if (foremanCloud == null || !foremanCloud.isOperational()) {
+               SharedNodeCloud cloud =
+                       SharedNodeCloud.getByName(((SharedNode) node).getId().getCloudName());
+               if (cloud == null || !cloud.isOperational()) {
+                   // TODO these should never be saved (EphemeralNode) - do we still need this?
                    throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
                }
            }
@@ -76,9 +77,9 @@ public class ForemanComputerListener extends ComputerListener {
         if (c instanceof SharedComputer) {
             if (c.isIdle()) {
                 try {
-                    ((SharedComputer) c).terminateComputer(c);
-                } catch (InterruptedException e) {
-                } catch (IOException e) {
+                    SharedComputer.terminateComputer(c);
+                } catch (InterruptedException | IOException e) {
+                    LOGGER.log(Level.WARNING, "Uncaught unexpected exception occurred while terminaitng computer", e);
                 }
             }
         }

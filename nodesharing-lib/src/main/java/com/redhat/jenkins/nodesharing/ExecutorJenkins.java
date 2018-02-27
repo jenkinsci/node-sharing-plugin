@@ -54,6 +54,9 @@ public class ExecutorJenkins {
         } catch (Failure ex) {
             throw new IllegalArgumentException(ex);
         }
+        if (!url.endsWith("/")) {
+            url += "/";
+        }
         try {
             this.url = new URL(url);
             this.url.toURI();
@@ -108,5 +111,9 @@ public class ExecutorJenkins {
         } catch (URISyntaxException e) {
             throw new AssertionError(e);
         }
+    }
+
+    @Override public String toString() {
+        return name + ":" + url;
     }
 }

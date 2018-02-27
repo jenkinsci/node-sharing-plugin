@@ -2,19 +2,18 @@
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
 
   <f:section title="Node Sharing Pool">
-    <f:entry title="${%Name - generated}" field="name">
-      <f:readOnlyTextbox />
-    </f:entry>
     <f:entry title="${%Config Repo Url}" field="configRepoUrl">
       <f:textbox />
     </f:entry>
-    <!-- TODO: credential for REST backend -->
+    <f:entry title="${%Orchestrator Credentials}" field="orchestratorCredentialsId">
+      <c:select/>
+    </f:entry>
   </f:section>
 
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="configRepoUrl" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="configRepoUrl,orchestratorCredentialsId" />
 
   <f:section title="Node Parameters">
-    <f:entry title="${%Credentials}" field="credentialsId">
+    <f:entry title="${%SSH Credentials}" field="sshCredentialsId">
       <c:select/>
     </f:entry>
     <f:entry title="${%SSH Connection Timeout in Seconds}" field="sshConnectionTimeOut">

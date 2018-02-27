@@ -23,37 +23,23 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-public class ReturnNodeRequest extends ExecutorEntity {
-    private final @Nonnull String nodeName;
-    private final @Nonnull Status status;
-    private final @CheckForNull String message;
+/**
+ * @author ogondza.
+ */
+public class ReportUsageResponse extends ExecutorEntity {
+    private final @Nonnull List<String> usedNodes;
 
-    public ReturnNodeRequest(@Nonnull Fingerprint f, @Nonnull String nodeName, @Nonnull Status status, @CheckForNull String message) {
-        super(f);
-        this.nodeName = nodeName;
-        this.status = status;
-        this.message = message;
+    public ReportUsageResponse(@Nonnull Fingerprint fingerprint, @Nonnull List<String> usedNodes) {
+        super(fingerprint);
+        this.usedNodes = new ArrayList<>(usedNodes);
     }
 
-    public @Nonnull String getNodeName() {
-        return nodeName;
-    }
-
-    public @Nonnull Status getStatus() {
-        return status;
-    }
-
-    public @CheckForNull String getMessage() {
-        return message;
-    }
-
-    public enum Status {
-        /** When the host was used successfully. */
-        OK,
-        /** When executor failed to get the node online, */
-        FAILED
+    public @Nonnull List<String> getUsedNodes() {
+        return Collections.unmodifiableList(usedNodes);
     }
 }

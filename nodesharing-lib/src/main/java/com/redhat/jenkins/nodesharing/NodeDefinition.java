@@ -24,12 +24,13 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.FilePath;
-import hudson.model.Label;
 import hudson.model.labels.LabelAtom;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.Immutable;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,7 +40,17 @@ import java.util.regex.Pattern;
  *
  * This abstraction is ready to support various configuration formats.
  */
-public abstract class NodeDefinition {
+@Immutable
+public abstract class NodeDefinition implements Serializable {
+    private static final long serialVersionUID = -2736787874164916297L;
+
+    private final @Nonnull String fileName;
+    private final @Nonnull String definition;
+
+    protected NodeDefinition(@Nonnull String fileName, @Nonnull String definition) {
+        this.fileName = fileName;
+        this.definition = definition;
+    }
 
     /**
      * @return Name of the node.
@@ -51,14 +62,39 @@ public abstract class NodeDefinition {
      */
     public abstract @Nonnull String getLabel();
 
+    /**
+     * Name of the file the node was declared in in config repo.
+     * @see #create(String, String)
+     */
+    public @Nonnull String getDeclaringFileName() {
+        return fileName;
+    }
+
+    /**
+     * Textual definition of the node.
+     * @see #create(String, String)
+     */
+    public @Nonnull String getDefinition() {
+        return definition;
+    }
+
     public @Nonnull Collection<LabelAtom> getLabelAtoms() {
         return LabelAtom.parse(getLabel());
     }
 
     public static @CheckForNull NodeDefinition create(@Nonnull FilePath file) throws IOException, InterruptedException {
-        String name = file.getName();
-        if (name.endsWith(".xml")) {
-            return new Xml(file);
+        return create(file.getName(), file.readToString());
+    }
+
+    /**
+     * Create definition from file name and the content.
+     *
+     * Following invariant must hold so we are able to recreate the node on the other side:
+     * <tt>node.equals(NodeDefinition.create(node.getDeclaringFileName(), node.getDefinition()))</tt>
+     */
+    public static @CheckForNull NodeDefinition create(@Nonnull String declaringFileName, @Nonnull String definition) {
+        if (declaringFileName.endsWith(".xml")) {
+            return new Xml(declaringFileName, definition);
         }
         return null;
     }
@@ -67,13 +103,14 @@ public abstract class NodeDefinition {
      * XStream based node definition.
      */
     public static final class Xml extends NodeDefinition {
-        private final @Nonnull String xml;
+        private static final long serialVersionUID = 6932395574201798664L;
+
         private final @Nonnull String name;
         private final @Nonnull String label;
 
-        public Xml(@Nonnull FilePath file) throws IOException, InterruptedException {
-            this.xml = file.readToString();
-            this.name = file.getBaseName().replaceAll(".xml$", "");
+        public Xml(@Nonnull String fileName, @Nonnull String xml) {
+            super(fileName, xml);
+            this.name = fileName.replaceAll(".xml$", "");
             Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
             if (!matcher.find()) {
                 throw new IllegalStateException("No labels found in " + xml);
@@ -85,10 +122,6 @@ public abstract class NodeDefinition {
         @Override
         public String getName() {
             return name;
-        }
-
-        public @Nonnull String getXml() {
-            return xml;
         }
 
         @Override

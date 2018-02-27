@@ -23,30 +23,30 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.GlobalCredentialsConfiguration;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
-import com.redhat.jenkins.nodesharingbackend.SharedComputer;
-import com.redhat.jenkins.nodesharingbackend.SharedNode;
+import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
+import com.redhat.jenkins.nodesharingbackend.ShareableNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Descriptor;
+import hudson.model.Computer;
+import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
-import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.slaves.CommandLauncher;
-import hudson.slaves.ComputerLauncher;
-import hudson.slaves.EphemeralNode;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
@@ -65,7 +65,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.junit.Assert.assertNotNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
@@ -73,8 +72,14 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
     private UsernamePasswordCredentials cred;
 
-    protected @Nonnull SharedComputer getComputer(String name) {
-        return (SharedComputer) getNode(name).toComputer();
+    public MockAuthorizationStrategy getMockAuthorizationStrategy() {
+        return mas;
+    }
+
+    private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
+
+    protected @Nonnull ShareableComputer getComputer(String name) {
+        return (ShareableComputer) getNode(name).toComputer();
     }
 
     public Statement apply(final Statement base, final Description description) {
@@ -82,28 +87,37 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             @Override public void evaluate() throws Throwable {
                 jenkins.setSecurityRealm(createDummySecurityRealm());
 
-                MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
                 mas.grant(Jenkins.READ, RestEndpoint.INVOKE).everywhere().to("jerry");
                 jenkins.setAuthorizationStrategy(mas);
 
                 cred = new UsernamePasswordCredentialsImpl(
-                        CredentialsScope.GLOBAL, "fake-id", "Testing node sharing credential", "jerry", "jerry"
+                        CredentialsScope.GLOBAL, getRestCredentialId(), "Testing node sharing credential", "jerry", "jerry"
                 );
+                SystemCredentialsProvider credentialsProvider = SystemCredentialsProvider.getInstance();
+                credentialsProvider.getCredentials().add(cred);
+                credentialsProvider.save();
 
-                base.evaluate();
+                try {
+                    System.setProperty(Pool.USERNAME_PROPERTY_NAME, cred.getUsername());
+                    System.setProperty(Pool.PASSWORD_PROPERTY_NAME, cred.getPassword().getPlainText());
+                    base.evaluate();
+                } finally {
+                    System.clearProperty(Pool.USERNAME_PROPERTY_NAME);
+                    System.clearProperty(Pool.PASSWORD_PROPERTY_NAME);
+                }
             }
         };
         return super.apply(wrappedBase, description);
     }
 
-    protected @Nonnull SharedNode getNode(String name) {
+    protected @Nonnull ShareableNode getNode(String name) {
         Node node = jenkins.getNode(name);
         assertNotNull("No such node " + name, node);
-        return (SharedNode) node;
+        return (ShareableNode) node;
     }
 
     protected GitClient injectConfigRepo(GitClient repoClient) throws Exception {
-        System.setProperty(CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
+        System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
         Pool.Updater.getInstance().doRun();
 
         return repoClient;
@@ -120,8 +134,25 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
+
     public UsernamePasswordCredentials getRestCredential() {
         return cred;
+    }
+
+    public String getRestCredentialId() {
+        return "fake-cred-id";
+    }
+
+    protected List<ReservationTask.ReservationExecutable> getPendingReservations() {
+        ArrayList<ReservationTask.ReservationExecutable> out = new ArrayList<>();
+        for (Computer c : jenkins.getComputers()) {
+            if (c instanceof ShareableComputer) {
+                ReservationTask.ReservationExecutable reservation = ((ShareableComputer) c).getReservation();
+                if (reservation == null) continue;
+                out.add(reservation);
+            }
+        }
+        return out;
     }
 
     protected static class BlockingTask extends MockTask {
@@ -146,7 +177,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      * Mock task to represent fake reservation task. To be run on orchestrator only.
      */
     protected static class MockTask extends ReservationTask {
-        final SharedComputer actuallyRunOn[] = new SharedComputer[1];
+        final ShareableComputer actuallyRunOn[] = new ShareableComputer[1];
         public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
             super(owner, label, "MockTask");
         }
@@ -156,7 +187,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             return new ReservationExecutable(this) {
                 @Override
                 public void run() throws AsynchronousExecution {
-                    actuallyRunOn[0] = (SharedComputer) Executor.currentExecutor().getOwner();
+                    actuallyRunOn[0] = (ShareableComputer) Executor.currentExecutor().getOwner();
                     perform();
                 }
             };
@@ -175,7 +206,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      */
     @Nonnull
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
-        SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", "", null);
+        SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, getRestCredentialId(), "", null);
         jenkins.clouds.add(cloud);
         return cloud;
     }
@@ -210,31 +241,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         }
     }
 
-    static class ConnectingSlave extends Slave implements EphemeralNode {
-        public ConnectingSlave(String name,
-                               String nodeDescription,
-                               String remoteFS,
-                               String numExecutors,
-                               Mode mode,
-                               String labelString,
-                               ComputerLauncher launcher,
-                               RetentionStrategy retentionStrategy,
-                               List<? extends NodeProperty<?>> nodeProperties
-        ) throws IOException, Descriptor.FormException {
-            super(name, nodeDescription, remoteFS, numExecutors, mode, labelString, launcher,
-                    retentionStrategy, nodeProperties);
-        }
-
-        @Override
-        public ConnectingSlave asNode() {
-            return this;
-        }
-    }
-
     /**
      * Trigger workload update now from executor
      */
-    protected void reportWorkloadToOrchestrator() throws Exception {
+    protected void reportWorkloadToOrchestrator() {
         WorkloadReporter.all().get(WorkloadReporter.class).doRun();
     }
 }

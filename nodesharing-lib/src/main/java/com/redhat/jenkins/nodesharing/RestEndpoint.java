@@ -23,8 +23,8 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
@@ -34,29 +34,38 @@ import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIUtils;
 import org.apache.http.entity.AbstractHttpEntity;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -67,15 +76,27 @@ import java.util.logging.Logger;
  */
 public class RestEndpoint {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
+
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
     private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
     public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveRescription(), null, NODE_SHARING_SCOPE);
+
+    private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
+            .setConnectTimeout(5000)
+            .setConnectionRequestTimeout(5000)
+            .setSocketTimeout(5000)
+            .build()
+    ;
 
     private final @Nonnull String endpoint;
     private final @Nonnull String crumbIssuerEndpoint;
     private final @Nonnull UsernamePasswordCredentials creds;
 
-    public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath, UsernamePasswordCredentials creds) {
+    public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath, @Nonnull UsernamePasswordCredentials creds) {
+        Objects.requireNonNull(jenkinsUrl);
+        Objects.requireNonNull(endpointPath);
+        Objects.requireNonNull(creds);
+
         this.endpoint = jenkinsUrl + endpointPath;
         this.crumbIssuerEndpoint = jenkinsUrl + "crumbIssuer/api/json";
         this.creds = creds;
@@ -93,113 +114,192 @@ public class RestEndpoint {
      * Execute HttpRequest.
      *
      * @param method Method and url to be invoked.
-     * @param returnType Type the response should be converted at.
      * @param requestEntity Entity to be sent in request body.
+     * @param returnType Type the response should be converted at.
+     *
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
+     * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
     public <T extends AbstractEntity> T executeRequest(
             @Nonnull HttpEntityEnclosingRequestBase method,
-            @Nullable Class<T> returnType,
-            @Nullable Entity requestEntity
+            @Nonnull Entity requestEntity,
+            @Nonnull Class<T> returnType
     ) throws ActionFailed {
         method.addHeader(getCrumbHeader());
-        if (requestEntity != null) {
-            method.setEntity(new WrappingEntity(requestEntity));
-        }
-        return _executeRequest(method, returnType);
+        method.setEntity(new WrappingEntity(requestEntity));
+        return _executeRequest(method, new DefaultResponseHandler<>(method, returnType));
     }
 
     /**
      * Execute HttpRequest.
      *
      * @param method Method and url to be invoked.
-     * @param returnType Type the response should be converted at.
+     * @param requestEntity Entity to be sent in request body.
+     * @param handler Response handler to be used.
+     *
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
+     * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
-    public <T extends AbstractEntity> T executeRequest(
-            @Nonnull HttpRequestBase method,
-            @Nullable Class<T> returnType
+    public <T> T executeRequest(
+            @Nonnull HttpEntityEnclosingRequestBase method,
+            @Nonnull Entity requestEntity,
+            @Nonnull ResponseHandler<T> handler
     ) throws ActionFailed {
         method.addHeader(getCrumbHeader());
-        return _executeRequest(method, returnType);
+        method.setEntity(new WrappingEntity(requestEntity));
+        return _executeRequest(method, handler);
+    }
+
+    @VisibleForTesting
+    /*package*/ <T> T executeRequest(
+            @Nonnull HttpEntityEnclosingRequestBase method,
+            @Nonnull ResponseHandler<T> handler
+    ) throws ActionFailed {
+        method.addHeader(getCrumbHeader());
+        return _executeRequest(method, handler);
     }
 
     @CheckForNull
-    private <T extends Entity> T _executeRequest(@Nonnull HttpRequestBase method, @Nullable Class<T> returnType) {
+    private <T> T _executeRequest(@Nonnull HttpRequestBase method, @Nonnull ResponseHandler<T> handler) {
+        method.setConfig(REQUEST_CONFIG);
+
         CloseableHttpClient client = HttpClients.createSystem();
-        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(
-                new AuthScope(targetHost.getHostName(), targetHost.getPort()),
-                new org.apache.http.auth.UsernamePasswordCredentials(creds.getUsername(), creds.getPassword().getPlainText())
-        );
-
-        // Create AuthCache instance
-        AuthCache authCache = new BasicAuthCache();
-// Generate BASIC scheme object and add it to the local auth cache
-        BasicScheme basicAuth = new BasicScheme();
-        authCache.put(targetHost, basicAuth);
-
-// Add AuthCache to the execution context
-        HttpClientContext context = HttpClientContext.create();
-        context.setCredentialsProvider(credsProvider);
-        context.setAuthCache(authCache);
-
         try {
-            CloseableHttpResponse response = client.execute(method, context);
-
-            // Check exit code
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode != 200) {
-                try (InputStream is = response.getEntity().getContent()) {
-                    ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
-                            method, response.getStatusLine(), IOUtils.toString(is)
-                    );
-                    LOGGER.info(requestFailed.getMessage());
-                    throw requestFailed;
-                }
-            }
-
-            try {
-                if (returnType == null) {
-                    return null;
-                }
-
-                try (InputStream is = response.getEntity().getContent()) {
-                    return Entity.fromInputStream(is, returnType);
-                } catch (JsonParseException ex) {
-                    throw new ActionFailed.ProtocolMismatch("Unable to create entity: " + returnType, ex);
-                }
-            } finally {
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Unable to close the HttpResponse", e);
-                }
-            }
+            return client.execute(method, handler, getAuthenticatingContext(method));
         } catch (IOException e) {
             throw new ActionFailed.CommunicationError("Failed executing REST call: " + method, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Unable to close the HttpClient", e);
+                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e);
             }
         }
     }
 
+    // https://hc.apache.org/httpcomponents-client-ga/tutorial/html/authentication.html#d5e717
+    private @Nonnull HttpClientContext getAuthenticatingContext(@Nonnull HttpRequestBase method) {
+        AuthCache authCache = new BasicAuthCache();
+        BasicScheme basicAuth = new BasicScheme();
+        authCache.put(URIUtils.extractHost(method.getURI()), basicAuth);
+
+        CredentialsProvider provider = new BasicCredentialsProvider();
+        provider.setCredentials(AuthScope.ANY, new org.apache.http.auth.UsernamePasswordCredentials(
+                creds.getUsername(), creds.getPassword().getPlainText()
+        ));
+        HttpClientContext context = HttpClientContext.create();
+        context.setCredentialsProvider(provider);
+        context.setAuthCache(authCache);
+        return context;
+    }
+
     private Header getCrumbHeader() {
-        CrumbResponse crumbResponse;
-        try {
-            crumbResponse = _executeRequest(new HttpGet(crumbIssuerEndpoint), CrumbResponse.class);
-        } catch (ActionFailed.RequestFailed e) {
-            if (e.getStatusCode() == 404) { // No crumb issuer used
-                return new BasicHeader("Jenkins-Crumb", "Not-Used");
+        final HttpGet method = new HttpGet(crumbIssuerEndpoint);
+        CrumbResponse crumbResponse = _executeRequest(method, new AbstractResponseHandler<CrumbResponse>(method) {
+            private final List<Integer> ACCEPTED_CODES = Arrays.asList(200, 404);
+
+            @Override
+            protected boolean shouldFail(@Nonnull StatusLine sl) {
+                return !ACCEPTED_CODES.contains(sl.getStatusCode());
             }
-            throw e;
+
+            @Override
+            protected boolean shouldWarn(@Nonnull StatusLine sl) {
+                return !ACCEPTED_CODES.contains(sl.getStatusCode());
+            }
+
+            @Override
+            protected @CheckForNull CrumbResponse consumeEntity(@Nonnull HttpResponse response) throws IOException {
+                if (response.getStatusLine().getStatusCode() == 404) return null;
+                return createEntity(response, CrumbResponse.class);
+            }
+        });
+
+        if (crumbResponse == null) { // No crumb issuer used by other side
+            return new BasicHeader("Jenkins-Crumb", "Not-Used");
         }
+
         return new BasicHeader(crumbResponse.getCrumbRequestField(), crumbResponse.getCrumb());
+    }
+
+    public static class AbstractResponseHandler<T> implements ResponseHandler<T> {
+        protected final @Nonnull HttpRequestBase method;
+        public AbstractResponseHandler(@Nonnull HttpRequestBase method) {
+            this.method = method;
+        }
+
+        @Override
+        public @CheckForNull T handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+            StatusLine sl = response.getStatusLine();
+            boolean fail = shouldFail(sl);
+            boolean warn = shouldWarn(sl);
+            if (fail || warn) {
+                ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
+                        method, response.getStatusLine(), getPayloadAsString(response)
+                );
+                if (warn) {
+                    LOGGER.info(requestFailed.getMessage());
+                }
+                if (fail) {
+                    throw requestFailed;
+                }
+            }
+
+            return consumeEntity(response);
+        }
+
+        protected boolean shouldFail(@Nonnull StatusLine sl) {
+            return sl.getStatusCode() != 200;
+        }
+
+        protected boolean shouldWarn(@Nonnull StatusLine sl) {
+            return sl.getStatusCode() != 200;
+        }
+
+        protected @CheckForNull T consumeEntity(@Nonnull HttpResponse response) throws IOException {
+            return null;
+        }
+
+        protected final @Nonnull T createEntity(@Nonnull HttpResponse response, @Nonnull Class<? extends T> returnType) throws IOException {
+            try (InputStream is = response.getEntity().getContent()) {
+                return Entity.fromInputStream(is, returnType);
+            } catch (JsonParseException ex) {
+                throw new ActionFailed.ProtocolMismatch("Unable to create entity: " + returnType, ex);
+            }
+        }
+
+        protected final @Nonnull String getPayloadAsString(@Nonnull HttpResponse response) throws IOException {
+            try (InputStream is = response.getEntity().getContent()) {
+                return IOUtils.toString(is);
+            }
+        }
+    }
+
+    /**
+     * Fail in case of non-200 status code and create response entity.
+     */
+    private static final class DefaultResponseHandler<T extends Entity> extends AbstractResponseHandler<T> {
+
+        private final @Nonnull Class<? extends T> returnType;
+
+        private DefaultResponseHandler(@Nonnull HttpRequestBase method, @Nonnull Class<? extends T> returnType) {
+            super(method);
+            this.returnType = returnType;
+        }
+
+        @Override
+        public final @Nonnull T handleResponse(HttpResponse response) throws IOException {
+            T out = super.handleResponse(response);
+            assert out != null;
+            return out;
+        }
+
+        @Override
+        protected @Nonnull T consumeEntity(@Nonnull HttpResponse response) throws IOException {
+            return createEntity(response, returnType);
+        }
     }
 
     // Wrap transport.Entity into HttpEntity
@@ -207,7 +307,7 @@ public class RestEndpoint {
 
         private final @Nonnull Entity entity;
 
-        public WrappingEntity(@Nonnull Entity entity) {
+        private WrappingEntity(@Nonnull Entity entity) {
             this.entity = entity;
         }
 
@@ -219,7 +319,7 @@ public class RestEndpoint {
             return -1;
         }
 
-        @Override public InputStream getContent() throws IOException, UnsupportedOperationException {
+        @Override public InputStream getContent() throws IOException {
             throw new UnsupportedOperationException(
                     "We should not need this as presumably this is used for receiving entities only"
             );

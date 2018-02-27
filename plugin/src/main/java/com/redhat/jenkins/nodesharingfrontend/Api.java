@@ -25,35 +25,47 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
+import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.transport.DiscoverRequest;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
+import com.redhat.jenkins.nodesharing.transport.Entity;
 import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageRequest;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusRequest;
-import com.redhat.jenkins.nodesharing.transport.RunStatusResponse;
-import hudson.Util;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
+import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
+import hudson.model.Computer;
+import hudson.model.Node;
 import hudson.model.Queue;
+import hudson.model.labels.LabelAtom;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
+import org.apache.http.StatusLine;
+import org.apache.http.client.methods.HttpPost;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -67,79 +79,182 @@ public class Api {
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
     private final @Nonnull ExecutorEntity.Fingerprint fingerprint;
 
-    private final RestEndpoint rest;
-
     private final SharedNodeCloud cloud;
+    private final RestEndpoint rest;
+    private final String version;
 
-    private static final String PROPERTIES_FILE = "nodesharingfrontend.properties";
-    private static final String PROPERTY_VERSION = "version";
-    private Properties properties = null;
-
-    /*package*/ Api(@Nonnull final SharedNodeCloud cloud) {
+    public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
+               @Nonnull final String configRepoUrl,
+               @CheckForNull final SharedNodeCloud cloud
+    ) throws IllegalStateException {
         this.cloud = cloud;
-        ConfigRepo.Snapshot snapshot = cloud.getLatestConfig();
-        if (snapshot == null) throw new IllegalStateException("No latest config found");
+
+        try {
+            // TODO getClass().getPackage().getImplementationVersion() might work equally well
+            // PJ: Not working, during JUnit phase execution there aren't made packages...
+            InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
+            if (resource == null) {
+                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+            } else {
+                Properties properties = new Properties();
+                properties.load(resource);
+                version = properties.getProperty("version");
+            }
+            if (version == null) throw new AssertionError("No version in assembly properties");
+        } catch (IOException e) {
+            throw new AssertionError("Cannot load assembly properties", e);
+        }
 
         this.fingerprint = new ExecutorEntity.Fingerprint(
-                cloud.getConfigRepoUrl(),
-                getProperties().getProperty("version"),
-                snapshot.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl()).getName()
+                configRepoUrl,
+                version,
+                JenkinsLocationConfiguration.get().getUrl()
         );
-
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator", getRestCredential(cloud));
     }
 
-    private UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) {
-        return CredentialsMatchers.firstOrNull(
-                    CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
-                    CredentialsMatchers.withId(cloud.getRestCredentialId())
-            );
-    }
-
-    //// Helper methods
-
-    /**
-     * Get properties.
-     *
-     * @return Properties.
-     */
-    @Nonnull
-    private Properties getProperties() {
-        if(properties == null) {
-            properties = new Properties();
-            try {
-                properties.load(this.getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE));
-            } catch (IOException e) {
-                properties = new Properties();
-            }
-        }
-        return properties;
+    private @Nonnull UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
+        String cid = cloud.getOrchestratorCredentialsId();
+        UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
+                CredentialsMatchers.withId(cid)
+        );
+        if (cred == null) throw new IllegalStateException(
+                "No credential found for id = " + cid + " configured in cloud " + cloud.name
+        );
+        return cred;
     }
 
     //// Outgoing
 
     /**
+     * Put the queue items to Orchestrator
+     */
+    // Response never used as there is likely nothing to report - async request candidate
+    public void reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
+        final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
+        rest.executeRequest(rest.post("reportWorkload"), request, ReportWorkloadResponse.class);
+    }
+
+    /**
+     * Request to discover the state of the Orchestrator.
+     *
+     * @return Discovery result.
+     */
+    public DiscoverResponse discover() throws ActionFailed {
+        return rest.executeRequest(
+                rest.post("discover"),
+                new DiscoverRequest(fingerprint), DiscoverResponse.class
+        );
+    }
+
+    /**
+     * Send request to return node. No response needed.
+     */
+    public void returnNode(@Nonnull SharedNode node) {
+        Computer computer = node.toComputer();
+        String offlineCause = null;
+        if (computer != null && computer.getOfflineCause() != null) {
+            offlineCause = computer.getOfflineCause().toString();
+        }
+        final ReturnNodeRequest.Status status = offlineCause == null
+                ? ReturnNodeRequest.Status.OK
+                : ReturnNodeRequest.Status.FAILED
+        ;
+        ReturnNodeRequest request = new ReturnNodeRequest(fingerprint, node.getHostName(), status, offlineCause);
+
+        final HttpPost method = rest.post("returnNode");
+        rest.executeRequest(method, request, new RestEndpoint.AbstractResponseHandler<Void>(method) {
+            @Override
+            protected boolean shouldFail(@Nonnull StatusLine sl) {
+                return sl.getStatusCode() != 200 && sl.getStatusCode() != 404;
+            }
+
+            @Override
+            protected boolean shouldWarn(@Nonnull StatusLine sl) {
+                return false;
+            }
+        });
+    }
+
+    //// Incoming
+
+    /**
+     * Request to utilize reserved computer.
+     *
+     * Response code "200 OK" is used when the node was accepted and "410 Gone" when there is no longer the need so it
+     * will not be used in any way and orchestrator can reuse it immediately.
+     */
+    @RequirePOST
+    public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
+        NodeDefinition definition = NodeDefinition.create(request.getFileName(), request.getDefinition());
+        if (definition == null) throw new AssertionError("Unknown node definition: " + request.getFileName());
+
+        // Utilize when there is some load for it
+        Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
+        for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
+            // Do not schedule unrestricted items here
+            if (item.getAssignedLabel() != null && item.getAssignedLabel().matches(nodeLabels)) {
+                LOGGER.fine("Accepted: " + definition.getDefinition());
+
+                try {
+                    Jenkins.getActiveInstance().addNode(cloud.createNode(definition));
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace(new PrintStream(rsp.getOutputStream()));
+                    rsp.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+                    return;
+                }
+
+                new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
+                rsp.setStatus(HttpServletResponse.SC_OK);
+                return;
+            }
+        }
+
+        // Reject otherwise
+        rsp.setStatus(HttpServletResponse.SC_GONE);
+    }
+
+    /**
      * Query Executor Jenkins to report the status of shared node.
      */
-    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
+    @RequirePOST
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
 
-        NodeStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-                req.getInputStream(), NodeStatusRequest.class);
-        String nodeName = Util.fixEmptyAndTrim(request.getNodeName());
+        NodeStatusRequest request = Entity.fromInputStream(req.getInputStream(), NodeStatusRequest.class);
+        String nodeName = request.getNodeName();
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        if (nodeName != null)
+        if (nodeName != null) // TODO Why would it be null?
             status = cloud.getNodeStatus(request.getNodeName());
         NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
-        rsp.setContentType("application/json");
         response.toOutputStream(rsp.getOutputStream());
+    }
+
+    @RequirePOST
+    public void doReportUsage(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        ReportUsageRequest request = Entity.fromInputStream(req.getInputStream(), ReportUsageRequest.class);
+        ArrayList<String> usedNodes = new ArrayList<>();
+        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+            if (node instanceof SharedNode) {
+                SharedNode sharedNode = (SharedNode) node;
+                SharedNodeCloud cloud = SharedNodeCloud.getByName(sharedNode.getId().getCloudName());
+                if (cloud != null) {
+                    if (request.getConfigRepoUrl().equals(cloud.getConfigRepoUrl())) {
+                        usedNodes.add(sharedNode.getHostName());
+                    }
+                }
+            }
+        }
+
+        new ReportUsageResponse(fingerprint, usedNodes).toOutputStream(rsp.getOutputStream());
     }
 
 //    /**
 //     * Query Executor Jenkins to report the status of executed item.
 //     */
-//    // TODO What is it what we are REALLY communicating by throwing/returning int on POST level?
+//    @RequirePOST
 //    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
 //        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
 //                req.getInputStream(), RunStatusRequest.class);
@@ -153,74 +268,10 @@ public class Api {
 //    }
 
     /**
-     * Put the queue items to Orchestrator
-     */
-    // TODO Response never used as there is likely nothing to report - consider async request
-    public ReportWorkloadResponse reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
-        final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
-        return rest.executeRequest(rest.post("reportWorkload"), ReportWorkloadResponse.class, request);
-    }
-
-    /**
-     * Request to discover the state of the Orchestrator.
-     *
-     * @return Discovery result.
-     */
-    public DiscoverResponse discover() throws ActionFailed {
-        // TODO Check status code
-        return rest.executeRequest(
-                rest.post("discover"),
-                DiscoverResponse.class,
-                new DiscoverRequest(fingerprint)
-        );
-    }
-
-    /**
-     * Send request to return node. No response needed.
-     */
-    public void returnNode(@Nonnull final String name, @Nonnull ReturnNodeRequest.Status status) {
-        rest.executeRequest(rest.post("returnNode"), null, new ReturnNodeRequest(fingerprint, name, status));
-        // TODO check status
-    }
-
-    //// Incoming
-
-    /**
-     * Request to execute #Item from the queue
-     */
-    @RequirePOST
-    public void doExecution(@Nonnull @QueryParameter final String nodeName,
-                            @Nonnull @QueryParameter final String id) {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
-
-        // TODO Create a Node based on the info and execute the Item
-        throw new UnsupportedOperationException("TODO");
-    }
-
-    /**
      * Immediately return node to orchestrator. (Nice to have feature)
-     *
-     * @param name Name of the node to be returned.
      */
     @RequirePOST
-    public void doReturnNode(@Nonnull @QueryParameter("name") final String name) {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
-
+    public void doImmediatelyReturnNode() {
         throw new UnsupportedOperationException("TODO");
-/*
-        Computer c = Jenkins.getInstance().getComputer(name);
-        if (!(c instanceof SharedComputer)) {
-            // TODO computer not reservable
-            return;
-        }
-        SharedComputer computer = (SharedComputer) c;
-        ReservationTask.ReservationExecutable executable = computer.getReservation();
-        if (executable == null) {
-            // TODO computer not reserved
-            return;
-        }
-        // TODO The owner parameter is in no way sufficient proof the client is authorized to release this
-        executable.complete(owner, state);
-*/
     }
 }

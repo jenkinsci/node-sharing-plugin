@@ -19,12 +19,12 @@ public class DiscoverTest {
         DiscoverRequest received = Entity.fromString(sent.toString(), DiscoverRequest.class);
         assertEquals(sent.getConfigRepoUrl(), received.getConfigRepoUrl());
         assertEquals(sent.getVersion(), received.getVersion());
-        assertEquals(sent.getExecutorName(), received.getExecutorName());
+        assertEquals(sent.getExecutorUrl(), received.getExecutorUrl());
     }
 
     @Test
     public void responseRoundtrip() throws Exception {
-        NodeDefinition node = new NodeDefinition() {
+        NodeDefinition node = new NodeDefinition("foo.xml", "<definition/>") {
             @Override public String getName() {
                 return "fake-name";
             }
