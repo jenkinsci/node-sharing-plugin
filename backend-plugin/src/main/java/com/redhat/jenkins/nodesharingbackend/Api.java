@@ -201,6 +201,7 @@ public class Api implements RootAction {
     @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         Pool pool = Pool.getInstance();
         Collection<NodeDefinition> nodes = pool.getConfig().getNodes().values(); // Fail early when there is no config
 
@@ -289,6 +290,7 @@ public class Api implements RootAction {
     @RequirePOST
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
         String ecr = request.getConfigRepoUrl();

@@ -187,6 +187,8 @@ public class Api {
      */
     @RequirePOST
     public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
         NodeDefinition definition = NodeDefinition.create(request.getFileName(), request.getDefinition());
         if (definition == null) throw new AssertionError("Unknown node definition: " + request.getFileName());
@@ -234,6 +236,8 @@ public class Api {
 
     @RequirePOST
     public void doReportUsage(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         ReportUsageRequest request = Entity.fromInputStream(req.getInputStream(), ReportUsageRequest.class);
         ArrayList<String> usedNodes = new ArrayList<>();
         for (Node node : Jenkins.getActiveInstance().getNodes()) {
@@ -256,6 +260,7 @@ public class Api {
 //     */
 //    @RequirePOST
 //    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+//        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
 //        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
 //                req.getInputStream(), RunStatusRequest.class);
 //        RunStatusResponse response = new RunStatusResponse(
@@ -272,6 +277,7 @@ public class Api {
      */
     @RequirePOST
     public void doImmediatelyReturnNode() {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
         throw new UnsupportedOperationException("TODO");
     }
 }

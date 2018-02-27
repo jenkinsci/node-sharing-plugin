@@ -23,9 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.GlobalCredentialsConfiguration;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
@@ -38,9 +36,7 @@ import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
-import hudson.model.Descriptor;
 import hudson.model.Computer;
-import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.model.Executor;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -60,7 +56,6 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -79,7 +74,9 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
 
     protected @Nonnull ShareableComputer getComputer(String name) {
-        return (ShareableComputer) getNode(name).toComputer();
+        ShareableComputer shareableComputer = (ShareableComputer) getNode(name).toComputer();
+        assert shareableComputer != null;
+        return shareableComputer;
     }
 
     public Statement apply(final Statement base, final Description description) {
@@ -159,7 +156,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         final OneShotEvent running = new OneShotEvent();
         final OneShotEvent done = new OneShotEvent();
 
-        public BlockingTask(Label label) {
+        BlockingTask(Label label) {
             super(DUMMY_OWNER, label);
         }
 
@@ -178,12 +175,12 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      */
     protected static class MockTask extends ReservationTask {
         final ShareableComputer actuallyRunOn[] = new ShareableComputer[1];
-        public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
+        MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
             super(owner, label, "MockTask");
         }
 
         @Override
-        public @CheckForNull Queue.Executable createExecutable() throws IOException {
+        public @CheckForNull Queue.Executable createExecutable() {
             return new ReservationExecutable(this) {
                 @Override
                 public void run() throws AsynchronousExecution {
@@ -216,7 +213,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         final OneShotEvent end = new OneShotEvent();
 
         @Override
-        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException {
             start.signal();
             end.block();
             return true;
@@ -227,7 +224,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         final OneShotEvent start = new OneShotEvent();
         final OneShotEvent end = new OneShotEvent();
 
-        public BlockingCommandLauncher(String command) {
+        BlockingCommandLauncher(String command) {
             super(command);
         }
 
@@ -236,7 +233,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             start.signal();
             try {
                 end.block();
-            } catch (InterruptedException e) { }
+            } catch (InterruptedException ignored) { }
             super.launch(computer, listener);
         }
     }
