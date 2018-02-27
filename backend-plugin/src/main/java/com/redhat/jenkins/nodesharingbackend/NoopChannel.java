@@ -42,7 +42,6 @@ import java.io.PrintWriter;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Channel that does nothing but still exists.
@@ -68,86 +67,86 @@ public class NoopChannel extends Channel {
         return "Fake channel " + super.getName();
     }
 
-    @Override public boolean isInClosed() { return false; }
-    @Override public boolean isOutClosed() { return false; }
-    @Override public boolean isClosingOrClosed() { return super.isClosingOrClosed(); }
+    @Override public boolean isInClosed() { return false; } // $COVERAGE-IGNORE$
+    @Override public boolean isOutClosed() { return false; } // $COVERAGE-IGNORE$
+    @Override public boolean isClosingOrClosed() { return super.isClosingOrClosed(); } // $COVERAGE-IGNORE$
 
-    @Override public JarCache getJarCache() { return null; }
-    @Override public void setJarCache(JarCache jarCache) { }
+    @Override public JarCache getJarCache() { return null; } // $COVERAGE-IGNORE$
+    @Override public void setJarCache(JarCache jarCache) { } // $COVERAGE-IGNORE$
 
-    @Override public synchronized void join() throws InterruptedException { }
-    @Override public synchronized void join(long timeout) throws InterruptedException { }
+    @Override public synchronized void join() { } // $COVERAGE-IGNORE$
+    @Override public synchronized void join(long timeout) { } // $COVERAGE-IGNORE$
 
-    @Override public void addListener(Listener l) { }
-    @Override public boolean removeListener(Listener l) { return false; }
+    @Override public void addListener(Listener l) { } // $COVERAGE-IGNORE$
+    @Override public boolean removeListener(Listener l) { return false; } // $COVERAGE-IGNORE$
 
-    @Override public void addLocalExecutionInterceptor(CallableDecorator decorator) { }
-    @Override public void removeLocalExecutionInterceptor(CallableDecorator decorator) { }
+    @Override public void addLocalExecutionInterceptor(CallableDecorator decorator) { } // $COVERAGE-IGNORE$
+    @Override public void removeLocalExecutionInterceptor(CallableDecorator decorator) { } // $COVERAGE-IGNORE$
 
-    @Override public void addLocalExecutionInterceptor(CallableFilter filter) { }
-    @Override public void removeLocalExecutionInterceptor(CallableFilter filter) { }
+    @Override public void addLocalExecutionInterceptor(CallableFilter filter) { } // $COVERAGE-IGNORE$
+    @Override public void removeLocalExecutionInterceptor(CallableFilter filter) { } // $COVERAGE-IGNORE$
 
-    @Override public boolean isRestricted() { return true; }
-    @Override public void setRestricted(boolean b) { }
+    @Override public boolean isRestricted() { return true; } // $COVERAGE-IGNORE$
+    @Override public void setRestricted(boolean b) { } // $COVERAGE-IGNORE$
 
-    @Override public boolean isRemoteClassLoadingAllowed() { return false; }
-    @Override public void setRemoteClassLoadingAllowed(boolean b) { }
+    @Override public boolean isRemoteClassLoadingAllowed() { return false; } // $COVERAGE-IGNORE$
+    @Override public void setRemoteClassLoadingAllowed(boolean b) { } // $COVERAGE-IGNORE$
 
-    @Override public boolean isArbitraryCallableAllowed() { return false; }
-    @Override public void setArbitraryCallableAllowed(boolean b) { }
+    @Override public boolean isArbitraryCallableAllowed() { return false; } // $COVERAGE-IGNORE$
+    @Override public void setArbitraryCallableAllowed(boolean b) { } // $COVERAGE-IGNORE$
 
-    @Override public void resetPerformanceCounters() { }
-    @Override public void dumpPerformanceCounters(PrintWriter w) throws IOException { }
+    @Override public void resetPerformanceCounters() { } // $COVERAGE-IGNORE$
+    @Override public void dumpPerformanceCounters(PrintWriter w) { } // $COVERAGE-IGNORE$
 
-    @Override public synchronized void close() throws IOException { }
-    @Override public synchronized void close(Throwable diagnosis) throws IOException { }
+    @Override public synchronized void close() { } // $COVERAGE-IGNORE$
+    @Override public synchronized void close(Throwable diagnosis) { } // $COVERAGE-IGNORE$
 
-    @Override public Object getProperty(Object key) { return null; }
-    @Override public <T> T getProperty(ChannelProperty<T> key) { return null; }
+    @Override public Object getProperty(Object key) { return null; } // $COVERAGE-IGNORE$
+    @Override public <T> T getProperty(ChannelProperty<T> key) { return null; } // $COVERAGE-IGNORE$
 
-    @Override public Object waitForProperty(Object key) throws InterruptedException { return null; }
-    @Override public <T> T waitForProperty(ChannelProperty<T> key) throws InterruptedException { return null; }
+    @Override public Object waitForProperty(Object key) { return null; } // $COVERAGE-IGNORE$
+    @Override public <T> T waitForProperty(ChannelProperty<T> key) { return null; } // $COVERAGE-IGNORE$
 
-    @Override public Object setProperty(Object key, Object value) { return null; }
-    @Override public <T> T setProperty(ChannelProperty<T> key, T value) { return null; }
+    @Override public Object setProperty(Object key, Object value) { return null; } // $COVERAGE-IGNORE$
+    @Override public <T> T setProperty(ChannelProperty<T> key, T value) { return null; } // $COVERAGE-IGNORE$
 
-    @Override public Object getRemoteProperty(Object key) { return null; }
-    @Override public <T> T getRemoteProperty(ChannelProperty<T> key) { return null; }
+    @Override public Object getRemoteProperty(Object key) { return null; } // $COVERAGE-IGNORE$
+    @Override public <T> T getRemoteProperty(ChannelProperty<T> key) { return null; } // $COVERAGE-IGNORE$
 
-    @Override public Object waitForRemoteProperty(Object key) throws InterruptedException { return null; }
-    @Override public <T> T waitForRemoteProperty(ChannelProperty<T> key) throws InterruptedException { return null; }
+    @Override public Object waitForRemoteProperty(Object key) { return null; } // $COVERAGE-IGNORE$
+    @Override public <T> T waitForRemoteProperty(ChannelProperty<T> key) { return null; } // $COVERAGE-IGNORE$
 
-    @Override public void setMaximumBytecodeLevel(short level) throws IOException, InterruptedException { }
+    @Override public void setMaximumBytecodeLevel(short level) { } // $COVERAGE-IGNORE$
 
     @Override public <T> T export(Class<T> type, T instance) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override public void pin(Object instance) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override public void pinClassLoader(ClassLoader cl) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public boolean preloadJar(Callable<?, ?> classLoaderRef, Class... classesInJar) throws IOException, InterruptedException {
-        throw new UnsupportedOperationException();
+    public boolean preloadJar(Callable<?, ?> classLoaderRef, Class... classesInJar) {
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public boolean preloadJar(ClassLoader local, Class... classesInJar) throws IOException, InterruptedException {
-        throw new UnsupportedOperationException();
+    public boolean preloadJar(ClassLoader local, Class... classesInJar) {
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public boolean preloadJar(ClassLoader local, URL... jars) throws IOException, InterruptedException {
-        throw new UnsupportedOperationException();
+    public boolean preloadJar(ClassLoader local, URL... jars) {
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public <V, T extends Throwable> V call(Callable<V, T> callable) throws IOException, T, InterruptedException {
+    public <V, T extends Throwable> V call(Callable<V, T> callable) throws T {
         // Call locally not to put it offline
         if (isResponseTimeMonitor(callable)) {
             return callable.call();
@@ -157,11 +156,11 @@ public class NoopChannel extends Channel {
         if (isSafeMonitor(new Throwable())) {
             return null;
         }
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public <V, T extends Throwable> hudson.remoting.Future<V> callAsync(Callable<V, T> callable) throws IOException {
+    public <V, T extends Throwable> hudson.remoting.Future<V> callAsync(Callable<V, T> callable) {
         // Call locally not to put it offline
         if (isResponseTimeMonitor(callable)) {
             return new PrecomputedCallableFuture<>(callable);
@@ -171,7 +170,7 @@ public class NoopChannel extends Channel {
         if (isSafeMonitor(new Throwable())) {
             return Futures.precomputed(null);
         }
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     private <V, T extends Throwable> boolean isSafeMonitor(@Nonnull Throwable trace) {
@@ -193,7 +192,7 @@ public class NoopChannel extends Channel {
         private final V value;
         private final ExecutionException exception;
 
-        public PrecomputedCallableFuture(Callable<V, T> callable) {
+        /*package*/ PrecomputedCallableFuture(Callable<V, T> callable) {
             V value;
             ExecutionException exception;
             try {
@@ -219,43 +218,43 @@ public class NoopChannel extends Channel {
             return true;
         }
 
-        @Override public V get() throws InterruptedException, ExecutionException {
+        @Override public V get() throws ExecutionException {
             if (exception == null) return value;
             throw exception;
         }
 
         @Override
-        public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        public V get(long timeout, @Nonnull TimeUnit unit) throws ExecutionException {
             return get();
         }
     }
 
     @Override public void terminate(IOException e) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override public OutputStream getUnderlyingOutput() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public ListeningPort createLocalToRemotePortForwarding(int recvPort, String forwardHost, int forwardPort) throws IOException, InterruptedException {
-        throw new UnsupportedOperationException();
+    public ListeningPort createLocalToRemotePortForwarding(int recvPort, String forwardHost, int forwardPort) {
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
     @Override
-    public ListeningPort createRemoteToLocalPortForwarding(int recvPort, String forwardHost, int forwardPort) throws IOException, InterruptedException {
-        throw new UnsupportedOperationException();
+    public ListeningPort createRemoteToLocalPortForwarding(int recvPort, String forwardHost, int forwardPort) {
+        throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
-    @Override public void syncIO() throws IOException, InterruptedException { }
-    @Override public void syncLocalIO() throws InterruptedException { }
+    @Override public void syncIO() { } // $COVERAGE-IGNORE$
+    @Override public void syncLocalIO() { } // $COVERAGE-IGNORE$
 
 // Return type is not accessible
 //        @Override public ExportTable.ExportList startExportRecording() {
 //            throw new UnsupportedOperationException();
 //        }
-    @Override public void dumpExportTable(PrintWriter w) throws IOException { }
+    @Override public void dumpExportTable(PrintWriter w) { } // $COVERAGE-IGNORE$
 
-    @Override public long getLastHeard() { return 0; }
+    @Override public long getLastHeard() { return 0; } // $COVERAGE-IGNORE$
 }

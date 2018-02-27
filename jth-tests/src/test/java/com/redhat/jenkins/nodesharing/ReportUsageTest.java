@@ -115,8 +115,8 @@ public class ReportUsageTest {
 
         ConfigRepo.Snapshot config = spy(c);
         when(config.getJenkinses()).thenReturn(Sets.newHashSet(
-                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake one", getInstance().getConfigRepoUrl()),
-                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake two", getInstance().getConfigRepoUrl())
+                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake one"),
+                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake two")
         ));
         Api api = mock(Api.class);
         ExecutorEntity.Fingerprint fp = new ExecutorEntity.Fingerprint("", "", "");

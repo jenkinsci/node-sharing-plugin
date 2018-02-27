@@ -23,13 +23,12 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusRequest;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import com.redhat.jenkins.nodesharingbackend.Api;
-import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -41,7 +40,6 @@ import hudson.model.labels.LabelAtom;
 import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -57,9 +55,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author pjanouse
@@ -72,8 +72,6 @@ public class SharedNodeCloudTest {
     @Rule
     public ConfigRepoRule configRepo = new ConfigRepoRule();
 
-    ////
-
     @Test
     public void doTestConnection() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
@@ -83,7 +81,7 @@ public class SharedNodeCloudTest {
 
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection(gitClient.getWorkTree().getRemote()).getMessage(),
+                descr.doTestConnection(gitClient.getWorkTree().getRemote(), j.getRestCredentialId()).getMessage(),
                 containsString("Orchestrator version is " + prop.getProperty("version"))
         );
     }
@@ -104,21 +102,21 @@ public class SharedNodeCloudTest {
     public void doTestConnectionInvalidUrl() throws Exception {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection("file:\\\\aaa").getMessage(),
+                descr.doTestConnection("file:\\\\aaa", j.getRestCredentialId()).getMessage(),
                 startsWith("Invalid config repo url")
         );
     }
 
     @Test
-    public void doTestConnectionNonExistsUrl() throws Exception {
+    public void doTestConnectionBrokenUrl() throws Exception {
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection("file://dummy_not_exists").getMessage(),
+                descr.doTestConnection("file://dummy_not_exists", j.getRestCredentialId()).getMessage(),
                 containsString("Unable to update config repo from")
         );
     }
 
-//    @Test
+    @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
         GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
         FilePath workTree = cr.getWorkTree();
@@ -128,7 +126,7 @@ public class SharedNodeCloudTest {
         cr.commit("Hehehe");
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
         assertThat(
-                descr.doTestConnection(workTree.getRemote()).getMessage(),
+                descr.doTestConnection(workTree.getRemote(), j.getRestCredentialId()).getMessage(),
                 containsString("No file named 'config' found in Config Repository")
         );
     }
@@ -139,7 +137,7 @@ public class SharedNodeCloudTest {
         GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
 
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
-        FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote());
+        FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote(), j.getRestCredentialId());
         assertThat(validation.kind, equalTo(FormValidation.Kind.WARNING));
         assertThat(validation.getMessage(), startsWith("Orchestrator is configured from"));
     }
@@ -182,6 +180,7 @@ public class SharedNodeCloudTest {
 
         // still IDLE status although offline
         assertFalse(computer.isConnecting());
+        //noinspection deprecation
         computer.setTemporarilyOffline(true);
         computer.waitUntilOffline();
         while (computer.isConnecting()) {
@@ -241,6 +240,7 @@ public class SharedNodeCloudTest {
         builder.start.block();
         assertTrue(job.isBuilding());
         assertFalse(computer.isIdle());
+        //noinspection deprecation
         computer.setTemporarilyOffline(true);
         computer.waitUntilOffline();
         assertTrue(computer.isOffline());
@@ -254,15 +254,9 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
-        assertTrue(cloud.isOperational());
-        final ProvisioningActivity.Id id = new ProvisioningActivity.Id(cloud.getName(),
-                null, cloud.getNodeName("aConnectingNode"));
         NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher =
                 new NodeSharingJenkinsRule.BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
 
-//        SharedNode connectingSlave = new SharedNode(id, "dummy", j.createTmpDir().getPath(),
-//                blockingLauncher, new SharedOnceRetentionStrategy(1), Collections.EMPTY_LIST);
-//        SharedNode connectingSlave = SharedNodeFactory.transform(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
         SharedNode connectingSlave = cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
         connectingSlave.setLauncher(blockingLauncher);
         connectingSlave.setNodeName(cloud.getNodeName("aConnectingNode"));
@@ -288,7 +282,8 @@ public class SharedNodeCloudTest {
         );
 
         // Test through plugin frontend API
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
+
         assertThat(
                 rest.executeRequest(rest.post("nodeStatus"), new NodeStatusRequest(
                         Pool.getInstance().getConfigRepoUrl(),
@@ -301,7 +296,7 @@ public class SharedNodeCloudTest {
         // Test through plugin backend API
         assertThat(
                 Api.getInstance().nodeStatus(
-                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
+                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName()),
                         nodeName),
                 equalTo(nodeStatus)
         );
@@ -387,8 +382,6 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
-        assertTrue(cloud.isOperational());
-
         assertThat(SharedNodeCloud.getByName(cloud.name), equalTo(cloud));
         assertThat(SharedNodeCloud.getByName("foo"), equalTo(null));
         assertThat(SharedNodeCloud.getByName(""), equalTo(null));
@@ -399,8 +392,6 @@ public class SharedNodeCloudTest {
     public void testGetNodeName() throws Exception {
         final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-
-        assertTrue(cloud.isOperational());
 
         assertThat(cloud.getNodeName("foo"), equalTo("foo-" + cloud.name));
         assertThat(cloud.getNodeName(""), equalTo("-" + cloud.name));
@@ -443,15 +434,12 @@ public class SharedNodeCloudTest {
         assertThat(node, notNullValue());
 
         source = source.replace("SharedNode", "SharedNodeFoo");
-        boolean exceptionThrown = false;
         try {
-            node = cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
+            cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
+            fail();
         } catch (IllegalArgumentException e) {
-            if (e.toString().compareTo("java.lang.IllegalArgumentException: Misunderstand definition") == 0) {
-                exceptionThrown = true;
-            }
+            assertEquals("java.lang.IllegalArgumentException: Misunderstand definition", e.toString());
         }
-        assertThat(exceptionThrown, equalTo(true));
     }
 
     @Test
@@ -486,7 +474,7 @@ public class SharedNodeCloudTest {
         job.scheduleBuild2(0).getStartCondition();
         assertFalse(job.isBuilding());
 
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
         rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
                 Pool.getInstance().getConfigRepoUrl(),
                 "4.2",
@@ -494,21 +482,18 @@ public class SharedNodeCloudTest {
         ), UtilizeNodeResponse.class);
 
         source  = source.replace("SharedNode", "SharedNodeFoo");
-        boolean exceptionThrown = false;
         try {
-            rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+            rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
             rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
                     Pool.getInstance().getConfigRepoUrl(),
                     "4.2",
                     new NodeDefinition.Xml("failed-node.xml", source)
             ), UtilizeNodeResponse.class);
+            fail();
         } catch (ActionFailed.RequestFailed e) {
-            if (e.toString().contains("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST")
-                    && e.toString().contains("java.lang.IllegalArgumentException: Misunderstand definition")) {
-                exceptionThrown = true;
-            }
+            assertThat(e.toString(), containsString("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST"));
+            assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Misunderstand definition"));
         }
-        assertThat(exceptionThrown, equalTo(true));
     }
 
     @Ignore
@@ -558,7 +543,7 @@ public class SharedNodeCloudTest {
 //        System.out.println(node);
 
         try {
-            RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
+            RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
             rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
                     Pool.getInstance().getConfigRepoUrl(),
                     "4.2",

@@ -23,6 +23,8 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.Credentials;
+import com.cloudbees.plugins.credentials.GlobalCredentialsConfiguration;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.Job;
@@ -34,7 +36,11 @@ import hudson.matrix.AxisList;
 import hudson.matrix.LabelExpAxis;
 import hudson.matrix.MatrixProject;
 import hudson.matrix.TextAxis;
+import hudson.model.ManagementLink;
+import hudson.model.User;
 import hudson.remoting.Which;
+import hudson.security.FullControlOnceLoggedInAuthorizationStrategy;
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.tasks.BuildTrigger;
 import hudson.tasks.Shell;
 import hudson.triggers.TimerTrigger;
@@ -51,6 +57,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,7 +91,7 @@ public class ScalabilityOrchestratorTest {
                 new LabelExpAxis("label", "windows"),
                 new TextAxis("x", MATRIX_AXIS)
         ));
-        win.getBuildersList().add(new Shell("sleep 5"));
+        win.getBuildersList().add(new Shell("sleep 2"));
         win.getPublishersList().add(new BuildTrigger("win", true));
 
         MatrixProject sol = j.jenkins.createProject(MatrixProject.class, "sol");
@@ -93,7 +100,7 @@ public class ScalabilityOrchestratorTest {
                 new LabelExpAxis("label", "solaris10||solaris11"),
                 new TextAxis("x", MATRIX_AXIS)
         ));
-        sol.getBuildersList().add(new Shell("sleep 1"));
+        sol.getBuildersList().add(new Shell("sleep 0"));
         sol.getPublishersList().add(new BuildTrigger("sol", true));
 
         Map<String, ScheduledFuture<URL>> launchingExecutors = new HashMap<>();
@@ -102,6 +109,10 @@ public class ScalabilityOrchestratorTest {
         }
         win.delete();sol.delete();
 
+//        System.out.println("Sourced from " + j.jenkins.getRootPath());
+//        System.out.println(Pool.getInstance().getConfig().getJenkinses());
+//        j.interactiveBreak();
+
         Map<String, String> executors = new HashMap<>();
         for (Map.Entry<String, ScheduledFuture<URL>> launchingExecutor : launchingExecutors.entrySet()) {
             executors.put(launchingExecutor.getKey(), launchingExecutor.getValue().get().toExternalForm());
@@ -109,11 +120,26 @@ public class ScalabilityOrchestratorTest {
 
         configRepo.writeJenkinses(repo, executors);
         Pool.Updater.getInstance().doRun();
-
-        Thread.sleep(20000);
-
-        j.jenkins.doQuietDown(); // Trying to prevent running build interruption
         assertEquals(3, Pool.getInstance().getConfig().getJenkinses().size());
+
+        for (int i = 0; i < 5; i++) {
+            try {
+                Thread.sleep(10000);
+                verifyBuildWasRun();
+            } catch (AssertionError ex) {
+                // Ignore
+            }
+        }
+        verifyBuildWasRun();
+
+        // TODO verify in orchestrator stats once implemented
+
+        // Prevent interrupting running builds causing phony exceptions
+        j.jenkins.doQuietDown();
+        j.waitUntilNoActivity();
+    }
+
+    private void verifyBuildWasRun() throws URISyntaxException, IOException {
         for (ExecutorJenkins ej : Pool.getInstance().getConfig().getJenkinses()) {
             JenkinsServer jenkinsServer = new JenkinsServer(ej.getUrl().toURI());
             Map<String, Job> jobs = jenkinsServer.getJobs();
@@ -132,13 +158,8 @@ public class ScalabilityOrchestratorTest {
                 fail("All builds of win succeeded on " + ej.getUrl() + ":\n" + winBuild.details().getConsoleOutputText());
             }
         }
-
-        // TODO verify in orchestrator stats once implemented
-
-//        System.out.println(Pool.getInstance().getConfig().getJenkinses());
-//        j.interactiveBreak();
     }
-    
+
     public static final class ExternalGrid implements TestRule {
         private final NodeSharingJenkinsRule jenkinsRule;
         private final AtomicInteger nextLocalPort = new AtomicInteger(49152); // Browse ephemeral range
@@ -154,6 +175,15 @@ public class ScalabilityOrchestratorTest {
                 @Override public void evaluate() throws Throwable {
                     Throwable fail = null;
                     try {
+                        // Replace JTH-only AuthorizationStrategy and SecurityRealm that work elsewhere as it would not load on detached executor.
+                        Jenkins jenkins = Jenkins.getInstance();
+                        jenkins.setAuthorizationStrategy(new FullControlOnceLoggedInAuthorizationStrategy());
+                        HudsonPrivateSecurityRealm securityRealm = new HudsonPrivateSecurityRealm(true, false, null);
+                        jenkins.setSecurityRealm(securityRealm);
+                        User account = securityRealm.createAccount("jerry", "jerry");
+                        account.save();
+                        jenkins.save();
+
                         base.evaluate();
                     } catch (Throwable ex) {
                         fail = ex;
@@ -218,6 +248,13 @@ public class ScalabilityOrchestratorTest {
                     "</jenkins.model.JenkinsLocationConfiguration>⏎", "UTF-8"
             );
 
+            // Copy users since there is one for authentication
+            jenkinsRule.jenkins.getRootPath().child("users").copyRecursiveTo(jenkinsHome.child("users"));
+
+            // Copy secret keys so Secrets are decryptable
+            jenkinsRule.jenkins.getRootPath().child("secrets").copyRecursiveTo(jenkinsHome.child("secrets"));
+            jenkinsRule.jenkins.getRootPath().child("credentials.xml").copyTo(jenkinsHome.child("credentials.xml"));
+
             FilePath plugins = jenkinsHome.child("plugins");
             plugins.mkdirs();
             FilePath pluginHpi = new FilePath(new File("../plugin/target/" + role + ".hpi").getAbsoluteFile());
@@ -233,6 +270,8 @@ public class ScalabilityOrchestratorTest {
 
             File jar = getJenkinsWar();
 
+            System.out.println("Launching Executor from " + jenkinsHome.getRemote() + " at " + url);
+
             ProcessBuilder pb = new ProcessBuilder("java", "-jar", jar.getAbsolutePath(), "--httpPort=" + port, "--ajp13Port=-1");
             pb.environment().put("JENKINS_HOME", jenkinsHome.getRemote());
             pb.environment().put("jenkins.install.state", "TEST");
@@ -244,7 +283,7 @@ public class ScalabilityOrchestratorTest {
             executors.put(process, jenkinsHome);
             return Timer.get().schedule(new Callable<URL>() {
                 @Override public URL call() throws Exception {
-                    ExecutorJenkins jenkins = new ExecutorJenkins("http://localhost:" + port, "executor-" + port, configRepo);
+                    ExecutorJenkins jenkins = new ExecutorJenkins("http://localhost:" + port, "executor-" + port);
                     for (;;) {
                         try {
                             Thread.sleep(3000);

@@ -33,6 +33,7 @@ import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
+import org.acegisecurity.GrantedAuthority;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
@@ -76,7 +77,7 @@ public class ReservationTest {
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
 
         SharedNodeCloud.DescriptorImpl descriptor = (SharedNodeCloud.DescriptorImpl) j.jenkins.getDescriptorOrDie(SharedNodeCloud.class);
-        FormValidation validation = descriptor.doTestConnection(cr.getWorkTree().getRemote());
+        FormValidation validation = descriptor.doTestConnection(cr.getWorkTree().getRemote(), j.getRestCredentialId());
         assertThat(validation.renderHtml(), containsString("Orchestrator version is " + prop.getProperty("version")));
     }
 

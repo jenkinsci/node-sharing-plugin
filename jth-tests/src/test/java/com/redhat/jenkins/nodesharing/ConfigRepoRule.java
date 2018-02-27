@@ -27,7 +27,6 @@ import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
-import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.remoting.Launcher;
@@ -42,9 +41,6 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -74,20 +70,16 @@ public class ConfigRepoRule implements TestRule {
     public Statement apply(final Statement base, Description description) {
         return new Statement() {
             @Override public void evaluate() throws Throwable {
-                String oldEndpoint = System.getProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
                 try {
                     base.evaluate();
                 } finally {
-                    if (oldEndpoint == null) {
-                        System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
-                    } else {
-                        System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, oldEndpoint);
-                    }
+                    System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
                     for (File repo : repos) {
                         Util.deleteRecursive(repo);
                     }
                 }
             }
+
         };
     }
 

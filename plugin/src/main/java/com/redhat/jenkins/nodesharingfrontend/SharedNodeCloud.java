@@ -39,6 +39,7 @@ import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 
 import java.util.Collections;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
@@ -63,16 +64,15 @@ public class SharedNodeCloud extends Cloud {
 
     private static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
-    /**
-     * Git cloneable URL of config repository.
-     */
-    @Nonnull
-    private String configRepoUrl;
+    /** Git cloneable URL of config repository. */
+    private @Nonnull String configRepoUrl;
 
-    /**
-     * The id of the credentials to use.
-     */
-    private String credentialsId;
+    /** Credentials ID for orchestrator REST communication */
+    private @Nonnull String orchestratorCredentialsId;
+
+    /** The id of the ssh credentials for hosts. */
+    private String sshCredentialsId;
+
     /**
      * The time in seconds to attempt to establish a SSH connection.
      */
@@ -86,17 +86,19 @@ public class SharedNodeCloud extends Cloud {
     /**
      * Constructor for Config Page.
      *
-     * @param configRepoUrl        ConfigRepo url
-     * @param credentialsId        creds to use to connect to slave.
+     * @param configRepoUrl ConfigRepo url
+     * @param orchestratorCredentialsId Orchestrator credential.
+     * @param sshCredentialsId Creds to use to connect to slave.
      * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public SharedNodeCloud(@Nonnull String configRepoUrl, String credentialsId, Integer sshConnectionTimeOut) {
+    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId, @Nonnull String sshCredentialsId, Integer sshConnectionTimeOut) {
         super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
+        this.orchestratorCredentialsId = orchestratorCredentialsId;
         this.configRepo = getConfigRepo();
-        this.credentialsId = credentialsId;
+        this.sshCredentialsId = sshCredentialsId;
         this.sshConnectionTimeOut = sshConnectionTimeOut;
     }
 
@@ -135,16 +137,6 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set Config repo url.
-     *
-     * @param configRepoUrl
-     */
-    @DataBoundSetter
-    public void setConfigRepoUrl(@Nonnull final String configRepoUrl) {
-        this.configRepoUrl = configRepoUrl;
-    }
-
-    /**
      * Get SSH connection time in seconds.
      *
      * @return timeout in secs.
@@ -155,33 +147,28 @@ public class SharedNodeCloud extends Cloud {
     }
 
     /**
-     * Set SSH connection time in seconds.
-     *
-     * @param sshConnectionTimeOut timeout in secs.
-     */
-    @DataBoundSetter
-    public void setSshConnectionTimeOut(@Nonnull final Integer sshConnectionTimeOut) {
-        this.sshConnectionTimeOut = sshConnectionTimeOut;
-    }
-
-    /**
      * Get credentials for SSH connection.
      *
      * @return credential id.
      */
+    @Nonnull @Restricted(DoNotUse.class) // View Only
+    public String getSshCredentialsId() {
+        return sshCredentialsId;
+    }
+
     @Nonnull
-    public String getCredentialsId() {
-        return credentialsId;
+    public String getOrchestratorCredentialsId() {
+        return orchestratorCredentialsId;
     }
 
     /**
      * Setter for credentialsId.
      *
-     * @param credentialsId to use to connect to slaves with.
+     * @param sshCredentialsId to use to connect to slaves with.
      */
     @DataBoundSetter
-    public void setCredentialsId(@Nonnull final String credentialsId) {
-        this.credentialsId = credentialsId;
+    public void setSshCredentialsId(@Nonnull final String sshCredentialsId) {
+        this.sshCredentialsId = sshCredentialsId;
     }
 
     private @Nonnull ConfigRepo getConfigRepo() {
@@ -216,6 +203,7 @@ public class SharedNodeCloud extends Cloud {
             latestConfig = getConfigRepo().getSnapshot();
         } catch (IOException|TaskLog.TaskFailed ex) {
             ADMIN_MONITOR.report(configRepoUrl, ex);
+            LOGGER.log(Level.SEVERE, "Failed updating config", ex);
         }
     }
 
@@ -391,7 +379,10 @@ public class SharedNodeCloud extends Cloud {
          * @throws ServletException if occurs.
          */
         @Restricted(DoNotUse.class)
-        public FormValidation doTestConnection(@Nonnull @QueryParameter("configRepoUrl") String configRepoUrl) throws Exception {
+        public FormValidation doTestConnection(
+                @Nonnull @QueryParameter("configRepoUrl") String configRepoUrl,
+                @Nonnull @QueryParameter("orchestratorCredentialsId") String restCredentialId
+        ) throws Exception {
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {
@@ -400,11 +391,9 @@ public class SharedNodeCloud extends Cloud {
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
-
-                ConfigRepo testConfigRepo = new ConfigRepo(configRepoUrl, new File(testConfigRepoDir.getRemote()));
-                ConfigRepo.Snapshot testSnapshot = testConfigRepo.getSnapshot();
-
-                DiscoverResponse discover = new Api(testSnapshot, configRepoUrl, null).discover();
+                SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId, "", null);
+                Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud);
+                DiscoverResponse discover = api.discover();
                 if (!discover.getDiagnosis().isEmpty()) {
                     return FormValidation.warning(discover.getDiagnosis());
                 }

@@ -131,7 +131,7 @@ public class ConfigRepo {
                     .getClient()
             ;
         } catch (IOException e) {
-            throw new AssertionError("Creating local git client has failed", e);
+            throw new AssertionError("Creating local git client has failed", e); // $COVERAGE-IGNORE$
         }
     }
 
@@ -163,7 +163,7 @@ public class ConfigRepo {
             if (!jenkinsesFile.exists()) {
                 taskLog.error("No file named 'jenkinses' found in Config Repository");
             } else {
-                jenkinses = getJenkinses(jenkinsesFile, url);
+                jenkinses = getJenkinses(jenkinsesFile);
             }
 
             FilePath nodesDir = new FilePath(workingDir).child("nodes");
@@ -179,14 +179,14 @@ public class ConfigRepo {
         }
     }
 
-    private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile, String configRepoUrl) throws IOException, InterruptedException {
+    private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {
         Properties config = new Properties();
         try (InputStream is = jenkinsesFile.read()) {
             config.load(is);
         }
         HashSet<ExecutorJenkins> jenkinses = new LinkedHashSet<>();
         for (Map.Entry<Object, Object> entry : config.entrySet()) {
-            jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey(), configRepoUrl));
+            jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey()));
         }
         return Collections.unmodifiableSet(jenkinses);
     }

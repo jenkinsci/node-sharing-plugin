@@ -29,23 +29,18 @@ import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.slaves.DumbSlave;
-import hudson.slaves.NodeProperty;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.junit.Rule;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-import java.io.IOException;
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
@@ -63,6 +58,7 @@ public class ReturnNodeTest {
     public void returnNodeThatDoesNotExist() throws Exception {
         j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
         SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
+        assertNotNull(cloud.getOrchestratorCredentialsId());
         NodeDefinition def = Pool.getInstance().getConfig().getNodes().values().iterator().next();
 
         // Removing node that does not exists should not fail as that is expected when removed from inventory
@@ -103,7 +99,7 @@ public class ReturnNodeTest {
         ShareableNode shareableNode = new ShareableNode(nodeDefinition);
         j.jenkins.addNode(shareableNode);
         Label taskLabel = Label.get(Joiner.on("&&").join(nodeDefinition.getLabelAtoms()));
-        ReservationTask task = new ReservationTask(new ExecutorJenkins(j.getURL().toExternalForm(), "name", configEndpoint), taskLabel, "foo");
+        ReservationTask task = new ReservationTask(new ExecutorJenkins(j.getURL().toExternalForm(), "name"), taskLabel, "foo");
         QueueTaskFuture<Queue.Executable> reservationFuture = task.schedule().getFuture();
         reservationFuture.getStartCondition().get(1, TimeUnit.SECONDS);
         assertFalse(j.jenkins.getComputer(shareableNode.getNodeName()).isIdle());

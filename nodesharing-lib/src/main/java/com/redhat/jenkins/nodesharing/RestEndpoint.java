@@ -23,23 +23,34 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import hudson.security.Permission;
+import hudson.security.PermissionGroup;
+import hudson.security.PermissionScope;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.client.AuthCache;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIUtils;
 import org.apache.http.entity.AbstractHttpEntity;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
@@ -51,6 +62,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -61,6 +73,11 @@ import java.util.logging.Logger;
  */
 public class RestEndpoint {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
+
+    private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
+    private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
+    public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveRescription(), null, NODE_SHARING_SCOPE);
+
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(5000)
             .setConnectionRequestTimeout(5000)
@@ -70,19 +87,20 @@ public class RestEndpoint {
 
     private final @Nonnull String endpoint;
     private final @Nonnull String crumbIssuerEndpoint;
+    private final @Nonnull UsernamePasswordCredentials creds;
 
-    public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath) {
+    public RestEndpoint(@Nonnull String jenkinsUrl, @Nonnull String endpointPath, @Nonnull UsernamePasswordCredentials creds) {
+        Objects.requireNonNull(jenkinsUrl);
+        Objects.requireNonNull(endpointPath);
+        Objects.requireNonNull(creds);
+
         this.endpoint = jenkinsUrl + endpointPath;
         this.crumbIssuerEndpoint = jenkinsUrl + "crumbIssuer/api/json";
-
+        this.creds = creds;
     }
 
     public HttpPost post(@Nonnull String path) {
         return new HttpPost(endpoint + '/' + path);
-    }
-
-    public HttpGet get(@Nonnull String path) {
-        return new HttpGet(endpoint + '/' + path);
     }
 
     /**
@@ -138,20 +156,36 @@ public class RestEndpoint {
 
     @CheckForNull
     private <T> T _executeRequest(@Nonnull HttpRequestBase method, @Nonnull ResponseHandler<T> handler) {
-        CloseableHttpClient client = HttpClients.createSystem();
         method.setConfig(REQUEST_CONFIG);
 
+        CloseableHttpClient client = HttpClients.createSystem();
         try {
-            return client.execute(method, handler);
+            return client.execute(method, handler, getAuthenticatingContext(method));
         } catch (IOException e) {
             throw new ActionFailed.CommunicationError("Failed executing REST call: " + method, e);
         } finally {
             try {
                 client.close();
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e);
+                LOGGER.log(Level.WARNING, "Unable to close HttpClient", e); // $COVERAGE-IGNORE$
             }
         }
+    }
+
+    // https://hc.apache.org/httpcomponents-client-ga/tutorial/html/authentication.html#d5e717
+    private @Nonnull HttpClientContext getAuthenticatingContext(@Nonnull HttpRequestBase method) {
+        AuthCache authCache = new BasicAuthCache();
+        BasicScheme basicAuth = new BasicScheme();
+        authCache.put(URIUtils.extractHost(method.getURI()), basicAuth);
+
+        CredentialsProvider provider = new BasicCredentialsProvider();
+        provider.setCredentials(AuthScope.ANY, new org.apache.http.auth.UsernamePasswordCredentials(
+                creds.getUsername(), creds.getPassword().getPlainText()
+        ));
+        HttpClientContext context = HttpClientContext.create();
+        context.setCredentialsProvider(provider);
+        context.setAuthCache(authCache);
+        return context;
     }
 
     private Header getCrumbHeader() {
@@ -185,12 +219,12 @@ public class RestEndpoint {
 
     public static class AbstractResponseHandler<T> implements ResponseHandler<T> {
         protected final @Nonnull HttpRequestBase method;
-        public AbstractResponseHandler(@Nonnull HttpRequestBase method) {
+        protected AbstractResponseHandler(@Nonnull HttpRequestBase method) {
             this.method = method;
         }
 
         @Override
-        public @CheckForNull T handleResponse(HttpResponse response) throws ClientProtocolException, IOException {
+        public @CheckForNull T handleResponse(HttpResponse response) throws IOException {
             StatusLine sl = response.getStatusLine();
             boolean fail = shouldFail(sl);
             boolean warn = shouldWarn(sl);
@@ -278,18 +312,18 @@ public class RestEndpoint {
             return -1;
         }
 
-        @Override public InputStream getContent() throws IOException {
-            throw new UnsupportedOperationException(
-                    "We should not need this as presumably this is used for receiving entities only"
-            );
-        }
-
-        @Override public void writeTo(OutputStream outstream) throws IOException {
+        @Override public void writeTo(OutputStream outstream) {
             entity.toOutputStream(outstream);
         }
 
+        // We should not need this as presumably this is used for receiving entities only
+        @Override public InputStream getContent() {
+            throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
+        }
+
+        // We should not need this as presumably this is used for receiving entities only
         @Override public boolean isStreaming() {
-            return false;
+            return false; // $COVERAGE-IGNORE$
         }
     }
 }

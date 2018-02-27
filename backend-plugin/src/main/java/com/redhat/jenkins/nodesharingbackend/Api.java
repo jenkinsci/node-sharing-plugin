@@ -62,7 +62,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.jar.Manifest;
 import java.util.logging.Logger;
 
 /**
@@ -125,8 +124,10 @@ public class Api implements RootAction {
      * @return true is the client accepted the node, false otherwise.
      */
     public boolean utilizeNode(@Nonnull ExecutorJenkins executor, @Nonnull ShareableNode node) {
-        UtilizeNodeRequest request = new UtilizeNodeRequest(Pool.getInstance().getConfigRepoUrl(), version, node.getNodeDefinition());
-        RestEndpoint rest = executor.getRest();
+        Pool pool = Pool.getInstance();
+        String configRepoUrl = pool.getConfigRepoUrl();
+        UtilizeNodeRequest request = new UtilizeNodeRequest(configRepoUrl, version, node.getNodeDefinition());
+        RestEndpoint rest = executor.getRest(configRepoUrl, pool.getCredential());
         try {
             rest.executeRequest(rest.post("utilizeNode"), request, UtilizeNodeResponse.class);
             return true;
@@ -147,8 +148,10 @@ public class Api implements RootAction {
      * @param owner Jenkins instance to query.
      */
     public @Nonnull ReportUsageResponse reportUsage(@Nonnull ExecutorJenkins owner) {
-        RestEndpoint rest = owner.getRest();
-        ReportUsageRequest request = new ReportUsageRequest(Pool.getInstance().getConfigRepoUrl(), version);
+        Pool pool = Pool.getInstance();
+        String configRepoUrl = pool.getConfigRepoUrl();
+        ReportUsageRequest request = new ReportUsageRequest(configRepoUrl, version);
+        RestEndpoint rest = owner.getRest(configRepoUrl, pool.getCredential());
         return rest.executeRequest(rest.post("reportUsage"), request, ReportUsageResponse.class);
     }
 
@@ -170,13 +173,10 @@ public class Api implements RootAction {
 
     @Nonnull
     public NodeStatusResponse.Status nodeStatus(@Nonnull final ExecutorJenkins jenkins, @Nonnull final String nodeName) {
-
-        NodeStatusRequest request = new NodeStatusRequest(
-                Pool.getInstance().getConfigRepoUrl(),
-                version,
-                nodeName
-        );
-        RestEndpoint rest = jenkins.getRest();
+        Pool pool = Pool.getInstance();
+        String configRepoUrl = pool.getConfigRepoUrl();
+        NodeStatusRequest request = new NodeStatusRequest(configRepoUrl, version, nodeName);
+        RestEndpoint rest = jenkins.getRest(configRepoUrl, pool.getCredential());
         NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), request, NodeStatusResponse.class);
         return nodeStatus.getStatus();
     }
@@ -200,6 +200,7 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
         Pool pool = Pool.getInstance();
         Collection<NodeDefinition> nodes = pool.getConfig().getNodes().values(); // Fail early when there is no config
 
@@ -242,6 +243,8 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         Pool pool = Pool.getInstance();
         final ConfigRepo.Snapshot config = pool.getConfig(); // Fail early when there is no config
 
@@ -285,6 +288,7 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
         String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
         String ecr = request.getConfigRepoUrl();

@@ -23,6 +23,9 @@
  */
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
@@ -40,17 +43,14 @@ import com.redhat.jenkins.nodesharing.transport.ReportWorkloadResponse;
 import com.redhat.jenkins.nodesharing.transport.ReturnNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
-import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
+import hudson.security.ACL;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
-import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
-import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpPost;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -86,7 +86,7 @@ public class Api {
     public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
                @Nonnull final String configRepoUrl,
                @CheckForNull final SharedNodeCloud cloud
-    ) {
+    ) throws IllegalStateException {
         this.cloud = cloud;
 
         try {
@@ -110,7 +110,19 @@ public class Api {
                 version,
                 JenkinsLocationConfiguration.get().getUrl()
         );
-        rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator");
+        rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator", getRestCredential(cloud));
+    }
+
+    private @Nonnull UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
+        String cid = cloud.getOrchestratorCredentialsId();
+        UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
+                CredentialsMatchers.withId(cid)
+        );
+        if (cred == null) throw new IllegalStateException(
+                "No credential found for id = " + cid + " configured in cloud " + cloud.name
+        );
+        return cred;
     }
 
     //// Outgoing
@@ -209,10 +221,12 @@ public class Api {
      */
     @RequirePOST
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+
         NodeStatusRequest request = Entity.fromInputStream(req.getInputStream(), NodeStatusRequest.class);
         String nodeName = request.getNodeName();
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        if (nodeName != null)
+        if (nodeName != null) // TODO Why would it be null?
             status = cloud.getNodeStatus(request.getNodeName());
         NodeStatusResponse response = new NodeStatusResponse(fingerprint, request.getNodeName(), status);
         response.toOutputStream(rsp.getOutputStream());

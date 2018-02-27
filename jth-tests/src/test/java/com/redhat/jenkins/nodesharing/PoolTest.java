@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.BlockingTask;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
 import com.redhat.jenkins.nodesharingbackend.Api;
@@ -37,6 +38,7 @@ import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.queue.ScheduleResult;
 import hudson.slaves.DumbSlave;
+import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
@@ -110,8 +112,8 @@ public class PoolTest {
         assertEquals("https://dummy.test", config.get("orchestrator.url"));
 
         assertThat(pool.getConfig().getJenkinses(), containsInAnyOrder(
-                new ExecutorJenkins("https://jenkins1.acme.com", "jenkins1", ""),
-                new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2", "")
+                new ExecutorJenkins("https://jenkins1.acme.com", "jenkins1"),
+                new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2")
         ));
 
         assertFalse(Pool.ADMIN_MONITOR.isActivated());
@@ -263,8 +265,18 @@ public class PoolTest {
         // Multiple Executors with same URL / name
     }
 
-    private void assertReports(String expected) throws IOException, InterruptedException, SAXException {
-        String logs = j.createWebClient().goTo(Pool.ADMIN_MONITOR.getUrl()).getWebResponse().getContentAsString();
+    private void assertReports(String expected) throws Exception {
+        UsernamePasswordCredentials creds = j.getRestCredential();
+
+        // This test needs administer permissions
+        j.getMockAuthorizationStrategy().grant(Jenkins.ADMINISTER).everywhere().to(creds.getUsername());
+
+        String logs = j.createWebClient()
+                .login(creds.getUsername(), creds.getPassword().getPlainText())
+                .goTo(Pool.ADMIN_MONITOR.getUrl())
+                .getWebResponse()
+                .getContentAsString()
+        ;
         assertThat(logs, containsString(expected));
         Throwable ex = getConfigTaskException("Primary Config Repo");
         if (ex instanceof TaskLog.TaskFailed) {
@@ -275,12 +287,42 @@ public class PoolTest {
         assertTrue(Pool.ADMIN_MONITOR.isActivated());
     }
 
+    @Test @Ignore
+    public void ui() throws Exception {
+        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        Timer.get().schedule(new Runnable() {
+            private final Random rand = new Random();
+
+            @Override public void run() {
+                List<String> owners = Arrays.asList("https://a.com", "https://b.org", "http://10.8.0.14");
+                List<String> labels = Arrays.asList("soalris11", "windows", "sparc", "w2k16");
+                for (; ; ) {
+                    String ownerUrl = owners.get(rand.nextInt(owners.size()));
+                    String ownerName = ownerUrl.replaceAll("\\W", "");
+                    String label = labels.get(rand.nextInt(labels.size()));
+                    new ReservationTask(
+                            new ExecutorJenkins(ownerUrl, ownerName),
+                            Label.get(label),
+                            ownerName + "-" + label
+                    ).schedule();
+                    System.out.println('.');
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+        }, 0, TimeUnit.SECONDS);
+        j.interactiveBreak();
+    }
+
     @Test
     public void failRestCallsWhenNoPoolConfigRepoSpecified() throws Exception {
         final String NO_CONFIG_REPO_PROPERTY = "Node sharing Config Repo not configured by ";
 
         Pool pool = Pool.getInstance();
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName());
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName(), j.getRestCredential());
         try {
             pool.getConfigRepoUrl();
             fail();
@@ -310,7 +352,7 @@ public class PoolTest {
         j.injectConfigRepo(cr);
 
         Pool pool = Pool.getInstance();
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName());
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName(), j.getRestCredential());
         try {
             System.out.println(pool.getConfig());
             fail();

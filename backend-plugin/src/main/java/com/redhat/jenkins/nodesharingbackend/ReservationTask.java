@@ -139,7 +139,7 @@ public class ReservationTask extends AbstractQueueTask {
         private @CheckForNull String nodeName; // Assigned as soon as execution starts
         private @Nonnull OneShotEvent done = new OneShotEvent();
 
-        public ReservationExecutable(@Nonnull ReservationTask task) {
+        protected ReservationExecutable(@Nonnull ReservationTask task) {
             this.task = task;
         }
 
@@ -163,7 +163,7 @@ public class ReservationTask extends AbstractQueueTask {
             nodeName = computer.getName();
             LOGGER.info("Reservation of " + nodeName + " started for " + task.getOwner());
             ShareableNode node = computer.getNode();
-            if (node == null) throw new AssertionError();
+            if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
 
             if (!task.backfill) {
                 while (true) {

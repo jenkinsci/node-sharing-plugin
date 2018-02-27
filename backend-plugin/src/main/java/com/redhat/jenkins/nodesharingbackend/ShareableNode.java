@@ -138,7 +138,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
 
         @VisibleForTesting
         @Override
-        public void doRun() throws Exception {
+        public void doRun() {
             for (Node node : Jenkins.getActiveInstance().getNodes()) {
                 if (node instanceof ShareableNode && ((ShareableNode) node).canBeDeleted()) {
                     ((ShareableNode) node).deleteWhenIdle();
@@ -178,7 +178,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
             try {
                 setLabelString(definition.getLabel());
             } catch (IOException ex) {
-                throw new Error("Never actually thrown");
+                throw new Error("Never actually thrown"); // $COVERAGE-IGNORE$
             }
         }
     }
@@ -190,7 +190,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         }
 
         @Override
-        public void launch(SlaveComputer computer, TaskListener listener) throws IOException, InterruptedException {
+        public void launch(SlaveComputer computer, TaskListener listener) {
             // NOOP
         }
     }

@@ -24,7 +24,6 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.Functions;
-import hudson.model.Descriptor;
 import hudson.model.Executor;
 import hudson.model.Queue;
 import hudson.model.Slave;
@@ -45,7 +44,6 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -135,19 +133,21 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
     }
 
     @Override
-    public HttpResponse doDoDelete() throws IOException {
+    public HttpResponse doDoDelete() {
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
+    @SuppressWarnings("unused")
     public void doDelete() { // Override delete.jelly
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
     @Override
-    public void doConfigSubmit(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException, Descriptor.FormException {
+    public void doConfigSubmit(StaplerRequest req, StaplerResponse rsp) {
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
 
+    @SuppressWarnings("unused")
     public void doConfigure() { // Override configure.jelly
         throw HttpResponses.status(SC_BAD_REQUEST);
     }
@@ -167,12 +167,12 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
         return Charset.defaultCharset();
     }
 
-    public List<LogRecord> getLogRecords() throws IOException, InterruptedException {
+    public List<LogRecord> getLogRecords() {
         return Collections.emptyList();
     }
 
     @RequirePOST
-    public void doLaunchSlaveAgent(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
+    public void doLaunchSlaveAgent(StaplerRequest req, StaplerResponse rsp) throws IOException {
         rsp.sendError(SC_NOT_FOUND);
     }
 

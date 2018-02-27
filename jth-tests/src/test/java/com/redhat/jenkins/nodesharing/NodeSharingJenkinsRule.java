@@ -23,14 +23,22 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.cloudbees.plugins.credentials.Credentials;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.GlobalCredentialsConfiguration;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
+import hudson.model.Descriptor;
 import hudson.model.Computer;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.model.Executor;
@@ -41,9 +49,13 @@ import hudson.model.TaskListener;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.SlaveComputer;
 import hudson.util.OneShotEvent;
+import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
 import org.jenkinsci.plugins.gitclient.GitClient;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.CheckForNull;
@@ -53,15 +65,49 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
 import static org.junit.Assert.assertNotNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
-    public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42", "/tmp/configRepo");
+    public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
+    private UsernamePasswordCredentials cred;
+
+    public MockAuthorizationStrategy getMockAuthorizationStrategy() {
+        return mas;
+    }
+
+    private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
 
     protected @Nonnull ShareableComputer getComputer(String name) {
         return (ShareableComputer) getNode(name).toComputer();
+    }
+
+    public Statement apply(final Statement base, final Description description) {
+        Statement wrappedBase = new Statement() {
+            @Override public void evaluate() throws Throwable {
+                jenkins.setSecurityRealm(createDummySecurityRealm());
+
+                mas.grant(Jenkins.READ, RestEndpoint.INVOKE).everywhere().to("jerry");
+                jenkins.setAuthorizationStrategy(mas);
+
+                cred = new UsernamePasswordCredentialsImpl(
+                        CredentialsScope.GLOBAL, getRestCredentialId(), "Testing node sharing credential", "jerry", "jerry"
+                );
+                SystemCredentialsProvider credentialsProvider = SystemCredentialsProvider.getInstance();
+                credentialsProvider.getCredentials().add(cred);
+                credentialsProvider.save();
+
+                try {
+                    System.setProperty(Pool.USERNAME_PROPERTY_NAME, cred.getUsername());
+                    System.setProperty(Pool.PASSWORD_PROPERTY_NAME, cred.getPassword().getPlainText());
+                    base.evaluate();
+                } finally {
+                    System.clearProperty(Pool.USERNAME_PROPERTY_NAME);
+                    System.clearProperty(Pool.PASSWORD_PROPERTY_NAME);
+                }
+            }
+        };
+        return super.apply(wrappedBase, description);
     }
 
     protected @Nonnull ShareableNode getNode(String name) {
@@ -71,7 +117,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     }
 
     protected GitClient injectConfigRepo(GitClient repoClient) throws Exception {
-        System.setProperty(CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
+        System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
         Pool.Updater.getInstance().doRun();
 
         return repoClient;
@@ -86,6 +132,15 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         }
         Collections.reverse(out);
         return out;
+    }
+
+
+    public UsernamePasswordCredentials getRestCredential() {
+        return cred;
+    }
+
+    public String getRestCredentialId() {
+        return "fake-cred-id";
     }
 
     protected List<ReservationTask.ReservationExecutable> getPendingReservations() {
@@ -151,8 +206,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      */
     @Nonnull
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
-        SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, "", null);
-        cloud.getLatestConfig();
+        SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, getRestCredentialId(), "", null);
         jenkins.clouds.add(cloud);
         return cloud;
     }
