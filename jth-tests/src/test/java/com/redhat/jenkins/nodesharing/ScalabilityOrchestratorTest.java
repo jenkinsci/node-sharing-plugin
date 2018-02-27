@@ -34,6 +34,7 @@ import hudson.matrix.AxisList;
 import hudson.matrix.LabelExpAxis;
 import hudson.matrix.MatrixProject;
 import hudson.matrix.TextAxis;
+import hudson.model.Computer;
 import hudson.model.User;
 import hudson.remoting.Which;
 import hudson.security.ACL;
@@ -57,9 +58,13 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -126,16 +131,15 @@ public class ScalabilityOrchestratorTest {
                 verifyBuildWasRun();
                 break;
             } catch (AssertionError ex) {
-                // Ignore
+                if (i == 4) throw ex;
+                // Retry
             }
         }
-        verifyBuildWasRun();
 
         // TODO verify in orchestrator stats once implemented
 
         // Prevent interrupting running builds causing phony exceptions
         j.jenkins.doQuietDown();
-        j.waitUntilNoActivity();
     }
 
     private void verifyBuildWasRun() throws URISyntaxException, IOException {
@@ -193,6 +197,7 @@ public class ScalabilityOrchestratorTest {
                         throw fail;
                     } finally {
                         // Kill all launched executors and delete directories
+                        List<Future<Void>> deleteInProgress = new ArrayList<>();
                         for (Map.Entry<Process, FilePath> p : executors.entrySet()) {
                             try {
                                 p.getKey().destroy();
@@ -203,9 +208,22 @@ public class ScalabilityOrchestratorTest {
                                     fail.addSuppressed(ex);
                                 }
                             }
+                            final FilePath path = p.getValue();
+                            deleteInProgress.add(Computer.threadPoolForRemoting.submit(new Callable<Void>() {
+                                @Override public Void call() throws Exception {
+                                    path.deleteRecursive();
+                                    return null;
+                                }
+                            }));
+                        }
+                        // Parallelize the deletion
+                        for (Future<Void> delete : deleteInProgress) {
                             try {
-                                p.getValue().deleteRecursive();
-                            } catch (Throwable ex) {
+                                delete.get();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            } catch (ExecutionException e) {
+                                Throwable ex = e.getCause();
                                 if (fail == null) {
                                     fail = ex;
                                 } else {
@@ -266,7 +284,7 @@ public class ScalabilityOrchestratorTest {
             for (String path : System.getProperty("java.class.path").split(File.pathSeparator)) {
                 if (!path.endsWith(".jar")) continue;
                 FilePath dependency = new FilePath(new File(path.replaceAll("[.]jar$", ".hpi")));
-                if (dependency.exists()) {
+                if (dependency.exists() && !dependency.getBaseName().equals("node-sharing-orchestrator")) {
                     dependency.copyTo(plugins.child(dependency.getName()));
                 }
             }
