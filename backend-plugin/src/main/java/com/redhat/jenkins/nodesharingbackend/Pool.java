@@ -95,7 +95,7 @@ public class Pool {
         return property;
     }
 
-    /*package*/ @CheckForNull StandardUsernamePasswordCredentials getCredential() {
+    public @CheckForNull StandardUsernamePasswordCredentials getCredential() {
         String username = Util.fixEmptyAndTrim(System.getProperty(USERNAME_PROPERTY_NAME));
         if (username == null) {
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(

@@ -23,8 +23,6 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.cloudbees.plugins.credentials.Credentials;
-import com.cloudbees.plugins.credentials.GlobalCredentialsConfiguration;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.Job;
@@ -36,10 +34,10 @@ import hudson.matrix.AxisList;
 import hudson.matrix.LabelExpAxis;
 import hudson.matrix.MatrixProject;
 import hudson.matrix.TextAxis;
-import hudson.model.ManagementLink;
 import hudson.model.User;
 import hudson.remoting.Which;
-import hudson.security.FullControlOnceLoggedInAuthorizationStrategy;
+import hudson.security.ACL;
+import hudson.security.GlobalMatrixAuthorizationStrategy;
 import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.tasks.BuildTrigger;
 import hudson.tasks.Shell;
@@ -126,6 +124,7 @@ public class ScalabilityOrchestratorTest {
             try {
                 Thread.sleep(10000);
                 verifyBuildWasRun();
+                break;
             } catch (AssertionError ex) {
                 // Ignore
             }
@@ -144,14 +143,12 @@ public class ScalabilityOrchestratorTest {
             JenkinsServer jenkinsServer = new JenkinsServer(ej.getUrl().toURI());
             Map<String, Job> jobs = jenkinsServer.getJobs();
             JobWithDetails solJob = jobs.get("sol").details();
-            System.out.println(solJob.getNextBuildNumber());
             assertThat(solJob.getNextBuildNumber(), greaterThanOrEqualTo(2));
             Build solBuild = solJob.getLastFailedBuild();
             if (solBuild != Build.BUILD_HAS_NEVER_RUN) {
                 fail("All builds of sol succeeded on " + ej.getUrl() + ":\n" + solBuild.details().getConsoleOutputText());
             }
             JobWithDetails winJob = jobs.get("win").details();
-            System.out.println(winJob.getNextBuildNumber());
             assertThat(winJob.getNextBuildNumber(), greaterThanOrEqualTo(2));
             Build winBuild = winJob.getLastFailedBuild();
             if (winBuild != Build.BUILD_HAS_NEVER_RUN) {
@@ -176,8 +173,14 @@ public class ScalabilityOrchestratorTest {
                     Throwable fail = null;
                     try {
                         // Replace JTH-only AuthorizationStrategy and SecurityRealm that work elsewhere as it would not load on detached executor.
-                        Jenkins jenkins = Jenkins.getInstance();
-                        jenkins.setAuthorizationStrategy(new FullControlOnceLoggedInAuthorizationStrategy());
+                        Jenkins jenkins = Jenkins.getActiveInstance();
+
+                        GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
+                        jenkins.setAuthorizationStrategy(gmas);
+                        gmas.add(Jenkins.READ, "jerry");
+                        gmas.add(RestEndpoint.INVOKE, "jerry");
+                        gmas.add(Jenkins.READ, ACL.ANONYMOUS_USERNAME);
+
                         HudsonPrivateSecurityRealm securityRealm = new HudsonPrivateSecurityRealm(true, false, null);
                         jenkins.setSecurityRealm(securityRealm);
                         User account = securityRealm.createAccount("jerry", "jerry");
@@ -286,7 +289,7 @@ public class ScalabilityOrchestratorTest {
                     ExecutorJenkins jenkins = new ExecutorJenkins("http://localhost:" + port, "executor-" + port);
                     for (;;) {
                         try {
-                            Thread.sleep(3000);
+                            Thread.sleep(5000);
                             try {
                                 int i = process.exitValue();
                                 throw new RuntimeException(String.format("SUT failed with %s, see log in %s%n", i, sutLog));
@@ -295,6 +298,10 @@ public class ScalabilityOrchestratorTest {
                             }
                             Api.getInstance().reportUsage(jenkins);
                             break;
+                        } catch (ActionFailed.RequestFailed ex) {
+                            if (ex.getStatusCode() == 503) continue; // retry
+
+                            throw ex;
                         } catch (ActionFailed ex) {
                             // retry
                         }
