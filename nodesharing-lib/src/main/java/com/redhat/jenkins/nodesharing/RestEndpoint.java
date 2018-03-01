@@ -76,7 +76,7 @@ public class RestEndpoint {
 
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
     private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
-    public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveRescription(), null, NODE_SHARING_SCOPE);
+    public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, NODE_SHARING_SCOPE);
 
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(5000)
