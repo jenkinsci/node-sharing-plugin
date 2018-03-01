@@ -23,11 +23,18 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.google.common.annotations.VisibleForTesting;
+import hudson.AbortException;
+import hudson.Functions;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.logging.LogRecorder;
 import hudson.logging.LogRecorderManager;
 import hudson.model.AdministrativeMonitor;
 import hudson.util.CopyOnWriteMap;
 import jenkins.model.Jenkins;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
 import java.util.HashMap;
@@ -78,5 +85,36 @@ public class ConfigRepoAdminMonitor extends AdministrativeMonitor {
         HashMap<String, Throwable> out = new HashMap<>();
         out.putAll(errors);
         return out;
+    }
+
+    @Initializer(after = InitMilestone.PLUGINS_STARTED)
+    @Restricted(NoExternalUse.class)
+    public static void checkNodeSharingRole() throws AbortException {
+        if (Functions.getIsUnitTest()) return; // jth-tests rely on this mode in fact
+        _checkNodeSharingRole();
+    }
+
+    @VisibleForTesting
+    /*package*/ static void _checkNodeSharingRole() throws AbortException {
+        boolean backend, frontend;
+        try {
+            Class.forName("com.redhat.jenkins.nodesharingbackend.Api");
+            backend = true;
+        } catch (ClassNotFoundException e) {
+            backend = false;
+        }
+
+        try {
+            Class.forName("com.redhat.jenkins.nodesharingfrontend.Api");
+            frontend = true;
+        } catch (ClassNotFoundException e) {
+            frontend = false;
+        }
+
+        if (backend && frontend) throw new AbortException(
+                "Single Jenkins can not play a role of both Node Sharing Executor and Orchestrator"
+        );
+
+        if (!backend && !frontend) throw new AssertionError();
     }
 }

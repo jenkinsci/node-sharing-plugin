@@ -31,6 +31,7 @@ import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
+import hudson.AbortException;
 import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.Label;
@@ -47,10 +48,8 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.xml.sax.SAXException;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
@@ -97,6 +96,11 @@ public class PoolTest {
         }
         assertReports("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property");
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
+    }
+
+    @Test(expected = AbortException.class)
+    public void singleInstanceCanNotPlayBothRoles() throws Exception {
+        ConfigRepoAdminMonitor._checkNodeSharingRole();
     }
 
     private Throwable getConfigTaskException(String context) {
