@@ -82,9 +82,7 @@ public class ConfigRepoAdminMonitor extends AdministrativeMonitor {
     }
 
     public @Nonnull Map<String, Throwable> getErrors() {
-        HashMap<String, Throwable> out = new HashMap<>();
-        out.putAll(errors);
-        return out;
+        return new HashMap<>(errors);
     }
 
     @Initializer(after = InitMilestone.PLUGINS_STARTED)
