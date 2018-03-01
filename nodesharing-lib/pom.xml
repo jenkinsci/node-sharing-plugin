@@ -4,11 +4,11 @@
 
     <parent>
         <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-        <artifactId>nodesharing-parent</artifactId>
+        <artifactId>node-sharing-parent</artifactId>
         <version>2.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>nodesharing-lib</artifactId>
+    <artifactId>node-sharing-lib</artifactId>
     <version>2.0.0-SNAPSHOT</version>
 
     <dependencies>
