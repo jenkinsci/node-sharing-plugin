@@ -360,19 +360,19 @@ public class SharedNodeCloud extends Cloud {
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillSshCredentialsId() {
-            return new StandardListBoxModel()
-                    .withMatching(anyOf(
-                            instanceOf(SSHUserPrivateKey.class),
-                            instanceOf(UsernamePasswordCredentials.class)),
-                            CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class));
+        public ListBoxModel doFillSshCredentialsIdItems() {
+            return new StandardListBoxModel().withMatching(
+                    anyOf(instanceOf(SSHUserPrivateKey.class), instanceOf(UsernamePasswordCredentials.class)),
+                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
+            ).includeEmptyValue();
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillOrchestratorCredentialsId() {
-            return new StandardListBoxModel()
-                    .withMatching(instanceOf(UsernamePasswordCredentials.class),
-                            CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class));
+        public ListBoxModel doFillOrchestratorCredentialsIdItems() {
+            return new StandardListBoxModel().withMatching(
+                    instanceOf(UsernamePasswordCredentials.class),
+                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
+            ).includeEmptyValue();
         }
 
         /**
