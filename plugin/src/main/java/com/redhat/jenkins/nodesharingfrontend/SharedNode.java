@@ -61,7 +61,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
         // Make a current phase of provisioning activity failed if exists for any node with the same name
         for (ProvisioningActivity a : CloudStatistics.get().getActivities()) {
-            if (a.getId().getNodeName().equals(name)) {
+            if (name.equals(a.getId().getNodeName())) {
                 PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
                         ProvisioningActivity.Status.FAIL, "Performed operation stuck!");
                 CloudStatistics.get().attach(a, a.getCurrentPhase(), attachment);
