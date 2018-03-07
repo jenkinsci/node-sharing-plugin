@@ -65,8 +65,9 @@ public class ExecutorJenkins {
         }
     }
 
+    // Make safe and readable name from URL
     public static String inferCloudName(String url) {
-        return DigestUtils.md5Hex(url);
+        return url.replaceAll("^[a-z]{1,5}://", "").replaceAll("[^a-zA-Z0-9.-]+", "_").replaceAll("[.]git$", "");
     }
 
     public @Nonnull String getName() {
