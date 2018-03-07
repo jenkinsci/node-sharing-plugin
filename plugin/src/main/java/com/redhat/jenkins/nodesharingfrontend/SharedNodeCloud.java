@@ -46,6 +46,7 @@ import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -141,7 +142,7 @@ public class SharedNodeCloud extends Cloud {
      *
      * @return timeout in secs.
      */
-    @Nonnull
+    @Nonnull @Restricted(DoNotUse.class) // View only
     public Integer getSshConnectionTimeOut() {
         return sshConnectionTimeOut;
     }
@@ -159,16 +160,6 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public String getOrchestratorCredentialsId() {
         return orchestratorCredentialsId;
-    }
-
-    /**
-     * Setter for credentialsId.
-     *
-     * @param sshCredentialsId to use to connect to slaves with.
-     */
-    @DataBoundSetter
-    public void setSshCredentialsId(@Nonnull final String sshCredentialsId) {
-        this.sshCredentialsId = sshCredentialsId;
     }
 
     private @Nonnull ConfigRepo getConfigRepo() {
