@@ -352,9 +352,6 @@ public class SharedNodeCloud extends Cloud {
         return latestConfig != null;
     }
 
-    /**
-     * Descriptor for Cloud.
-     */
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
         @Override
@@ -363,11 +360,18 @@ public class SharedNodeCloud extends Cloud {
         }
 
         @Restricted(DoNotUse.class)
-        public ListBoxModel doFillCredentialsIdItems() {
+        public ListBoxModel doFillSshCredentialsId() {
             return new StandardListBoxModel()
                     .withMatching(anyOf(
                             instanceOf(SSHUserPrivateKey.class),
                             instanceOf(UsernamePasswordCredentials.class)),
+                            CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class));
+        }
+
+        @Restricted(DoNotUse.class)
+        public ListBoxModel doFillOrchestratorCredentialsId() {
+            return new StandardListBoxModel()
+                    .withMatching(instanceOf(UsernamePasswordCredentials.class),
                             CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class));
         }
 

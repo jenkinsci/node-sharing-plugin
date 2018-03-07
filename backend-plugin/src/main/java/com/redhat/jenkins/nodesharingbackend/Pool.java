@@ -65,9 +65,10 @@ import java.util.logging.Logger;
 public class Pool {
     private static final Logger LOGGER = Logger.getLogger(Pool.class.getName());
 
-    public static final String CONFIG_REPO_PROPERTY_NAME = Pool.class.getCanonicalName() + ".ENDPOINT";
-    public static final String USERNAME_PROPERTY_NAME = Pool.class.getCanonicalName() + ".USERNAME";
-    public static final String PASSWORD_PROPERTY_NAME = Pool.class.getCanonicalName() + ".PASSWORD";
+    public static final String CONFIG_REPO_PROPERTY_NAME = "com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT";
+    public static final String USERNAME_PROPERTY_NAME = "com.redhat.jenkins.nodesharingbackend.Pool.USERNAME";
+    // TODO this will be visible in UI on /systemInfo (permission Jenkins/Administer)
+    public static final String PASSWORD_PROPERTY_NAME = "com.redhat.jenkins.nodesharingbackend.Pool.PASSWORD";
 
     @Extension
     public static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();

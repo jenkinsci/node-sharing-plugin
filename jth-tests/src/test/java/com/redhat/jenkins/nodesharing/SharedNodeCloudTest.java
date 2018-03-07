@@ -37,7 +37,10 @@ import hudson.model.Computer;
 import hudson.model.FreeStyleProject;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import hudson.security.AuthorizationStrategy;
+import hudson.security.LegacySecurityRealm;
 import hudson.security.csrf.DefaultCrumbIssuer;
+import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -155,6 +158,22 @@ public class SharedNodeCloudTest {
         items.add(new ReportWorkloadRequest.Workload.WorkloadItem(1, "test1", "solaris11"));
         ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload.WorkloadBuilder(items).build();
         cloud.getApi().reportWorkload(workload); // 200 response enforced
+    }
+
+    @Test
+    public void configRoundtrip() throws Exception {
+        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        SharedNodeCloud expected = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+
+        j.jenkins.setSecurityRealm(new LegacySecurityRealm());
+        j.jenkins.setAuthorizationStrategy(AuthorizationStrategy.UNSECURED);
+        j.configRoundtrip();
+
+        SharedNodeCloud actual = SharedNodeCloud.getByName(expected.name);
+        assertEquals(expected.getName(), actual.getName());
+        assertEquals(expected.getConfigRepoUrl(), actual.getConfigRepoUrl());
+        assertEquals(expected.getOrchestratorCredentialsId(), actual.getOrchestratorCredentialsId());
+        assertEquals(expected.getSshCredentialsId(), actual.getSshCredentialsId());
     }
 
     @Test
