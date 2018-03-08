@@ -148,7 +148,7 @@ public class NoopChannel extends Channel {
     @Override
     public <V, T extends Throwable> V call(Callable<V, T> callable) throws T {
         // Call locally not to put it offline
-        if (isResponseTimeMonitor(callable)) {
+        if (isSafeCallToBeExecutedLocally(callable)) {
             return callable.call();
         }
         // Call on master site as we have no way to get real data anyway and this would avoid potential problems
@@ -162,7 +162,7 @@ public class NoopChannel extends Channel {
     @Override
     public <V, T extends Throwable> hudson.remoting.Future<V> callAsync(Callable<V, T> callable) {
         // Call locally not to put it offline
-        if (isResponseTimeMonitor(callable)) {
+        if (isSafeCallToBeExecutedLocally(callable)) {
             return new PrecomputedCallableFuture<>(callable);
         }
         // Call on master site as we have no way to get real data anyway and this would avoid potential problems
@@ -183,7 +183,7 @@ public class NoopChannel extends Channel {
         return "hudson.node_monitors.AbstractAsyncNodeMonitorDescriptor#monitor".equals(caller);
     }
 
-    private <V, T extends Throwable> boolean isResponseTimeMonitor(@Nonnull Callable<V, T> trace) {
+    private <V, T extends Throwable> boolean isSafeCallToBeExecutedLocally(@Nonnull Callable<V, T> trace) {
         return "hudson.node_monitors.ResponseTimeMonitor$Step1".equals(trace.getClass().getName());
     }
 
