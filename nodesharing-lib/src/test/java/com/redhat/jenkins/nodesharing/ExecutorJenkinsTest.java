@@ -62,9 +62,9 @@ public class ExecutorJenkinsTest {
         assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a"));
     }
 
-    @Test
-    public void inferCloudName() throws Exception {
-        assertEquals("github.com_jenkinsci_node-sharing-plugin", ExecutorJenkins.inferCloudName("https://github.com/jenkinsci/node-sharing-plugin.git"));
-        assertEquals("git_github.com_jenkinsci_node-sharing-plugin", ExecutorJenkins.inferCloudName("git@github.com:jenkinsci/node-sharing-plugin.git"));
-    }
+//    @Test
+//    public void inferCloudName() throws Exception {
+//        assertEquals("github.com_jenkinsci_node-sharing-plugin", ExecutorJenkins.inferCloudName("https://github.com/jenkinsci/node-sharing-plugin.git"));
+//        assertEquals("git_github.com_jenkinsci_node-sharing-plugin", ExecutorJenkins.inferCloudName("git@github.com:jenkinsci/node-sharing-plugin.git"));
+//    }
 }

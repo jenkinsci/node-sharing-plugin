@@ -29,6 +29,7 @@ import jenkins.model.Jenkins;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import sun.misc.MessageUtils;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -67,7 +68,9 @@ public class ExecutorJenkins {
 
     // Make safe and readable name from URL
     public static String inferCloudName(String url) {
-        return url.replaceAll("^[a-z]{1,5}://", "").replaceAll("[^a-zA-Z0-9.-]+", "_").replaceAll("[.]git$", "");
+        // This is awfully long, especially for node names
+        //return url.replaceAll("^[a-z]{1,5}://", "").replaceAll("[^a-zA-Z0-9.-]+", "_").replaceAll("[.]git$", "");
+        return "NodeSharing-" + DigestUtils.md5Hex(url).substring(0, 8);
     }
 
     public @Nonnull String getName() {
