@@ -33,7 +33,6 @@ import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
-import org.acegisecurity.GrantedAuthority;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
@@ -115,8 +114,8 @@ public class ReservationTest {
         Thread.sleep(1000);
 
         // Then there should be reservation tasks on orchestrator
-        assertEquals(2, j.getPendingReservations().size());
-        assertEquals(1, j.getScheduledReservations().size());
+        assertEquals(2, j.getActiveReservations().size());
+        assertEquals(1, j.getQueuedReservations().size());
         assertEquals(solarisLabel, j.getComputer("solaris1.acme.com").getReservation().getParent().getAssignedLabel());
         assertEquals(winLabel, j.getComputer("win1.acme.com").getReservation().getParent().getAssignedLabel());
 
@@ -140,8 +139,8 @@ public class ReservationTest {
         assertNull(j.jenkins.getNode("win1.acme.com-" + cloud.name));
         assertNull(j.getComputer("win1.acme.com").getReservation());
 
-        assertEquals(1, j.getPendingReservations().size());
-        assertEquals(1, j.getScheduledReservations().size());
+        assertEquals(1, j.getActiveReservations().size());
+        assertEquals(1, j.getQueuedReservations().size());
 
         // When first solaris task completes
         solarisBuilder.end.signal();
@@ -151,14 +150,14 @@ public class ReservationTest {
         // Queued solaris build gets unblocked
         scheduledSolBuildFuture.getStartCondition().get();
         assertFalse(scheduledSolBuildFuture.isDone());
-        assertEquals(1, j.getPendingReservations().size());
-        assertEquals(0, j.getScheduledReservations().size());
+        assertEquals(1, j.getActiveReservations().size());
+        assertEquals(0, j.getQueuedReservations().size());
 
         solaris2Builder.end.signal();
         j.assertBuildStatusSuccess(scheduledSolBuildFuture);
         Thread.sleep(1000);
-        assertEquals(0, j.getPendingReservations().size());
-        assertEquals(0, j.getScheduledReservations().size());
+        assertEquals(0, j.getActiveReservations().size());
+        assertEquals(0, j.getQueuedReservations().size());
     }
 
     @Test
@@ -185,7 +184,7 @@ public class ReservationTest {
             j.reportWorkloadToOrchestrator();
             j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
-            List<ReservationTask> scheduledReservations = j.getScheduledReservations();
+            List<ReservationTask> scheduledReservations = j.getQueuedReservations();
             assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
             Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
             assertThat(items, arrayWithSize(4));
@@ -204,7 +203,7 @@ public class ReservationTest {
         j.reportWorkloadToOrchestrator();
         j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
 
-        List<ReservationTask> scheduledReservations = j.getScheduledReservations();
+        List<ReservationTask> scheduledReservations = j.getQueuedReservations();
         assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
         Queue.Item[] items = Jenkins.getActiveInstance().getQueue().getItems();
         assertThat(items, arrayWithSize(4));
@@ -226,7 +225,7 @@ public class ReservationTest {
         p.scheduleBuild2(0);
         Thread.sleep(1000);
         assertEquals(1, j.jenkins.getQueue().getBuildableItems().size());
-        assertEquals(0, j.getPendingReservations().size());
-        assertEquals(0, j.getScheduledReservations().size());
+        assertEquals(0, j.getActiveReservations().size());
+        assertEquals(0, j.getQueuedReservations().size());
     }
 }

@@ -120,7 +120,15 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return repoClient;
     }
 
-    protected List<ReservationTask> getScheduledReservations() {
+    public UsernamePasswordCredentials getRestCredential() {
+        return cred;
+    }
+
+    public String getRestCredentialId() {
+        return "fake-cred-id";
+    }
+
+    protected List<ReservationTask> getQueuedReservations() {
         ArrayList<ReservationTask> out = new ArrayList<>();
         for (Queue.Item item : jenkins.getQueue().getItems()) {
             if (item.task instanceof ReservationTask) {
@@ -131,16 +139,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
-
-    public UsernamePasswordCredentials getRestCredential() {
-        return cred;
-    }
-
-    public String getRestCredentialId() {
-        return "fake-cred-id";
-    }
-
-    protected List<ReservationTask.ReservationExecutable> getPendingReservations() {
+    protected List<ReservationTask.ReservationExecutable> getActiveReservations() {
         ArrayList<ReservationTask.ReservationExecutable> out = new ArrayList<>();
         for (Computer c : jenkins.getComputers()) {
             if (c instanceof ShareableComputer) {

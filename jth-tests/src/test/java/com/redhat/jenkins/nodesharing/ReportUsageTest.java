@@ -78,8 +78,8 @@ public class ReportUsageTest {
         ConfigRepo.Snapshot snapshot = getInstance().getConfig();
         Collection<NodeDefinition> declaredNodes = snapshot.getNodes().values();
 
-        assertThat(j.getScheduledReservations(), emptyIterable());
-        assertThat(j.getPendingReservations(), emptyIterable());
+        assertThat(j.getQueuedReservations(), emptyIterable());
+        assertThat(j.getActiveReservations(), emptyIterable());
         assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(declaredNodes.size()));
 
         // Given all nodes shared for a single master
@@ -95,12 +95,12 @@ public class ReportUsageTest {
             ReservationVerifier.getInstance().doRun();
 
             // Then reservations are created
-            assertThat(j.getPendingReservations().size(), equalTo(declaredNodes.size()));
-            assertThat(j.getScheduledReservations(), emptyIterable());
+            assertThat(j.getActiveReservations().size(), equalTo(declaredNodes.size()));
+            assertThat(j.getQueuedReservations(), emptyIterable());
         }
 
         // Cleanup to avoid all kinds of exceptions
-        for (ReservationTask.ReservationExecutable executable : j.getPendingReservations()) {
+        for (ReservationTask.ReservationExecutable executable : j.getActiveReservations()) {
             executable.complete();
         }
     }
@@ -127,8 +127,8 @@ public class ReportUsageTest {
 
         ReservationVerifier.verify(config, api);
 
-        assertThat(j.getScheduledReservations(), emptyIterable());
-        assertThat(j.getPendingReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
+        assertThat(j.getQueuedReservations(), emptyIterable());
+        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
     }
 
     @Test
@@ -154,13 +154,13 @@ public class ReportUsageTest {
 
         // This does not invoke termination routine so returnNode is not sent
         j.jenkins.removeNode(build.getBuiltOn());
-        assertEquals(1, j.getPendingReservations().size());
+        assertEquals(1, j.getActiveReservations().size());
         Thread.sleep(5000); // Make sure it is not caused by timing
-        assertEquals(1, j.getPendingReservations().size());
+        assertEquals(1, j.getActiveReservations().size());
 
         ReservationVerifier.getInstance().doRun();
         Thread.sleep(1000);
 
-        assertEquals(0, j.getPendingReservations().size());
+        assertEquals(0, j.getActiveReservations().size());
     }
 }
