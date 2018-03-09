@@ -29,7 +29,6 @@ import jenkins.model.Jenkins;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import sun.misc.MessageUtils;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
