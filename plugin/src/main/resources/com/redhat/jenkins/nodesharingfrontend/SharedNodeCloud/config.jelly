@@ -16,8 +16,5 @@
     <f:entry title="${%SSH Credentials}" field="sshCredentialsId">
       <c:select/>
     </f:entry>
-    <f:entry title="${%SSH Connection Timeout in Seconds}" field="sshConnectionTimeOut">
-      <f:textbox name="sshConnectionTimeOut" />
-    </f:entry>
   </f:section>
 </j:jelly>

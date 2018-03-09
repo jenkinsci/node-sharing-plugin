@@ -74,11 +74,6 @@ public class SharedNodeCloud extends Cloud {
     /** The id of the ssh credentials for hosts. */
     private String sshCredentialsId;
 
-    /**
-     * The time in seconds to attempt to establish a SSH connection.
-     */
-    private Integer sshConnectionTimeOut;
-
     private transient Api api = null;
 
     private transient @Nullable ConfigRepo configRepo; // Null after deserialization until getConfigRepo is called
@@ -90,17 +85,15 @@ public class SharedNodeCloud extends Cloud {
      * @param configRepoUrl ConfigRepo url
      * @param orchestratorCredentialsId Orchestrator credential.
      * @param sshCredentialsId Creds to use to connect to slave.
-     * @param sshConnectionTimeOut timeout for SSH connection in secs.
      */
     @DataBoundConstructor
-    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId, @Nonnull String sshCredentialsId, Integer sshConnectionTimeOut) {
+    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId, @Nonnull String sshCredentialsId) {
         super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
         this.orchestratorCredentialsId = orchestratorCredentialsId;
         this.configRepo = getConfigRepo();
         this.sshCredentialsId = sshCredentialsId;
-        this.sshConnectionTimeOut = sshConnectionTimeOut;
     }
 
     /**
@@ -135,16 +128,6 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public String getConfigRepoUrl() {
         return configRepoUrl;
-    }
-
-    /**
-     * Get SSH connection time in seconds.
-     *
-     * @return timeout in secs.
-     */
-    @Nonnull @Restricted(DoNotUse.class) // View only
-    public Integer getSshConnectionTimeOut() {
-        return sshConnectionTimeOut;
     }
 
     /**
@@ -386,7 +369,7 @@ public class SharedNodeCloud extends Cloud {
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
-                SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId, "", null);
+                SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId, "");
                 Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud);
                 DiscoverResponse discover = api.discover();
                 if (!discover.getDiagnosis().isEmpty()) {
