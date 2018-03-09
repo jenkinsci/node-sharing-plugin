@@ -73,7 +73,6 @@ import java.util.logging.Logger;
  * Receive and send REST commands from/to Orchestrator Jenkins.
  */
 @Restricted(NoExternalUse.class)
-// TODO Check permission
 public class Api {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
@@ -168,11 +167,6 @@ public class Api {
             @Override
             protected boolean shouldFail(@Nonnull StatusLine sl) {
                 return sl.getStatusCode() != 200 && sl.getStatusCode() != 404;
-            }
-
-            @Override
-            protected boolean shouldWarn(@Nonnull StatusLine sl) {
-                return false;
             }
         });
     }

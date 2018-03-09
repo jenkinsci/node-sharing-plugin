@@ -199,11 +199,6 @@ public class RestEndpoint {
             }
 
             @Override
-            protected boolean shouldWarn(@Nonnull StatusLine sl) {
-                return !ACCEPTED_CODES.contains(sl.getStatusCode());
-            }
-
-            @Override
             protected @CheckForNull CrumbResponse consumeEntity(@Nonnull HttpResponse response) throws IOException {
                 if (response.getStatusLine().getStatusCode() == 404) return null;
                 return createEntity(response, CrumbResponse.class);
@@ -226,28 +221,14 @@ public class RestEndpoint {
         @Override
         public @CheckForNull T handleResponse(HttpResponse response) throws IOException {
             StatusLine sl = response.getStatusLine();
-            boolean fail = shouldFail(sl);
-            boolean warn = shouldWarn(sl);
-            if (fail || warn) {
-                ActionFailed.RequestFailed requestFailed = new ActionFailed.RequestFailed(
-                        method, response.getStatusLine(), getPayloadAsString(response)
-                );
-                if (warn) {
-                    LOGGER.info(requestFailed.getMessage());
-                }
-                if (fail) {
-                    throw requestFailed;
-                }
-            }
+            if (shouldFail(sl)) throw new ActionFailed.RequestFailed(
+                    method, response.getStatusLine(), getPayloadAsString(response)
+            );
 
             return consumeEntity(response);
         }
 
         protected boolean shouldFail(@Nonnull StatusLine sl) {
-            return sl.getStatusCode() != 200;
-        }
-
-        protected boolean shouldWarn(@Nonnull StatusLine sl) {
             return sl.getStatusCode() != 200;
         }
 

@@ -45,8 +45,6 @@ public final class ResponseCaptor extends RestEndpoint.AbstractResponseHandler<R
 
     @Override protected boolean shouldFail(@Nonnull StatusLine sl) { return false; }
 
-    @Override protected boolean shouldWarn(@Nonnull StatusLine sl) { return false; }
-
     @Override
     public Capture handleResponse(HttpResponse response) throws IOException {
         return new Capture(response.getStatusLine(), getPayloadAsString(response));
@@ -57,7 +55,7 @@ public final class ResponseCaptor extends RestEndpoint.AbstractResponseHandler<R
         public final StatusLine statusLine;
         public final String payload;
 
-        public Capture(StatusLine statusLine, String payload) {
+        private Capture(StatusLine statusLine, String payload) {
 
             this.statusLine = statusLine;
             this.payload = payload;
