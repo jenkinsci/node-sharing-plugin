@@ -64,7 +64,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
             if (a.getId().getNodeName() != null && name.compareTo(a.getId().getNodeName()) == 0) {
                 PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
                         ProvisioningActivity.Status.FAIL,
-                        "Provisioning activity have not completed before the node wos reserved again!"
+                        "Provisioning activity have not completed before the node was reserved again!"
                 );
                 CloudStatistics.get().attach(a, a.getCurrentPhase(), attachment);
                 a.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
@@ -97,7 +97,6 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
             activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
         }
 
-        LOGGER.finer("Adding the host '" + name + "' to the disposable queue.");
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
         if (cloud != null) { // Might be deleted or using different config repo
             cloud.getApi().returnNode(this);

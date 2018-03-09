@@ -38,8 +38,6 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
      * Utility method to terminate a shared node.
      *
      * @param c The {@link Computer}
-     * @throws IOException if occurs.
-     * @throws InterruptedException if occurs.
      */
     public static void terminateComputer(Computer c) throws IOException, InterruptedException {
         if (c instanceof SharedComputer) {
