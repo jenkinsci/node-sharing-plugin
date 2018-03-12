@@ -117,7 +117,7 @@ public class PoolTest {
 
         assertThat(pool.getConfig().getJenkinses(), containsInAnyOrder(
                 new ExecutorJenkins("https://jenkins1.acme.com", "jenkins1"),
-                new ExecutorJenkins("https://jenkins2.acme.com", "jenkins2")
+                new ExecutorJenkins("https://jenkins1.acme.com:80/context-path", "jenkins2")
         ));
 
         assertFalse(Pool.ADMIN_MONITOR.isActivated());
@@ -254,11 +254,11 @@ public class PoolTest {
 
         Pool.ADMIN_MONITOR.clear();
         cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
-        cr.getWorkTree().child("jenkinses").delete();
+        cr.getWorkTree().child("jenkinses").deleteRecursive();
         cr.add("*");
         cr.commit("Break it!");
         updater.doRun();
-        assertReports("ERROR: No file named 'jenkinses' found in Config Repository");
+        assertReports("ERROR: No directory named 'jenkinses' found in Config Repository");
 
         //j.interactiveBreak();
 

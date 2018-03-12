@@ -150,10 +150,12 @@ public class ConfigRepoRule implements TestRule {
     }
 
     public void writeJenkinses(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
-        try (PrintStream out = new PrintStream(git.getWorkTree().child("jenkinses").write())) {
-            for (Map.Entry<String, String> j : jenkinses.entrySet()) {
-                out.printf("%s=%s%n", j.getKey(), j.getValue());
-            }
+        FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
+        for (FilePath filePath : jenkinsesDir.list()) {
+            filePath.delete();
+        }
+        for (Map.Entry<String, String> j : jenkinses.entrySet()) {
+            jenkinsesDir.child(j.getKey()).write("url=" + j.getValue(), "UTF-8");
         }
         git.add("jenkinses");
         git.commit("Update Jenkinses");

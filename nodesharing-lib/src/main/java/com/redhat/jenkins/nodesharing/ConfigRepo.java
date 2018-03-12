@@ -155,19 +155,19 @@ public class ConfigRepo {
                 } else try { // Yep, an else-try statement
                     new URL(orchestratorUrl);
                 } catch (MalformedURLException e) {
-                    taskLog.error(e, "%s is not valid url", orchestratorUrl);
+                    taskLog.error(e, "%s is not valid orchestrator url", orchestratorUrl);
                 }
             }
 
-            FilePath jenkinsesFile = new FilePath(workingDir).child("jenkinses");
-            if (!jenkinsesFile.exists()) {
-                taskLog.error("No file named 'jenkinses' found in Config Repository");
+            FilePath jenkinsesDir = new FilePath(workingDir).child("jenkinses");
+            if (!jenkinsesDir.isDirectory()) {
+                taskLog.error("No directory named 'jenkinses' found in Config Repository");
             } else {
-                jenkinses = getJenkinses(jenkinsesFile);
+                jenkinses = getJenkinses(jenkinsesDir, taskLog);
             }
 
             FilePath nodesDir = new FilePath(workingDir).child("nodes");
-            if (!jenkinsesFile.exists()) {
+            if (!jenkinsesDir.exists()) {
                 taskLog.error("No directory named 'nodes' found in Config Repository");
             } else {
                 hosts = readNodes(nodesDir, taskLog);
@@ -179,14 +179,25 @@ public class ConfigRepo {
         }
     }
 
-    private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesFile) throws IOException, InterruptedException {
-        Properties config = new Properties();
-        try (InputStream is = jenkinsesFile.read()) {
-            config.load(is);
-        }
+    private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesDir, TaskLog taskLog) throws IOException, InterruptedException {
         HashSet<ExecutorJenkins> jenkinses = new LinkedHashSet<>();
-        for (Map.Entry<Object, Object> entry : config.entrySet()) {
-            jenkinses.add(new ExecutorJenkins((String) entry.getValue(), (String) entry.getKey()));
+        for (FilePath jenkinsfile: jenkinsesDir.list()) {
+            Properties config = new Properties();
+            try (InputStream is = jenkinsfile.read()) {
+                config.load(is);
+            }
+
+            String url = config.getProperty("url");
+            if (url == null) {
+                taskLog.error("Jenkins config file " + jenkinsfile.getName() + " has no url property");
+                continue;
+            } else try { // Yep, an else-try statement
+                new URL(url);
+            } catch (MalformedURLException e) {
+                taskLog.error(e, "%s is not valid jenkins url", url);
+                continue;
+            }
+            jenkinses.add(new ExecutorJenkins(url, jenkinsfile.getName()));
         }
         return Collections.unmodifiableSet(jenkinses);
     }

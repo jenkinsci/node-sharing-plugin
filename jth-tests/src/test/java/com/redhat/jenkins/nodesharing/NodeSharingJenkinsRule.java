@@ -109,7 +109,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     protected @Nonnull ShareableNode getNode(String name) {
         Node node = jenkins.getNode(name);
-        assertNotNull("No such node " + name, node);
+        assertNotNull("No such node " + name + ". Have: " + jenkins.getNodes(), node);
         return (ShareableNode) node;
     }
 
