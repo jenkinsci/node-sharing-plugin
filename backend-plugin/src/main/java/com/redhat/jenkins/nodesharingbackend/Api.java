@@ -69,7 +69,6 @@ import java.util.logging.Logger;
  */
 @Extension
 @Restricted(NoExternalUse.class)
-// TODO Check permission
 public class Api implements RootAction {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());

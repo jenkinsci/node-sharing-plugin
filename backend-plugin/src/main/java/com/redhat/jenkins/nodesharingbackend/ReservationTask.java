@@ -161,7 +161,8 @@ public class ReservationTask extends AbstractQueueTask {
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
-            LOGGER.info("Reservation of " + nodeName + " started for " + task.getOwner());
+            String executorName = task.getOwner().getName();
+            LOGGER.info("Reservation of " + nodeName + " started for " + executorName);
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
 
@@ -182,7 +183,7 @@ public class ReservationTask extends AbstractQueueTask {
                         continue;
                     }
                     if (!accepted) {
-                        LOGGER.info("Executor rejected the node");
+                        LOGGER.info("Executor " + executorName + " rejected node " + nodeName);
                         return; // Abort reservation
                     } else {
                         break; // Wait for return
