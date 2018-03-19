@@ -121,8 +121,8 @@ public class PoolTest {
         ));
 
         assertFalse(Pool.ADMIN_MONITOR.isActivated());
-    }
 
+    }
     @Test
     public void populateComputers() throws Exception {
         GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
