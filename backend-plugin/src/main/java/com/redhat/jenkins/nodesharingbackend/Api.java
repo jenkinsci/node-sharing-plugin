@@ -212,18 +212,18 @@ public class Api implements RootAction {
         StringBuilder diagnosisBuilder = new StringBuilder();
         if (!request.getVersion().equals(version)) {
             diagnosisBuilder.append("Orchestrator plugin version is ")
-                    .append(request.getVersion())
-                    .append(" but executor uses ")
                     .append(version)
+                    .append(" but executor uses ")
+                    .append(request.getVersion())
                     .append(". ")
             ;
         }
         String configEndpoint = pool.getConfigRepoUrl();
         if (!request.getConfigRepoUrl().equals(configEndpoint)) {
             diagnosisBuilder.append("Orchestrator is configured from ")
-                    .append(request.getConfigRepoUrl())
-                    .append(" but executor uses ")
                     .append(configEndpoint)
+                    .append(" but executor uses ")
+                    .append(request.getConfigRepoUrl())
                     .append(". ")
             ;
         }
