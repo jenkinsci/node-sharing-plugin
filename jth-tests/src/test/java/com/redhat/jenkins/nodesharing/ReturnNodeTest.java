@@ -51,12 +51,9 @@ public class ReturnNodeTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Rule
-    public ConfigRepoRule configRepo = new ConfigRepoRule();
-
     @Test
     public void returnNodeThatDoesNotExist() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
         assertNotNull(cloud.getOrchestratorCredentialsId());
         NodeDefinition def = Pool.getInstance().getConfig().getNodes().values().iterator().next();
@@ -90,7 +87,7 @@ public class ReturnNodeTest {
 
     @Test
     public void releaseRunningNode() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         String configEndpoint = Pool.getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configEndpoint);
 

@@ -55,9 +55,6 @@ public class RestAuthTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Rule
-    public ConfigRepoRule configRepo = new ConfigRepoRule();
-
     @Before
     public void setUp() {
         j.getMockAuthorizationStrategy().grant(Jenkins.READ).everywhere().to(UNPRIVILIGED_USER);
@@ -65,7 +62,7 @@ public class RestAuthTest {
 
     @Test
     public void backendEndpoints() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
 
         for (Method method : com.redhat.jenkins.nodesharingbackend.Api.class.getDeclaredMethods()) {
             if (method.getName().startsWith("do") && Modifier.isPublic(method.getModifiers())) {
@@ -77,7 +74,7 @@ public class RestAuthTest {
 
     @Test
     public void frontendEndpoints() throws Exception {
-        GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         ExecutorJenkins executor = cloud.getLatestConfig().getJenkinses().iterator().next();

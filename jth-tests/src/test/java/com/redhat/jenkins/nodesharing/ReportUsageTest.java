@@ -66,12 +66,9 @@ public class ReportUsageTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Rule
-    public ConfigRepoRule configRepo = new ConfigRepoRule();
-
     @Test
     public void reportExecutorUsage() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
         cloud.getLatestConfig(); // NodeSharingComputerListener#preLaunch does not consider this to be operational until we have config
 
@@ -93,10 +90,11 @@ public class ReportUsageTest {
         for (int i = 0; i < 3; i++) {
             // When usage is reported
             ReservationVerifier.getInstance().doRun();
+            Thread.sleep(1000); // Queued reservations to get active
 
             // Then reservations are created
-            assertThat(j.getActiveReservations().size(), equalTo(declaredNodes.size()));
             assertThat(j.getQueuedReservations(), emptyIterable());
+            assertThat(j.getActiveReservations().size(), equalTo(declaredNodes.size()));
         }
 
         // Cleanup to avoid all kinds of exceptions
@@ -107,7 +105,7 @@ public class ReportUsageTest {
 
     @Test
     public void orchestratorFailover() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
 
         ConfigRepo.Snapshot c = cloud.getLatestConfig();
@@ -126,6 +124,7 @@ public class ReportUsageTest {
         );
 
         ReservationVerifier.verify(config, api);
+        Thread.sleep(1000); // Queued reservations to get active
 
         assertThat(j.getQueuedReservations(), emptyIterable());
         assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
@@ -133,7 +132,7 @@ public class ReportUsageTest {
 
     @Test
     public void missedReturnNodeCall() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
         ConfigRepo.Snapshot c = cloud.getLatestConfig();
 

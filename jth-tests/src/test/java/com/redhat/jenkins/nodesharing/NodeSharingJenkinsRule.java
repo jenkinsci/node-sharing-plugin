@@ -31,8 +31,12 @@ import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
+import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
+import hudson.EnvVars;
+import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -42,12 +46,17 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.TaskListener;
+import hudson.remoting.Which;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.SlaveComputer;
 import hudson.util.OneShotEvent;
+import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
+import org.apache.commons.io.FileUtils;
+import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
+import org.junit.Assert;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -56,9 +65,15 @@ import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -66,21 +81,18 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
     private UsernamePasswordCredentials cred;
-
-    public MockAuthorizationStrategy getMockAuthorizationStrategy() {
-        return mas;
-    }
-
     private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
-
-    protected @Nonnull ShareableComputer getComputer(String name) {
-        ShareableComputer shareableComputer = (ShareableComputer) getNode(name).toComputer();
-        assert shareableComputer != null;
-        return shareableComputer;
-    }
+    private GitClient configRepo;
 
     public Statement apply(final Statement base, final Description description) {
-        Statement wrappedBase = new Statement() {
+        try { // Needs to be done before Jenkins is up
+            configRepo = createConfigRepo();
+            System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, configRepo.getWorkTree().getRemote());
+        } catch (URISyntaxException | IOException | InterruptedException e) {
+            throw new Error(e);
+        }
+
+        Statement withJenkinsUp = new Statement() {
             @Override public void evaluate() throws Throwable {
                 jenkins.setSecurityRealm(createDummySecurityRealm());
 
@@ -101,10 +113,22 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                 } finally {
                     System.clearProperty(Pool.USERNAME_PROPERTY_NAME);
                     System.clearProperty(Pool.PASSWORD_PROPERTY_NAME);
+                    System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
+                    configRepo.getWorkTree().deleteRecursive();
                 }
             }
         };
-        return super.apply(wrappedBase, description);
+        return super.apply(withJenkinsUp, description);
+    }
+
+    public MockAuthorizationStrategy getMockAuthorizationStrategy() {
+        return mas;
+    }
+
+    protected @Nonnull ShareableComputer getComputer(String name) {
+        ShareableComputer shareableComputer = (ShareableComputer) getNode(name).toComputer();
+        assert shareableComputer != null;
+        return shareableComputer;
     }
 
     protected @Nonnull ShareableNode getNode(String name) {
@@ -113,11 +137,69 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return (ShareableNode) node;
     }
 
-    protected GitClient injectConfigRepo(GitClient repoClient) throws Exception {
-        System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, repoClient.getWorkTree().getRemote());
-        Pool.Updater.getInstance().doRun();
+    public GitClient getConfigRepo() {
+        return configRepo;
+    }
 
-        return repoClient;
+    /**
+     * Populate config repo making current JVM both Orchestrator and Executor.
+     */
+    protected GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
+        GitClient git = configRepo;
+
+        git.getWorkTree().child("config").write("orchestrator.url=" + jenkins.getRootUrl(), "UTF-8");
+        git.add("config");
+        git.commit("Writing config repo config");
+
+        writeJenkinses(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
+
+        // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
+        final File slaveJar = Which.jarFile(hudson.remoting.Launcher.class).getAbsoluteFile();
+        for (FilePath xmlNode : git.getWorkTree().child("nodes").list("*.xml")) {
+            SharedNode node = SharedNodeFactory.transform(NodeDefinition.Xml.create(xmlNode));
+            node.setLauncher(new CommandLauncher(
+                    System.getProperty("java.home") + "/bin/java -jar " + slaveJar
+            ));
+            try (OutputStream out = xmlNode.write()) {
+                Jenkins.XSTREAM2.toXMLUTF8(node, out);
+            }
+        }
+        git.add("nodes");
+        git.commit("Making nodes in config repo launchable");
+        Pool.Updater.getInstance().doRun();
+        return configRepo;
+    }
+
+    private GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
+        File orig = new File(getClass().getResource("dummy_config_repo").toURI());
+        Assert.assertTrue(orig.isDirectory());
+        File repo = File.createTempFile("jenkins.nodesharing", getClass().getSimpleName());
+        assert repo.delete();
+        assert repo.mkdir();
+        FileUtils.copyDirectory(orig, repo);
+
+        StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
+        // To make it work with no gitconfig
+        String name = "Pool Maintainer";
+        String mail = "pool.maintainer@acme.com";
+        EnvVars env = new EnvVars("GIT_AUTHOR_NAME", name, "GIT_AUTHOR_EMAIL", mail, "GIT_COMMITTER_NAME", name, "GIT_COMMITTER_EMAIL", mail);
+        GitClient git = Git.with(listener, env).in(repo).using("git").getClient();
+        git.init();
+        git.add("*");
+        git.commit("Init");
+        return git;
+    }
+
+    public void writeJenkinses(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
+        FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
+        for (FilePath filePath : jenkinsesDir.list()) {
+            filePath.delete();
+        }
+        for (Map.Entry<String, String> j : jenkinses.entrySet()) {
+            jenkinsesDir.child(j.getKey()).write("url=" + j.getValue(), "UTF-8");
+        }
+        git.add("jenkinses");
+        git.commit("Update Jenkinses");
     }
 
     public UsernamePasswordCredentials getRestCredential() {

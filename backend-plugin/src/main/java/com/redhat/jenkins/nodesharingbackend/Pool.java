@@ -35,11 +35,14 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.Util;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -51,6 +54,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -122,7 +126,7 @@ public class Pool {
     public @Nonnull ConfigRepo.Snapshot getConfig() {
         synchronized (configLock) {
             if (config != null) return config;
-            String configRepoUrl = getConfigRepoUrl();// Rise more specific exception if the problem is missing config property
+            String configRepoUrl = getConfigRepoUrl(); // Rise more specific exception if the problem is missing config property
             throw new PoolMisconfigured("No config snapshot loaded from " + configRepoUrl);
         }
     }
@@ -135,36 +139,63 @@ public class Pool {
         updateNodes(config.getNodes());
     }
 
-    private void updateNodes(final Map<String, NodeDefinition> nodes) {
+    private void updateNodes(final Map<String, NodeDefinition> configured) {
         final Jenkins j = Jenkins.getActiveInstance();
         // Use queue lock so pool changes appear atomic from perspective of Queue#maintian and Api#doReportWorkload
         Queue.withLock(new Runnable() {
             @Override public void run() {
-                for (NodeDefinition nodeDefinition : nodes.values()) {
-                    ShareableNode existing = (ShareableNode) j.getNode(nodeDefinition.getName());
-                    if (existing == null) {
-                        // Add new ones
-                        try {
-                            ShareableNode node = new ShareableNode(nodeDefinition);
-                            j.addNode(node);
-                        } catch (Exception ex) {
-                            // Continue with other changes - this will be reattempted
-                            LOGGER.log(Level.WARNING, "Unable to add node " + nodeDefinition.getName(), ex);
-                        }
-                    } else {
-                        // Update existing
-                        existing.updateBy(nodeDefinition);
+                Map<String, ShareableNode> existing = ShareableNode.getAll();
+                ArrayList<String> removed = new ArrayList<>(existing.keySet());
+                removed.removeAll(configured.keySet());
+
+                ArrayList<String> added = new ArrayList<>(configured.keySet());
+                added.removeAll(existing.keySet());
+
+                ArrayList<String> updated = new ArrayList<>(configured.keySet());
+                updated.removeAll(removed);
+                updated.removeAll(added);
+
+                for (String remove : removed) {
+                    ShareableNode n = existing.get(remove);
+                    n.deleteWhenIdle();
+                }
+
+                for (String update : updated) {
+                    existing.get(update).updateBy(configured.get(update));
+                }
+
+                for (String add : added) {
+                    try {
+                        ShareableNode node = new ShareableNode(configured.get(add));
+                        j.addNode(node);
+                    } catch (Exception ex) {
+                        // Continue with other changes - this will be reattempted
+                        LOGGER.log(Level.WARNING, "Unable to add node " + add, ex);
                     }
                 }
             }
         });
+    }
 
-        // Delete removed
-        for (Node node : j.getNodes()) {
-            if (node instanceof ShareableNode && !nodes.containsKey(node.getNodeName())) {
-                ((ShareableNode) node).deleteWhenIdle();
-            }
+    /**
+     * Make sure the orchestrator is in sync with the grid after startup that might be in the middle of grid operation.
+     */
+    @Initializer(after = InitMilestone.PLUGINS_STARTED)
+    @Restricted(DoNotUse.class)
+    public static void ensureOrchestratorIsUpToDateWithTheGrid() throws Exception {
+        LOGGER.info("Verifying state of the grid");
+        Jenkins jenkins = Jenkins.getActiveInstance();
+        jenkins.doQuietDown(); // Prevent builds to be scheduled during the process
+        jenkins.getQueue().clear(); // Clear any items that might be there from before restart - we can get more recent here
+        ReservationVerifier.getInstance().doRun(); // Schedule all lost items
+        try {
+            Updater.getInstance().doRun();
+        } catch (PoolMisconfigured ex) {
+            // Do not treat the fatally. Show inactive orchestrator instead with problems reported.
+            ex.printStackTrace();
         }
+        jenkins.doCancelQuietDown();
+        LOGGER.info(jenkins.getQueue().getItems().length + " reservations still in queue");
     }
 
     @Extension

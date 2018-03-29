@@ -25,17 +25,23 @@ package com.redhat.jenkins.nodesharing;
 
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.model.Build;
+import com.offbytwo.jenkins.model.BuildResult;
 import com.offbytwo.jenkins.model.Job;
 import com.offbytwo.jenkins.model.JobWithDetails;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
+import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import hudson.FilePath;
 import hudson.matrix.AxisList;
 import hudson.matrix.LabelExpAxis;
 import hudson.matrix.MatrixProject;
 import hudson.matrix.TextAxis;
 import hudson.model.Computer;
-import hudson.model.User;
+import hudson.model.Executor;
+import hudson.model.FreeStyleProject;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Result;
 import hudson.remoting.Which;
 import hudson.security.ACL;
 import hudson.security.GlobalMatrixAuthorizationStrategy;
@@ -43,6 +49,7 @@ import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.tasks.BuildTrigger;
 import hudson.tasks.Shell;
 import hudson.triggers.TimerTrigger;
+import hudson.util.CopyOnWriteList;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -59,6 +66,7 @@ import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,8 +77,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -79,12 +89,11 @@ public class ScalabilityOrchestratorTest {
     private static final String[] MATRIX_AXIS =  new String[] { "0", "1", "2" };
 
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
-    @Rule public ConfigRepoRule configRepo = new ConfigRepoRule();
     @Rule public ExternalGrid grid = new ExternalGrid(j);
 
     @Test
     public void delegateBuildsToMultipleExecutors() throws Exception {
-        GitClient repo = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        GitClient repo = j.singleJvmGrid(j.jenkins);
         String crUrl = repo.getWorkTree().getRemote();
 
         j.jenkins.setNumExecutors(0);
@@ -112,16 +121,14 @@ public class ScalabilityOrchestratorTest {
         }
         win.delete();sol.delete();
 
-//        System.out.println("Sourced from " + j.jenkins.getRootPath());
-//        System.out.println(Pool.getInstance().getConfig().getJenkinses());
-//        j.interactiveBreak();
+//        grid.interactiveBreak();
 
         Map<String, String> executors = new HashMap<>();
         for (Map.Entry<String, ScheduledFuture<URL>> launchingExecutor : launchingExecutors.entrySet()) {
             executors.put(launchingExecutor.getKey(), launchingExecutor.getValue().get().toExternalForm());
         }
 
-        configRepo.writeJenkinses(repo, executors);
+        j.writeJenkinses(repo, executors);
         Pool.Updater.getInstance().doRun();
         assertEquals(3, Pool.getInstance().getConfig().getJenkinses().size());
 
@@ -142,22 +149,122 @@ public class ScalabilityOrchestratorTest {
         j.jenkins.doQuietDown();
     }
 
-    private void verifyBuildWasRun() throws URISyntaxException, IOException {
+    @Test
+    public void restartOrchestrator() throws Exception {
+        // Given single executor setup with one build
+        GitClient repo = j.singleJvmGrid(j.jenkins);
+        String crUrl = repo.getWorkTree().getRemote();
+
+        j.jenkins.setNumExecutors(0);
+        FreeStyleProject p = j.jenkins.createProject(FreeStyleProject.class, "p");
+        FileBuildBlocker blocker = new FileBuildBlocker();
+        p.getBuildersList().add(blocker.getShellStep());
+        p.setAssignedLabel(Label.get("solaris11"));
+
+        URL executorUrl = grid.executor(crUrl).get();
+        p.delete();
+
+        j.writeJenkinses(repo, Collections.singletonMap("foo", executorUrl.toExternalForm()));
+        Pool.Updater.getInstance().doRun();
+        assertEquals(1, Pool.getInstance().getConfig().getJenkinses().size());
+
+        // When the build is running and one more is queued
+        JenkinsServer exec = new JenkinsServer(executorUrl.toURI(), "admin", "admin");
+        exec.getJob("p").build();
+        Build build = waitForBuildStarted(exec);
+        exec.getJob("p").build();
+
+        ShareableComputer computer = j.getComputer("solaris1.acme.com");
+        while (computer.isIdle()) { // until queue is propagated and build scheduled
+            Thread.sleep(1000);
+        }
+
+        // Then it should pick the state up from executors
+        //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 1, j.jenkins.getQueue().getItems().length); // TODO Fails for a known bug
+        assertFalse("Build in progress on orchestrator side", computer.isIdle());
+
+        // When orchestrator is restarted
+        // TODO use real restart here
+        j.jenkins.getQueue().clear();
+        for (Node node : j.jenkins.getNodes()) {
+            for (Executor executor : node.toComputer().getExecutors()) {
+                executor.interrupt(Result.ABORTED);
+            }
+            j.jenkins.removeNode(node);
+        }
+        Pool.ensureOrchestratorIsUpToDateWithTheGrid();
+        computer = j.getComputer("solaris1.acme.com");
+        Thread.sleep(1000);
+
+        // Then it should pick the state up from executors
+        //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 1, j.jenkins.getQueue().getItems().length); // TODO DITTO?
+        assertFalse("Build #1 in progress on orchestrator side", computer.isIdle());
+
+        blocker.complete();
+
+        while (build.details().isBuilding()) {
+            Thread.sleep(2000);
+        }
+
+        assertEquals(BuildResult.SUCCESS, build.details().getResult());
+
+        // TODO DITTO takes a while to propagate the same item to the queue
+        //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 0, j.jenkins.getQueue().getItems().length);
+        //assertTrue("Build #2 in progress on orchestrator side", computer.isIdle());
+    }
+
+    private Build waitForBuildStarted(JenkinsServer exec) throws Exception {
+        for (;;) {
+            JobWithDetails p = exec.getJob("p");
+            Build build = p.getBuildByNumber(1);
+            if (build == null) continue;
+            if (build.details().isBuilding()) return build;
+            Thread.sleep(500);
+        }
+    }
+
+    private void verifyBuildWasRun(String... jobNames) throws URISyntaxException, IOException {
         for (ExecutorJenkins ej : Pool.getInstance().getConfig().getJenkinses()) {
             JenkinsServer jenkinsServer = new JenkinsServer(ej.getUrl().toURI());
             Map<String, Job> jobs = jenkinsServer.getJobs();
-            JobWithDetails solJob = jobs.get("sol").details();
-            assertThat(solJob.getNextBuildNumber(), greaterThanOrEqualTo(2));
-            Build solBuild = solJob.getLastFailedBuild();
-            if (solBuild != Build.BUILD_HAS_NEVER_RUN) {
-                fail("All builds of sol succeeded on " + ej.getUrl() + ":\n" + solBuild.details().getConsoleOutputText());
+            for (String jobName : jobNames) {
+                JobWithDetails job = jobs.get(jobName).details();
+                assertThat(job.getNextBuildNumber(), greaterThanOrEqualTo(2));
+                Build solBuild = job.getLastFailedBuild();
+                if (solBuild != Build.BUILD_HAS_NEVER_RUN) {
+                    fail("All builds of " + jobName + " succeeded on " + ej.getUrl() + ":\n" + solBuild.details().getConsoleOutputText());
+                }
             }
-            JobWithDetails winJob = jobs.get("win").details();
-            assertThat(winJob.getNextBuildNumber(), greaterThanOrEqualTo(2));
-            Build winBuild = winJob.getLastFailedBuild();
-            if (winBuild != Build.BUILD_HAS_NEVER_RUN) {
-                fail("All builds of win succeeded on " + ej.getUrl() + ":\n" + winBuild.details().getConsoleOutputText());
-            }
+        }
+    }
+
+    /**
+     * Create shell build step that can be completed by updating a file.
+     */
+    public static final class FileBuildBlocker {
+
+        private final FilePath tempFile;
+
+        public FileBuildBlocker() throws IOException, InterruptedException {
+            tempFile = new FilePath(File.createTempFile("node-sharing", getClass().getSimpleName()));
+            tempFile.write("Created", "UTF-8");
+        }
+
+        public Shell getShellStep() {
+            return new Shell(
+                    "echo 'Started' > '" + tempFile.getRemote() + "'\n" +
+                    "while true; do\n" +
+                    "  if [ \"$(cat '" + tempFile.getRemote() + "')\" == 'Done' ]; then\n" +
+                    "    exit 0\n" +
+                    "  fi\n" +
+                    "  sleep 1\n" +
+                    "done\n"
+            );
+        }
+
+        public void complete() throws IOException, InterruptedException {
+            assertThat(tempFile.readToString(), equalTo("Started\n"));
+            tempFile.write("Done", "UTF-8");
         }
     }
 
@@ -165,6 +272,7 @@ public class ScalabilityOrchestratorTest {
         private final NodeSharingJenkinsRule jenkinsRule;
         private final AtomicInteger nextLocalPort = new AtomicInteger(49152); // Browse ephemeral range
         private final Map<Process, FilePath> executors = new HashMap<>();
+        private final CopyOnWriteList<String> executorUrls = new CopyOnWriteList<>();
 
         public ExternalGrid(NodeSharingJenkinsRule j) {
             jenkinsRule = j;
@@ -184,11 +292,12 @@ public class ScalabilityOrchestratorTest {
                         gmas.add(Jenkins.READ, "jerry");
                         gmas.add(RestEndpoint.INVOKE, "jerry");
                         gmas.add(Jenkins.READ, ACL.ANONYMOUS_USERNAME);
+                        gmas.add(Jenkins.ADMINISTER, "admin");
 
                         HudsonPrivateSecurityRealm securityRealm = new HudsonPrivateSecurityRealm(true, false, null);
                         jenkins.setSecurityRealm(securityRealm);
-                        User account = securityRealm.createAccount("jerry", "jerry");
-                        account.save();
+                        securityRealm.createAccount("jerry", "jerry").save();
+                        securityRealm.createAccount("admin", "admin").save();
                         jenkins.save();
 
                         base.evaluate();
@@ -236,6 +345,7 @@ public class ScalabilityOrchestratorTest {
             };
         }
 
+        // Not yet implemented
         public ScheduledFuture<URL> orchestrator(final String configRepo) throws Exception {
             return launchSut(configRepo, "node-sharing-orchestrator");
         }
@@ -324,6 +434,7 @@ public class ScalabilityOrchestratorTest {
                             // retry
                         }
                     }
+                    executorUrls.add(url.toExternalForm());
                     return url;
                 }
             }, 0, TimeUnit.SECONDS);
@@ -357,6 +468,13 @@ public class ScalabilityOrchestratorTest {
                 throw new AssertionError(core + " is not in the expected location, and jenkins-war-*.war was not in " + System.getProperty("java.class.path"));
             }
             return war;
+        }
+
+        public void interactiveBreak() throws Exception {
+            for (String executorUrl : executorUrls) {
+                System.out.println("Executor is running at " + executorUrl);
+            }
+            jenkinsRule.interactiveBreak();
         }
     }
 }

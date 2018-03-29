@@ -48,10 +48,13 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.internal.util.reflection.Whitebox;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -59,7 +62,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.CONFIG_REPO_PROPERTY_NAME;
-import static com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -79,23 +81,27 @@ public class PoolTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Rule
-    public ConfigRepoRule configRepo = new ConfigRepoRule();
-
     @Test
     public void inactiveWithNoProperty() throws Exception {
-        System.clearProperty(CONFIG_REPO_PROPERTY_NAME);
 
-        getInstance().doRun();
-        Pool pool = Pool.getInstance();
+        System.clearProperty(CONFIG_REPO_PROPERTY_NAME);
+        eraseLoadConfig();
+
+        Updater.getInstance().doRun();
         try {
-            pool.getConfig();
+            Pool.getInstance().getConfig();
             fail();
         } catch (Pool.PoolMisconfigured ex) {
             assertEquals("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property", ex.getMessage());
         }
         assertReports("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property");
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
+    }
+
+    private void eraseLoadConfig() throws IOException {
+        // There is meaningful value set from startup - erase it
+        Whitebox.setInternalState(Pool.getInstance(), "config", null);
+        j.jenkins.setNodes(Collections.<Node>emptyList());
     }
 
     @Test(expected = AbortException.class)
@@ -108,9 +114,7 @@ public class PoolTest {
     }
 
     @Test
-    public void readConfigFromRepo() throws Exception {
-        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
-
+    public void readConfigFromRepo() {
         Pool pool = Pool.getInstance();
         Map<String, String> config = pool.getConfig().getConfig();
         assertEquals("https://dummy.test", config.get("orchestrator.url"));
@@ -125,7 +129,6 @@ public class PoolTest {
     }
     @Test
     public void populateComputers() throws Exception {
-        GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         assertNull(getConfigTaskException("config-repo"));
         Node win1 = j.getNode("win1.acme.com");
         assertEquals("windows w2k12", win1.getLabelString());
@@ -134,12 +137,13 @@ public class PoolTest {
         MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(5));
 
         // Same changes re-applied with no inventory change
+        GitClient git = j.getConfigRepo();
         git.getWorkTree().child("fake_change").touch(0);
         git.add("*");
         git.commit("Update"); // New commit is needed to force computer update
 
         for (int i = 0; i < 2; i++) { // Update with no changes preserves state
-            getInstance().doRun();
+            Updater.getInstance().doRun();
 
             MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(5));
             assertSame(win1, j.getNode("win1.acme.com"));
@@ -150,7 +154,6 @@ public class PoolTest {
     @Test
     public void updateComputers() throws Exception {
         DumbSlave doNotTouchMe = j.createOnlineSlave(); // There is no reason for using some other slave kinds on orchestrator but ...
-        GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
 
         Assert.assertEquals("windows w2k16", j.getNode("win2.acme.com").getLabelString());
         Assert.assertEquals("solaris11 sparc", j.getNode("solaris1.acme.com").getLabelString());
@@ -160,6 +163,7 @@ public class PoolTest {
         Computer computerW1 = nodeW1.toComputer();
 
         // Update
+        GitClient git = j.getConfigRepo();
         FilePath workTree = git.getWorkTree().child("nodes");
         workTree.child("win2.acme.com.xml").renameTo(workTree.child("windows.acme.com.xml")); // Technically, we should rename the attribute as well
         FilePath solarisXml = workTree.child("solaris1.acme.com.xml");
@@ -167,7 +171,7 @@ public class PoolTest {
         solarisXml.write(newConfig, Charset.defaultCharset().name());
         git.add("nodes/*");
         git.commit("Update");
-        getInstance().doRun();
+        Updater.getInstance().doRun();
 
         Assert.assertEquals("windows w2k16", j.getNode("windows.acme.com").getLabelString());
         Assert.assertEquals("solaris12 sparc", j.getNode("solaris1.acme.com").getLabelString());
@@ -181,8 +185,6 @@ public class PoolTest {
 
     @Test
     public void workloadMapping() throws Exception {
-        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
-
         MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
         Queue.Item item = task.schedule();
         assertEquals("jenkins42", item.task.getFullDisplayName());
@@ -208,7 +210,7 @@ public class PoolTest {
     @Test
     public void waitUntilComputerGetsIdleBeforeDeleting() throws Exception {
         final String DELETED_NODE = "solaris1.acme.com";
-        GitClient git = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        GitClient git = j.getConfigRepo();
 
         BlockingTask task = new BlockingTask(Label.get("solaris11"));
         task.schedule();
@@ -218,11 +220,11 @@ public class PoolTest {
         assertTrue(git.getWorkTree().child("nodes").child(DELETED_NODE + ".xml").delete());
         git.add("*");
         git.commit("Remove running node from config repo");
-        getInstance().doRun();
+        Updater.getInstance().doRun();
 
         assertFalse("Node still exists and occupied", j.getNode(DELETED_NODE).toComputer().isIdle());
         Thread.sleep(1000); // It is not an accident
-        getInstance().doRun(); // Trigger the check
+        Updater.getInstance().doRun(); // Trigger the check
         assertFalse("Node still exists and occupied", j.getNode(DELETED_NODE).toComputer().isIdle());
 
         task.done.signal();
@@ -235,9 +237,9 @@ public class PoolTest {
 
     @Test
     public void brokenConfig() throws Exception {
-        Updater updater = getInstance();
+        Updater updater = Updater.getInstance();
 
-        GitClient cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
+        GitClient cr = j.getConfigRepo();
         cr.getWorkTree().child("config").write("No orchestrator url here", "cp1250" /*muahaha*/);
         cr.add("*");
         cr.commit("Break it!");
@@ -245,7 +247,6 @@ public class PoolTest {
         assertReports("ERROR: No orchestrator.url specified by Config Repository");
 
         Pool.ADMIN_MONITOR.clear();
-        cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         cr.getWorkTree().child("config").delete();
         cr.add("*");
         cr.commit("Break it!");
@@ -253,7 +254,6 @@ public class PoolTest {
         assertReports("ERROR: No file named 'config' found in Config Repository");
 
         Pool.ADMIN_MONITOR.clear();
-        cr = j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         cr.getWorkTree().child("jenkinses").deleteRecursive();
         cr.add("*");
         cr.commit("Break it!");
@@ -293,7 +293,6 @@ public class PoolTest {
 
     @Test @Ignore
     public void ui() throws Exception {
-        j.injectConfigRepo(configRepo.create(getClass().getResource("dummy_config_repo")));
         Timer.get().schedule(new Runnable() {
             private final Random rand = new Random();
 
@@ -324,9 +323,10 @@ public class PoolTest {
     @Test
     public void failRestCallsWhenNoPoolConfigRepoSpecified() throws Exception {
         final String NO_CONFIG_REPO_PROPERTY = "Node sharing Config Repo not configured by ";
+        eraseLoadConfig();
+        System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
 
         Pool pool = Pool.getInstance();
-        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName(), j.getRestCredential());
         try {
             pool.getConfigRepoUrl();
             fail();
@@ -334,6 +334,7 @@ public class PoolTest {
             assertThat(ex.getMessage(), startsWith(NO_CONFIG_REPO_PROPERTY));
         }
 
+        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName(), j.getRestCredential());
         ResponseCaptor.Capture discover = rest.executeRequest(rest.post("discover"), new ResponseCaptor());
         assertThat(discover.statusLine.getStatusCode(), equalTo(HttpServletResponse.SC_NOT_IMPLEMENTED));
         assertThat(discover.payload, containsString(NO_CONFIG_REPO_PROPERTY));
@@ -349,16 +350,17 @@ public class PoolTest {
 
     @Test
     public void failRestCallsWhenNoSnapshotExists() throws Exception {
-        GitClient cr = this.configRepo.create(getClass().getResource("dummy_config_repo"));
+        eraseLoadConfig();
+        GitClient cr = j.getConfigRepo();
         cr.getWorkTree().child("config").write("No orchestrator url here", "cp1250" /*muahaha*/);
         cr.add("*");
         cr.commit("Break it!");
-        j.injectConfigRepo(cr);
+        Pool.Updater.getInstance().doRun();
 
         Pool pool = Pool.getInstance();
         RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName(), j.getRestCredential());
         try {
-            System.out.println(pool.getConfig());
+            pool.getConfig();
             fail();
         } catch (Pool.PoolMisconfigured ex) {
             assertThat(ex.getMessage(), containsString("No config snapshot loaded from "));

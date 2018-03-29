@@ -50,6 +50,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author ogondza.
@@ -61,6 +63,16 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     private final transient Object nodeSharingAttributesLock = new Object();
     @GuardedBy("nodeSharingAttributesLock")
     private @Nonnull NodeDefinition nodeDefinition;
+
+    public static @Nonnull Map<String, ShareableNode> getAll() {
+        Map<String, ShareableNode> nodes = new HashMap<>();
+        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+            if (node instanceof ShareableNode) {
+                nodes.put(((ShareableNode) node).name, (ShareableNode) node);
+            }
+        }
+        return nodes;
+    }
 
     public static @CheckForNull ShareableNode getNodeByName(@Nonnull String name) throws IllegalStateException{
         Node node = Jenkins.getActiveInstance().getNode(name);

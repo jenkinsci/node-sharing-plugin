@@ -40,7 +40,6 @@ import hudson.model.labels.LabelAtom;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.LegacySecurityRealm;
 import hudson.security.csrf.DefaultCrumbIssuer;
-import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -72,12 +71,9 @@ public class SharedNodeCloudTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Rule
-    public ConfigRepoRule configRepo = new ConfigRepoRule();
-
     @Test
     public void doTestConnection() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
 
         final Properties prop = new Properties();
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
@@ -121,7 +117,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnectionImproperContentRepo() throws Exception {
-        GitClient cr = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
+        GitClient cr = j.singleJvmGrid(j.jenkins);
         FilePath workTree = cr.getWorkTree();
         workTree.child("config").delete();
 
@@ -136,20 +132,25 @@ public class SharedNodeCloudTest {
 
     @Test
     public void doTestConnectionConfigRepoUrlMismatch() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-        GitClient differentRepoUrlForClient = configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins);
+        GitClient repo = j.singleJvmGrid(j.jenkins);
+        String orchestratorUrl = Pool.getInstance().getConfigRepoUrl();
+        FilePath executorConfigRepo = repo.getWorkTree().child("different_uri");
+        repo.getWorkTree().copyRecursiveTo(executorConfigRepo);
+        repo.getWorkTree().child(".git").copyRecursiveTo(executorConfigRepo.child(".git"));
 
         final SharedNodeCloud.DescriptorImpl descr = new SharedNodeCloud.DescriptorImpl();
-        FormValidation validation = descr.doTestConnection(differentRepoUrlForClient.getWorkTree().getRemote(), j.getRestCredentialId());
+        FormValidation validation = descr.doTestConnection(executorConfigRepo.getRemote(), j.getRestCredentialId());
+        assertThat(validation.getMessage(), containsString(
+                "Orchestrator is configured from " + orchestratorUrl + " but executor uses " + executorConfigRepo.getRemote()
+        ));
         assertThat(validation.kind, equalTo(FormValidation.Kind.WARNING));
-        assertThat(validation.getMessage(), startsWith("Orchestrator is configured from"));
     }
 
     // TODO Implementation isn't completed
     // PJ: What next should be here from Executor side?
     @Test
     public void doReportWorkloadTest() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         List<ReportWorkloadRequest.Workload.WorkloadItem> items = new ArrayList<>();
@@ -162,7 +163,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void configRoundtrip() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud expected = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         j.jenkins.setSecurityRealm(new LegacySecurityRealm());
@@ -178,7 +179,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void nodeStatusTestNotFound() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         assertNull(j.jenkins.getComputer("foo"));
@@ -187,7 +188,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void nodeStatusTestIdle() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
@@ -212,7 +213,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void nodeStatusTestBusy() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
@@ -239,7 +240,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void nodeStatusTestOffline() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
@@ -270,7 +271,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void nodeStatusTestConnecting() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher =
@@ -398,7 +399,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void testGetByName() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         assertThat(SharedNodeCloud.getByName(cloud.name), equalTo(cloud));
@@ -409,7 +410,7 @@ public class SharedNodeCloudTest {
 
     @Test
     public void testGetNodeName() throws Exception {
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         assertThat(cloud.getNodeName("foo"), equalTo("foo-" + cloud.name));
@@ -446,7 +447,7 @@ public class SharedNodeCloudTest {
                 "  <label>foo</label>\n" +
                 "  <nodeProperties/>\n" +
                 "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         SharedNode node = cloud.createNode(new NodeDefinition.Xml("ok-node.xml", source));
@@ -485,7 +486,7 @@ public class SharedNodeCloudTest {
                 "  <nodeProperties/>\n" +
                 "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
 
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         FreeStyleProject job = j.createFreeStyleProject();
@@ -544,7 +545,7 @@ public class SharedNodeCloudTest {
             System.out.println("Name result: " + result.getNodeName());
         }
 
-        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
         for (Node n : Jenkins.getInstance().getNodes()) {

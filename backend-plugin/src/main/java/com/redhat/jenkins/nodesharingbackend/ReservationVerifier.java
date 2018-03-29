@@ -161,11 +161,6 @@ public class ReservationVerifier extends PeriodicWork {
 //            }
         }
 
-        // Wait for all newly discovered reservation tasks to be started
-        for (Future<Queue.Executable> task : startingTasks) {
-            task.get();
-        }
-
 //        for (String nodeName : response.getUsedNodes()) {
 //            ShareableNode node = ShareableNode.getNodeByName(nodeName);
 //            if (node != null) {

@@ -55,12 +55,9 @@ public class ReservationTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Rule
-    public ConfigRepoRule configRepo = new ConfigRepoRule();
-
     @Test
     public void configRepoIsolation() throws Exception {
-        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        GitClient cr = j.singleJvmGrid(j.jenkins);
         StringWriter capture = new StringWriter();
         cr.changelog().to(capture).execute();
         String output = capture.toString();
@@ -70,7 +67,7 @@ public class ReservationTest {
 
     @Test
     public void doTestConnection() throws Exception {
-        GitClient cr = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        GitClient cr = j.singleJvmGrid(j.jenkins);
 
         final Properties prop = new Properties();
         prop.load(this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties"));
@@ -82,7 +79,7 @@ public class ReservationTest {
 
     @Test
     public void runBuildSuccessfully() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         // When I schedule a bunch of tasks on executor
@@ -162,7 +159,7 @@ public class ReservationTest {
 
     @Test
     public void reflectChangesInWorkloadReported() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
         j.jenkins.doQuietDown(); // To keep the items in the queue
@@ -216,7 +213,7 @@ public class ReservationTest {
 
     @Test
     public void buildWithNoLabelShouldNotBeBuilt() throws Exception {
-        j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
+        j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
         assertFalse(cloud.canProvision(null));
 
