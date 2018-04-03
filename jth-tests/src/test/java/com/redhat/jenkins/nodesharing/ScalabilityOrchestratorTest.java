@@ -50,7 +50,10 @@ import hudson.tasks.BuildTrigger;
 import hudson.tasks.Shell;
 import hudson.triggers.TimerTrigger;
 import hudson.util.CopyOnWriteList;
+import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.ConfidentialKey;
+import jenkins.security.CryptoConfidentialKey;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
@@ -60,8 +63,11 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import javax.annotation.Nonnull;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -82,6 +88,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class ScalabilityOrchestratorTest {
@@ -211,6 +218,8 @@ public class ScalabilityOrchestratorTest {
         // TODO DITTO takes a while to propagate the same item to the queue
         //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 0, j.jenkins.getQueue().getItems().length);
         //assertTrue("Build #2 in progress on orchestrator side", computer.isIdle());
+
+        //grid.interactiveBreak();
     }
 
     private Build waitForBuildStarted(JenkinsServer exec) throws Exception {
@@ -282,6 +291,7 @@ public class ScalabilityOrchestratorTest {
         public Statement apply(final Statement base, Description description) {
             return new Statement() {
                 @Override public void evaluate() throws Throwable {
+                    forceCredentialKeysToBeWritten();
                     Throwable fail = null;
                     try {
                         // Replace JTH-only AuthorizationStrategy and SecurityRealm that work elsewhere as it would not load on detached executor.
@@ -364,12 +374,13 @@ public class ScalabilityOrchestratorTest {
 
             jenkinsRule.addSharedNodeCloud(configRepo);
             jenkinsRule.jenkins.save();
-            jenkinsRule.jenkins.getRootPath().child("config.xml").copyTo(jenkinsHome.child("config.xml"));
+            FilePath jthJenkinsRoot = jenkinsRule.jenkins.getRootPath();
+            jthJenkinsRoot.child("config.xml").copyTo(jenkinsHome.child("config.xml"));
             jenkinsRule.jenkins.clouds.clear();
             jenkinsRule.jenkins.save();
 
             // Populate executors with jobs copying them from JTH instance
-            jenkinsRule.jenkins.getRootPath().child("jobs").copyRecursiveTo(jenkinsHome.child("jobs"));
+            jthJenkinsRoot.child("jobs").copyRecursiveTo(jenkinsHome.child("jobs"));
 
             jenkinsHome.child("jenkins.model.JenkinsLocationConfiguration.xml").write(
                     "<?xml version='1.0' encoding='UTF-8'?>\n" +
@@ -380,11 +391,13 @@ public class ScalabilityOrchestratorTest {
             );
 
             // Copy users since there is one for authentication
-            jenkinsRule.jenkins.getRootPath().child("users").copyRecursiveTo(jenkinsHome.child("users"));
+            jthJenkinsRoot.child("users").copyRecursiveTo(jenkinsHome.child("users"));
 
             // Copy secret keys so Secrets are decryptable
-            jenkinsRule.jenkins.getRootPath().child("secrets").copyRecursiveTo(jenkinsHome.child("secrets"));
-            jenkinsRule.jenkins.getRootPath().child("credentials.xml").copyTo(jenkinsHome.child("credentials.xml"));
+            jthJenkinsRoot.child("secrets").copyRecursiveTo(jenkinsHome.child("secrets"));
+            jthJenkinsRoot.child("secret.key").copyTo(jenkinsHome.child("secret.key"));
+            jthJenkinsRoot.child("secret.key.not-so-secret").copyTo(jenkinsHome.child("secret.key.not-so-secret"));
+            jthJenkinsRoot.child("credentials.xml").copyTo(jenkinsHome.child("credentials.xml"));
 
             FilePath plugins = jenkinsHome.child("plugins");
             plugins.mkdirs();
@@ -475,6 +488,33 @@ public class ScalabilityOrchestratorTest {
                 System.out.println("Executor is running at " + executorUrl);
             }
             jenkinsRule.interactiveBreak();
+        }
+
+        /**
+         * The way jenkins-test-harness works causes JENKINS_HOMEs to be unloadable on its own for second and every other
+         * test method and thus unusable for {@link com.redhat.jenkins.nodesharing.ScalabilityOrchestratorTest.ExternalGrid}.
+         * What happens is the keys get generated during the first test setup, stored to disk and a static field. Subsequent
+         * invocations find the static field populated so nothing gets written to disk. Jenkins under test works correctly
+         * vast majority of the time but it would not load the same if loaded from the per-test directory. This was observed
+         * to cause problems for decrypting secrets so that is what the workaround is focusing on.
+         */
+        private void forceCredentialKeysToBeWritten() {
+
+            try {
+                // Unprotected `Secret.KEY.store(Secret.KEY.getKey());`
+                Field keyField = Secret.class.getDeclaredField("KEY");
+                keyField.setAccessible(true);
+                CryptoConfidentialKey key = (CryptoConfidentialKey) keyField.get(null);
+
+                Method storeMethod = ConfidentialKey.class.getDeclaredMethod("store", byte[].class);
+                storeMethod.setAccessible(true);
+                Method getKeyMethod = key.getClass().getDeclaredMethod("getKey");
+                getKeyMethod.setAccessible(true);
+                SecretKeySpec keySpec = (SecretKeySpec) getKeyMethod.invoke(key);
+                storeMethod.invoke(key, keySpec.getEncoded());
+            } catch (Exception ex) {
+                throw new Error(ex);
+            }
         }
     }
 }
