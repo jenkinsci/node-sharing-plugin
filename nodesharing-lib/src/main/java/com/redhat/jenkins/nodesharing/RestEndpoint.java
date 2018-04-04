@@ -75,8 +75,16 @@ public class RestEndpoint {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
 
     // Timeout for REST network communication in ms
-    // TODO: Make it configurable by the user - RHJENKINS-114
-    private static final int TIMEOUT = 5000;
+    /*package for testing*/ static final int TIMEOUT = parseTimeout();
+    private static int parseTimeout() {
+        try {
+            int timeout = Integer.parseInt(System.getProperty("com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT"));
+            if (timeout > 0) return timeout;
+        } catch (NumberFormatException e) {
+            LOGGER.log(Level.WARNING, "Unable to parse TIMEOUT", e);
+        }
+        return 5 * 1000;
+    }
 
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
     private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
