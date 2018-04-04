@@ -88,10 +88,9 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class ScalabilityOrchestratorTest {
+public class GridTest {
 
     private static final String[] MATRIX_AXIS =  new String[] { "0", "1", "2" };
 
@@ -492,7 +491,7 @@ public class ScalabilityOrchestratorTest {
 
         /**
          * The way jenkins-test-harness works causes JENKINS_HOMEs to be unloadable on its own for second and every other
-         * test method and thus unusable for {@link com.redhat.jenkins.nodesharing.ScalabilityOrchestratorTest.ExternalGrid}.
+         * test method and thus unusable for {@link GridTest.ExternalGrid}.
          * What happens is the keys get generated during the first test setup, stored to disk and a static field. Subsequent
          * invocations find the static field populated so nothing gets written to disk. Jenkins under test works correctly
          * vast majority of the time but it would not load the same if loaded from the per-test directory. This was observed
