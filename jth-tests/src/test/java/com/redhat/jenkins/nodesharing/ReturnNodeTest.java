@@ -99,7 +99,7 @@ public class ReturnNodeTest {
         ShareableNode shareableNode = new ShareableNode(nodeDefinition);
         j.jenkins.addNode(shareableNode);
         Label taskLabel = Label.get(Joiner.on("&&").join(nodeDefinition.getLabelAtoms()));
-        ReservationTask task = new ReservationTask(new ExecutorJenkins(j.getURL().toExternalForm(), "name"), taskLabel, "foo");
+        ReservationTask task = new ReservationTask(new ExecutorJenkins(j.getURL().toExternalForm(), "name"), taskLabel, "foo", 1L);
         QueueTaskFuture<Queue.Executable> reservationFuture = task.schedule().getFuture();
         reservationFuture.getStartCondition().get(1, TimeUnit.SECONDS);
         assertFalse(j.jenkins.getComputer(shareableNode.getNodeName()).isIdle());

@@ -307,7 +307,8 @@ public class PoolTest {
                     new ReservationTask(
                             new ExecutorJenkins(ownerUrl, ownerName),
                             Label.get(label),
-                            ownerName + "-" + label
+                            ownerName + "-" + label,
+                            1L
                     ).schedule();
                     System.out.println('.');
                     try {
