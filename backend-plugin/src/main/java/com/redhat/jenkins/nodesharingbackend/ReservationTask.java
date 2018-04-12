@@ -31,6 +31,10 @@ import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.ResourceList;
 import hudson.model.queue.AbstractQueueTask;
+import hudson.security.ACL;
+import hudson.security.AccessControlled;
+import hudson.security.AuthorizationStrategy;
+import hudson.security.Permission;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
@@ -52,8 +56,16 @@ import java.util.logging.Logger;
  *
  * @author ogondza.
  */
-public class ReservationTask extends AbstractQueueTask {
+public class ReservationTask extends AbstractQueueTask implements AccessControlled {
     private static final Logger LOGGER = Logger.getLogger(ReservationTask.class.getName());
+
+    public ACL getACL() { return Jenkins.getInstance().getACL(); }
+    public final void checkPermission(Permission permission) {
+        getACL().checkPermission(permission);
+    }
+    public final boolean hasPermission(Permission permission) {
+        return getACL().hasPermission(permission);
+    }
 
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
