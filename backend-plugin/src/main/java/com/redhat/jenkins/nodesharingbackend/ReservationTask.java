@@ -57,10 +57,9 @@ import java.util.logging.Logger;
  * @author ogondza.
  */
 public class ReservationTask extends AbstractQueueTask implements AccessControlled {
-    private static final Logger LOGGER = Logger.getLogger(com.redhat.jenkins.nodesharingbackend.ReservationTask.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(ReservationTask.class.getName());
 
-    // TODO Should be better secured!
-    public ACL getACL() { return AuthorizationStrategy.Unsecured.UNSECURED.getRootACL(); }
+    public ACL getACL() { return Jenkins.getInstance().getACL(); }
     public final void checkPermission(Permission permission) {
         getACL().checkPermission(permission);
     }
