@@ -33,7 +33,6 @@ import hudson.model.ResourceList;
 import hudson.model.queue.AbstractQueueTask;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
-import hudson.security.AuthorizationStrategy;
 import hudson.security.Permission;
 import hudson.util.OneShotEvent;
 import jenkins.model.Jenkins;
@@ -59,34 +58,32 @@ import java.util.logging.Logger;
 public class ReservationTask extends AbstractQueueTask implements AccessControlled {
     private static final Logger LOGGER = Logger.getLogger(ReservationTask.class.getName());
 
-    public ACL getACL() { return Jenkins.getInstance().getACL(); }
-    public final void checkPermission(Permission permission) {
-        getACL().checkPermission(permission);
-    }
-    public final boolean hasPermission(Permission permission) {
-        return getACL().hasPermission(permission);
-    }
-
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
     private final @Nonnull String taskName;
     private final long qid;
-    // The task is created for reservation we failed to track so the node is already utilized by the executor and therefore
-    // the REST call must not be reattempted.
+    /**
+     * The task is created for reservation we failed to track so the node is already utilized by the executor and therefore
+     * the utilizeNode call must not be reattempted. Note backfill are create when Executor is detected to utilize the node
+     * already so we have no sane taskName or label for it and it is created once the task is already in progress (unlike
+     * regular ReservationTask that is created while Executor build is still in queue)
+     */
     private final boolean backfill;
 
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName,
-                           long qid) {
-        this(owner, label, taskName, qid, false);
-    }
-
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName,
-                           long qid,  boolean backfill) {
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName, long qid) {
         this.jenkins = owner;
         this.label = label;
         this.taskName = taskName;
         this.qid = qid;
+        this.backfill = false;
+    }
+
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) {
+        this.jenkins = owner;
+        this.label = Label.get(host);
+        this.taskName = host;
         this.backfill = backfill;
+        this.qid = -1;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
@@ -104,12 +101,17 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         return taskName;
     }
 
-    public long getExecutorJenkinsQueueId() {
-        return qid;
-    }
-
     @Override public void checkAbortPermission() {throw new AccessDeniedException("Not abortable"); }
     @Override public boolean hasAbortPermission() { return false; }
+    public @Nonnull ACL getACL() {
+        return Jenkins.getInstance().getACL();
+    }
+    public final void checkPermission(@Nonnull Permission permission) {
+        getACL().checkPermission(permission);
+    }
+    public final boolean hasPermission(@Nonnull Permission permission) {
+        return getACL().hasPermission(permission);
+    }
 
     public Queue.Item schedule() {
         return Jenkins.getActiveInstance().getQueue().schedule2(this, 0).getItem();
@@ -132,7 +134,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         return 0; // Orchestrator do not know that
     }
 
-    @Override public @CheckForNull Queue.Executable createExecutable() throws IOException {
+    @Override public @CheckForNull Queue.Executable createExecutable() {
         return new ReservationExecutable(this);
     }
 
@@ -141,16 +143,30 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ReservationTask that = (ReservationTask) o;
-        return Objects.equals(jenkins, that.jenkins) && Objects.equals(qid, that.qid);
+
+        if (!Objects.equals(jenkins, that.jenkins)) return false;
+        // There is a chance real qid will collide with any magic value we choose for backfill qid. As there is no situation
+        // where two backfill tasks should be scheduled for same executor&&host, it is ok to consider them equal.
+        if (backfill != that.backfill) return false;
+        if (backfill) return Objects.equals(taskName, that.taskName);
+
+        // It is quite unlikely multiple tasks for same qid meets on orchestrator side but it would cause more harm
+        // considering them equal as queue would have squashed them. This can, again in even wilder theory, cause the old
+        // and unbuildable (label no longer exists) task will prevent incoming task to run and the presence of the new task
+        // would keep the zombie in place forever.
+        return Objects.equals(qid, that.qid) && Objects.equals(taskName, that.taskName) && Objects.equals(label, that.label);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jenkins, taskName);
+        return backfill
+                ? Objects.hash(jenkins, taskName)
+                : Objects.hash(jenkins, taskName, label, qid)
+        ;
     }
 
     @Override public String toString() {
-        return "ReservationTask '" + taskName + "' (" + getExecutorJenkinsQueueId() + ") for "
+        return "ReservationTask '" + taskName + "' (qid=" + qid + ") for "
                 + jenkins.getName() + " (" + label + ")";
     }
 

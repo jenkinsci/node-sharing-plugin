@@ -47,7 +47,7 @@ public class ExecutorJenkins {
     private final @Nonnull String name;
     private /*final once initialized*/ @CheckForNull RestEndpoint rest;
 
-    /*package*/ ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
+    public ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
         try {
             Jenkins.checkGoodName(name);
             this.name = name;

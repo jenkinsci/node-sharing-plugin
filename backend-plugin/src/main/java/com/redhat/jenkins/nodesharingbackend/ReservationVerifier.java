@@ -122,7 +122,6 @@ public class ReservationVerifier extends PeriodicWork {
 
             Collection<ReservationTask.ReservationExecutable> trackedExecutorReservations = trackedReservations.get(executor);
             hosts: for (String host: er.getValue()) {
-                Long qid = null;
                 for (Iterator<ReservationTask.ReservationExecutable> iterator = trackedExecutorReservations.iterator(); iterator.hasNext(); ) {
                     ReservationTask.ReservationExecutable e = iterator.next();
                     if (host.equals(e.getNodeName())) {
@@ -130,12 +129,11 @@ public class ReservationVerifier extends PeriodicWork {
                         iterator.remove();
                         continue hosts;
                     }
-                    qid = e.getParent().getQueueId();
                 }
                 // TODO node can be already occupied
                 // NC1: Schedule backfill reservation
                 LOGGER.info("Starting backfill reservation for " + executor.getName() + " and " + host);
-                startingTasks.add(new ReservationTask(executor, Label.get(host), host, qid == null ? 1L : qid, true).schedule().getFuture().getStartCondition());
+                startingTasks.add(new ReservationTask(executor, host, true).schedule().getFuture().getStartCondition());
             }
 
             // NC2: Cancel reservation no longer reported by executor
