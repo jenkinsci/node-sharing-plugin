@@ -58,18 +58,18 @@ public class ReservationTask extends AbstractQueueTask {
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
     private final @Nonnull String taskName;
-    private final @Nonnull Long qid;
+    private final long qid;
     // The task is created for reservation we failed to track so the node is already utilized by the executor and therefore
     // the REST call must not be reattempted.
     private final boolean backfill;
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName,
-                           @Nonnull Long qid) {
+                           long qid) {
         this(owner, label, taskName, qid, false);
     }
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName,
-                           @Nonnull Long qid,  boolean backfill) {
+                           long qid,  boolean backfill) {
         this.jenkins = owner;
         this.label = label;
         this.taskName = taskName;
@@ -92,8 +92,8 @@ public class ReservationTask extends AbstractQueueTask {
         return taskName;
     }
 
-    public @Nonnull Long getExecutorJenkinsQueueId() {
-        return new Long(qid);
+    public long getExecutorJenkinsQueueId() {
+        return qid;
     }
 
     @Override public void checkAbortPermission() {throw new AccessDeniedException("Not abortable"); }
