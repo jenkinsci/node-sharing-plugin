@@ -254,7 +254,7 @@ public class Api implements RootAction {
         final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
         final ExecutorJenkins executor = config.getJenkinsByUrl(request.getExecutorUrl());
         for (ReportWorkloadRequest.Workload.WorkloadItem item : reportedItems) {
-            reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName()));
+            reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName(), item.getId()));
         }
 
         Queue.withLock(new Runnable() {

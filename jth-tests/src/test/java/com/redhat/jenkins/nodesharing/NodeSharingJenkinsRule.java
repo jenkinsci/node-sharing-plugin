@@ -257,7 +257,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     protected static class MockTask extends ReservationTask {
         final ShareableComputer actuallyRunOn[] = new ShareableComputer[1];
         MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
-            super(owner, label, "MockTask");
+            super(owner, label, "MockTask", 1L);
         }
 
         @Override

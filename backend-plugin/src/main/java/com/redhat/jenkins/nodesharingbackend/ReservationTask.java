@@ -70,18 +70,22 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     private final @Nonnull ExecutorJenkins jenkins;
     private final @Nonnull Label label;
     private final @Nonnull String taskName;
+    private final long qid;
     // The task is created for reservation we failed to track so the node is already utilized by the executor and therefore
     // the REST call must not be reattempted.
     private final boolean backfill;
 
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName) {
-        this(owner, label, taskName, false);
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName,
+                           long qid) {
+        this(owner, label, taskName, qid, false);
     }
 
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName, boolean backfill) {
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName,
+                           long qid,  boolean backfill) {
         this.jenkins = owner;
         this.label = label;
         this.taskName = taskName;
+        this.qid = qid;
         this.backfill = backfill;
     }
 
@@ -98,6 +102,10 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     public ExecutorJenkins getOwner() { return jenkins; }
     public @Nonnull String getTaskName() {
         return taskName;
+    }
+
+    public long getExecutorJenkinsQueueId() {
+        return qid;
     }
 
     @Override public void checkAbortPermission() {throw new AccessDeniedException("Not abortable"); }
@@ -133,7 +141,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ReservationTask that = (ReservationTask) o;
-        return Objects.equals(jenkins, that.jenkins) && Objects.equals(taskName, that.taskName);
+        return Objects.equals(jenkins, that.jenkins) && Objects.equals(qid, that.qid);
     }
 
     @Override
@@ -142,7 +150,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     @Override public String toString() {
-        return "ReservationTask " + taskName + " for " + jenkins.getName() + " (" + label + ")";
+        return "ReservationTask '" + taskName + "' (" + getExecutorJenkinsQueueId() + ") for "
+                + jenkins.getName() + " (" + label + ")";
     }
 
     public static class ReservationExecutable implements Queue.Executable {
