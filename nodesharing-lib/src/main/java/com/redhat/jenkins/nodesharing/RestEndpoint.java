@@ -29,6 +29,7 @@ import com.google.gson.JsonParseException;
 import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
+import hudson.Util;
 import hudson.security.Permission;
 import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
@@ -76,14 +77,22 @@ public class RestEndpoint {
 
     // Timeout for REST network communication in ms
     /*package for testing*/ static final int TIMEOUT = parseTimeout();
+
+    // Default REST calls timeout in ms
+    private static final int DEFAULT_TIMEOUT = 5 * 1000;
+
     private static int parseTimeout() {
         try {
-            int timeout = Integer.parseInt(System.getProperty("com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT"));
-            if (timeout > 0) return timeout;
+            String strTimeout = Util.fixEmptyAndTrim(System.getProperty("com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT"));
+            if (strTimeout != null) {
+                int timeout = Integer.parseInt(strTimeout);
+                if (timeout > 0) return timeout;
+            }
+            LOGGER.info("Value of com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT isn't defined or not >0, using default " + DEFAULT_TIMEOUT);
         } catch (NumberFormatException e) {
-            LOGGER.log(Level.WARNING, "Unable to parse TIMEOUT", e);
+            LOGGER.log(Level.WARNING, "Unable to parse TIMEOUT, using default value " + DEFAULT_TIMEOUT, e);
         }
-        return 5 * 1000;
+        return DEFAULT_TIMEOUT;
     }
 
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
