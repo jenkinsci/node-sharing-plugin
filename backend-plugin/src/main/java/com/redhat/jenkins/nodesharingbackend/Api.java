@@ -286,7 +286,7 @@ public class Api implements RootAction {
                         }
                         // Cancel items executor is no longer interested in
                         if (!reportedTasks.contains(rs)) {
-                            Jenkins.getActiveInstance().getQueue().cancel(rs);
+                            Jenkins.getActiveInstance().getQueue().cancel(item);
                             LOGGER.info("Item removed from the queue (no longer interested by executor) " + rs);
                         }
                     }
