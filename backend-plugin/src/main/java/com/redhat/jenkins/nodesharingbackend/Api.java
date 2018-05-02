@@ -62,6 +62,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -256,15 +257,8 @@ public class Api implements RootAction {
         final ArrayList<ReservationTask> processed = new ArrayList<>();
 
         // First collect what is executed on nodes already
-        for (Node n : Jenkins.getInstance().getNodes()) {
-            for (Executor e : n.toComputer().getExecutors()) {
-                if (e.getCurrentExecutable() instanceof ReservationTask.ReservationExecutable) {
-                    ReservationTask rs = ((ReservationTask.ReservationExecutable) e.getCurrentExecutable()).getParent();
-                    if (rs.getOwner().equals(executor)) {
-                        processed.add(rs);
-                    }
-                }
-            }
+        for (Map.Entry<String, ShareableNode> sn : ShareableNode.getAll().entrySet()) {
+            processed.add(sn.getValue().getComputer().getReservation().getParent());
         }
 
         final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
