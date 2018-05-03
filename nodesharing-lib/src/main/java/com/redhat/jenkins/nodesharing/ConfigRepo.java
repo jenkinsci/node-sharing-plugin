@@ -187,17 +187,26 @@ public class ConfigRepo {
                 config.load(is);
             }
 
+            String name = jenkinsfile.getName();
             String url = config.getProperty("url");
             if (url == null) {
-                taskLog.error("Jenkins config file " + jenkinsfile.getName() + " has no url property");
+                taskLog.error("Jenkins config file " + name + " has no url property");
                 continue;
-            } else try { // Yep, an else-try statement
-                new URL(url);
+            }
+
+            try {
+                URL u = new URL(url);
+                String enforceHttps = config.getProperty("enforce_https", "true");
+                if (!"false".equals(enforceHttps) && !"https".equals(u.getProtocol())) {
+                    taskLog.error("Jenkins '%s' is using %s protocol, https required", name, u.getProtocol());
+                    continue;
+                }
             } catch (MalformedURLException e) {
                 taskLog.error(e, "%s is not valid jenkins url", url);
                 continue;
             }
-            jenkinses.add(new ExecutorJenkins(url, jenkinsfile.getName()));
+
+            jenkinses.add(new ExecutorJenkins(url, name));
         }
         return Collections.unmodifiableSet(jenkinses);
     }
@@ -296,7 +305,7 @@ public class ConfigRepo {
                 }
             }
 
-            throw new NoSuchElementException("No Jenkins executor configured for url: " + name);
+            throw new NoSuchElementException("No Jenkins executor configured for name: " + name);
         }
 
         public @Nonnull String getOrchestratorUrl() {

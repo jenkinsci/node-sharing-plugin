@@ -57,6 +57,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -266,7 +267,54 @@ public class PoolTest {
         // Executor URL/endpoint not reachable
         // Executor name can not be used for computer
         // Executor config defective
-        // Multiple Executors with same URL / name
+        // Multiple Executors with same URL
+    }
+
+    @Test
+    public void ignoreHttpExecutorsUnlessExplicitlyPermitted() throws Exception {
+        Updater updater = Updater.getInstance();
+
+        GitClient cr = j.getConfigRepo();
+        FilePath jenkinses = cr.getWorkTree().child("jenkinses");
+        jenkinses.deleteContents();
+        jenkinses.child("secured").write("url=https://example.com", "UTF-8");
+        jenkinses.child("unsecured").write("url=http://example.com" + System.lineSeparator() + "enforce_https=false", "UTF-8");
+        cr.add("*");
+        cr.commit("Update");
+        updater.doRun();
+
+        ConfigRepo.Snapshot config = Pool.getInstance().getConfig();
+
+        assertEquals("https", config.getJenkinsByName("secured").getUrl().getProtocol());
+        assertEquals("http", config.getJenkinsByName("unsecured").getUrl().getProtocol());
+
+        // Not secure protocol specified
+        jenkinses.child("broken").write("url=http://example.com", "UTF-8");
+        cr.add("*");
+        cr.commit("Update");
+        updater.doRun();
+
+        assertReports("ERROR: Jenkins 'broken' is using http protocol, https required");
+        try {
+            config.getJenkinsByName("broken");
+            fail();
+        } catch (NoSuchElementException ex) {
+            // expected
+        }
+
+        // No protocol specified
+        jenkinses.child("broken").write("url=ci.example.com", "UTF-8");
+        cr.add("*");
+        cr.commit("Update");
+        updater.doRun();
+
+        assertReports("ERROR: ci.example.com is not valid jenkins url");
+        try {
+            config.getJenkinsByName("unspecified");
+            fail();
+        } catch (NoSuchElementException ex) {
+            // expected
+        }
     }
 
     private void assertReports(String expected) throws Exception {
@@ -281,6 +329,7 @@ public class PoolTest {
                 .getWebResponse()
                 .getContentAsString()
         ;
+
         assertThat(logs, containsString(expected));
         Throwable ex = getConfigTaskException("Primary Config Repo");
         if (ex instanceof TaskLog.TaskFailed) {
@@ -356,7 +405,7 @@ public class PoolTest {
         cr.getWorkTree().child("config").write("No orchestrator url here", "cp1250" /*muahaha*/);
         cr.add("*");
         cr.commit("Break it!");
-        Pool.Updater.getInstance().doRun();
+        Updater.getInstance().doRun();
 
         Pool pool = Pool.getInstance();
         RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), Api.getInstance().getUrlName(), j.getRestCredential());

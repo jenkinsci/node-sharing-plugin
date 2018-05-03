@@ -37,6 +37,7 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Functions;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
@@ -54,6 +55,7 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
 import org.apache.commons.io.FileUtils;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Assert;
@@ -71,10 +73,14 @@ import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
@@ -167,7 +173,21 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         git.add("nodes");
         git.commit("Making nodes in config repo launchable");
         Pool.Updater.getInstance().doRun();
+        assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
         return configRepo;
+    }
+
+    private Map<String, String> printExceptions(Map<String, Throwable> values) throws IOException, InterruptedException {
+        Map<String, String> out = new HashMap<>(values.size());
+        for (Map.Entry<String, Throwable> entry : values.entrySet()) {
+            Throwable value = entry.getValue();
+            String throwable = value instanceof TaskLog.TaskFailed
+                    ? ((TaskLog.TaskFailed) value).getLog().readContent()
+                    : Functions.printThrowable(value)
+            ;
+            out.put(entry.getKey(), throwable);
+        }
+        return out;
     }
 
     private GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
@@ -190,13 +210,21 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return git;
     }
 
+    /**
+     * Write local urls of Jenkinses
+     */
     public void writeJenkinses(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
         FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
         for (FilePath filePath : jenkinsesDir.list()) {
             filePath.delete();
         }
         for (Map.Entry<String, String> j : jenkinses.entrySet()) {
-            jenkinsesDir.child(j.getKey()).write("url=" + j.getValue(), "UTF-8");
+            String url = j.getValue();
+            String amendment = url.startsWith("http://")
+                    ? (System.lineSeparator() + "enforce_https=false")
+                    : ""
+            ;
+            jenkinsesDir.child(j.getKey()).write("url=" + url + amendment, "UTF-8");
         }
         git.add("jenkinses");
         git.commit("Update Jenkinses");
