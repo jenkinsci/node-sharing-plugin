@@ -153,7 +153,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     protected GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
-        git.getWorkTree().child("config").write("orchestrator.url=" + jenkins.getRootUrl(), "UTF-8");
+        git.getWorkTree().child("config").write("orchestrator.url=" + jenkins.getRootUrl() + System.lineSeparator() + "enforce_https=false", "UTF-8");
         git.add("config");
         git.commit("Writing config repo config");
 

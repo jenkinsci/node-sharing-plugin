@@ -271,7 +271,7 @@ public class PoolTest {
     }
 
     @Test
-    public void ignoreHttpExecutorsUnlessExplicitlyPermitted() throws Exception {
+    public void disallowHttpExecutorsUnlessExplicitlyPermitted() throws Exception {
         Updater updater = Updater.getInstance();
 
         GitClient cr = j.getConfigRepo();
@@ -315,6 +315,36 @@ public class PoolTest {
         } catch (NoSuchElementException ex) {
             // expected
         }
+    }
+
+    @Test
+    public void disallowHttpOrchestratorUnlessExplicitlyPermitted() throws Exception {
+        Updater updater = Updater.getInstance();
+
+        GitClient cr = j.getConfigRepo();
+        cr.getWorkTree().child("config").write("orchestrator.url=https://example.com", "UTF-8");
+        cr.add("*");
+        cr.commit("Update");
+        updater.doRun();
+
+        assertThat(Pool.getInstance().getConfig().getOrchestratorUrl(), equalTo("https://example.com"));
+        assertThat(Pool.ADMIN_MONITOR.getErrors().values(), Matchers.emptyIterable());
+
+        cr.getWorkTree().child("config").write("orchestrator.url=http://example.com" + System.lineSeparator() + "enforce_https=false", "UTF-8");
+        cr.add("*");
+        cr.commit("Update");
+        updater.doRun();
+
+        assertThat(Pool.getInstance().getConfig().getOrchestratorUrl(), equalTo("http://example.com"));
+        assertThat(Pool.ADMIN_MONITOR.getErrors().values(), Matchers.emptyIterable());
+
+        cr.getWorkTree().child("config").write("orchestrator.url=http://broken.com", "UTF-8");
+        cr.add("*");
+        cr.commit("Update");
+        updater.doRun();
+
+        assertThat(Pool.getInstance().getConfig().getOrchestratorUrl(), equalTo("http://example.com")); // Previous value
+        assertReports("Orchestrator is using http protocol, https required");
     }
 
     private void assertReports(String expected) throws Exception {
