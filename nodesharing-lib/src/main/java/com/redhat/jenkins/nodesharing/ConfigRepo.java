@@ -152,10 +152,15 @@ public class ConfigRepo {
                 orchestratorUrl = config.get(ORCHESTRATOR_URL);
                 if (orchestratorUrl == null) {
                     taskLog.error("No " + ORCHESTRATOR_URL + " specified by Config Repository");
-                } else try { // Yep, an else-try statement
-                    new URL(orchestratorUrl);
-                } catch (MalformedURLException e) {
-                    taskLog.error(e, "%s is not valid orchestrator url", orchestratorUrl);
+                } else {
+                    try {
+                        URL url = new URL(orchestratorUrl);
+                        if (!isSafeUrl(url, config)) {
+                            taskLog.error("Orchestrator is using %s protocol, https required", url.getProtocol());
+                        }
+                    } catch (MalformedURLException e) {
+                        taskLog.error(e, "%s is not valid orchestrator url", orchestratorUrl);
+                    }
                 }
             }
 
@@ -182,24 +187,35 @@ public class ConfigRepo {
     private @Nonnull Set<ExecutorJenkins> getJenkinses(FilePath jenkinsesDir, TaskLog taskLog) throws IOException, InterruptedException {
         HashSet<ExecutorJenkins> jenkinses = new LinkedHashSet<>();
         for (FilePath jenkinsfile: jenkinsesDir.list()) {
-            Properties config = new Properties();
-            try (InputStream is = jenkinsfile.read()) {
-                config.load(is);
+            HashMap<String, String> config = getProperties(jenkinsfile);
+
+            String name = jenkinsfile.getName();
+            String url = config.get("url");
+            if (url == null) {
+                taskLog.error("Jenkins config file " + name + " has no url property");
+                continue;
             }
 
-            String url = config.getProperty("url");
-            if (url == null) {
-                taskLog.error("Jenkins config file " + jenkinsfile.getName() + " has no url property");
-                continue;
-            } else try { // Yep, an else-try statement
-                new URL(url);
+            try {
+                URL u = new URL(url);
+                if (!isSafeUrl(u, config)) {
+                    taskLog.error("Jenkins '%s' is using %s protocol, https required", name, u.getProtocol());
+                    continue;
+                }
             } catch (MalformedURLException e) {
                 taskLog.error(e, "%s is not valid jenkins url", url);
                 continue;
             }
-            jenkinses.add(new ExecutorJenkins(url, jenkinsfile.getName()));
+
+            jenkinses.add(new ExecutorJenkins(url, name));
         }
         return Collections.unmodifiableSet(jenkinses);
+    }
+
+    private boolean isSafeUrl(URL u, Map<String, String> config) {
+        if ("false".equals(config.get("enforce_https"))) return true;
+
+        return "https".equals(u.getProtocol());
     }
 
     private @Nonnull HashMap<String, String> getProperties(FilePath configFile) throws IOException, InterruptedException {
@@ -296,7 +312,7 @@ public class ConfigRepo {
                 }
             }
 
-            throw new NoSuchElementException("No Jenkins executor configured for url: " + name);
+            throw new NoSuchElementException("No Jenkins executor configured for name: " + name);
         }
 
         public @Nonnull String getOrchestratorUrl() {
