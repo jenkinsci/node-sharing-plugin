@@ -73,14 +73,12 @@ import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
@@ -351,6 +349,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      * Trigger workload update now from executor
      */
     protected void reportWorkloadToOrchestrator() {
-        WorkloadReporter.all().get(WorkloadReporter.class).doRun();
+        WorkloadReporter.Detector.all().get(WorkloadReporter.Detector.class).run();
     }
 }

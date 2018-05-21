@@ -28,9 +28,13 @@ import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import hudson.Extension;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
+import hudson.model.User;
 import hudson.model.queue.QueueListener;
+import hudson.security.ACL;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
+import org.acegisecurity.context.SecurityContext;
+import org.acegisecurity.context.SecurityContextHolder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -57,6 +61,8 @@ public class WorkloadReporter extends PeriodicWork {
 
     @Override @VisibleForTesting
     public void doRun() {
+        assert Jenkins.getAuthentication() == ACL.SYSTEM: "Must be called as SYSTEM, not " + Jenkins.getAuthentication();
+
         Map<SharedNodeCloud, ReportWorkloadRequest.Workload> workloadMapping = new HashMap<>();
         // Make sure those scheduled sooner are at the beginning
         List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
@@ -123,7 +129,12 @@ public class WorkloadReporter extends PeriodicWork {
         @Override
         public void run() {
             nextPush = null;
-            wr.doRun();
+            SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
+            try {
+                wr.doRun();
+            } finally {
+                SecurityContextHolder.setContext(oldContext);
+            }
         }
     }
 }
