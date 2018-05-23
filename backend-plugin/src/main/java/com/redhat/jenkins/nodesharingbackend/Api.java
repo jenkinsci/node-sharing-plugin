@@ -43,6 +43,8 @@ import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
+import hudson.model.Executor;
+import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.RootAction;
 import jenkins.model.Jenkins;
@@ -60,6 +62,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -249,38 +252,61 @@ public class Api implements RootAction {
         final ConfigRepo.Snapshot config = pool.getConfig(); // Fail early when there is no config
 
         final ReportWorkloadRequest request = Entity.fromInputStream(req.getInputStream(), ReportWorkloadRequest.class);
+        final ExecutorJenkins executor = config.getJenkinsByUrl(request.getExecutorUrl());
+
+        final ArrayList<ReservationTask> processed = new ArrayList<>();
+
+        // First collect what is executed on nodes already
+        for (Map.Entry<String, ShareableNode> sn : ShareableNode.getAll().entrySet()) {
+            processed.add(sn.getValue().getComputer().getReservation().getParent());
+        }
 
         final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
         final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
-        final ExecutorJenkins executor = config.getJenkinsByUrl(request.getExecutorUrl());
         for (ReportWorkloadRequest.Workload.WorkloadItem item : reportedItems) {
             reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName(), item.getId()));
         }
 
+        // Examine current queue
         Queue.withLock(new Runnable() {
-            @Override public void run() {
-                Queue queue = Jenkins.getActiveInstance().getQueue();
-                for (Queue.Item item : queue.getItems()) {
+            @Override
+            public void run() {
+                for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
                     if (item.task instanceof ReservationTask) {
-                        // Cancel items executor is no longer interested in and keep those it cares for
-                        if (!reportedTasks.contains(item.task)) {
-                            queue.cancel(item);
+                        ReservationTask rs = (ReservationTask) item.task;
+                        // Collect what was processed already
+                        if (rs.getOwner().equals(executor)) {
+                            processed.add(rs);
                         }
-                        reportedTasks.remove(item.task);
+                        // Cancel items executor is no longer interested in
+                        if (!reportedTasks.contains(rs)) {
+                            Jenkins.getActiveInstance().getQueue().cancel(item);
+                            LOGGER.info("Item removed from the queue (no longer interested by executor) " + rs);
+                        }
                     }
-                }
-
-                // These might have been reported just before the build started the execution on Executor so now the
-                // ReservationTask might be executing or even completed on executor, though there is no way for orchestrator
-                // to know. This situation will be handled by executor rejecting the `utilizeNode` call.
-                for (ReservationTask newTask : reportedTasks) {
-                    queue.schedule2(newTask, 0);
                 }
             }
         });
 
-        String version = this.version;
-        new ReportWorkloadResponse(pool.getConfigRepoUrl(), version).toOutputStream(rsp.getOutputStream());
+        // Remove duplicated tasks
+        for (ReservationTask rs : reportedTasks.toArray(new ReservationTask [0])) {
+            if (processed.contains(rs)) {
+                reportedTasks.remove(rs);
+                LOGGER.info("Duplicated item removed from the request " + rs);
+            }
+        }
+
+        // Schedule new tasks
+        StringBuilder sb = new StringBuilder();
+        for (ReservationTask rs : reportedTasks) {
+            Jenkins.getActiveInstance().getQueue().schedule2(rs, 0);
+            sb.append("\n  " + rs);
+        }
+        if (sb.toString().length() > 0) {
+            LOGGER.info("Scheduled new tasks:" + sb.toString());
+        }
+
+        new ReportWorkloadResponse(pool.getConfigRepoUrl(), this.version).toOutputStream(rsp.getOutputStream());
     }
 
     /**

@@ -199,7 +199,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
             String executorName = task.getOwner().getName();
-            LOGGER.info("Reservation of " + nodeName + " started for " + executorName);
+            LOGGER.info("Reservation of " + nodeName + " started for " + executorName + " (" + task + ")");
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
 
@@ -220,7 +220,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                         continue;
                     }
                     if (!accepted) {
-                        LOGGER.info("Executor " + executorName + " rejected node " + nodeName);
+                        LOGGER.info("Executor " + executorName + " rejected node " + nodeName + " (" + task + ")");
                         return; // Abort reservation
                     } else {
                         break; // Wait for return
@@ -230,7 +230,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
             try {
                 done.block();
-                LOGGER.info("Task completed");
+                LOGGER.info("Task completed (" + task + ")");
             } catch (InterruptedException e) {
                 LOGGER.log(Level.INFO, "Task interrupted", e);
             }
