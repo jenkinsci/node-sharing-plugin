@@ -278,7 +278,7 @@ public class ConfigRepo {
         }
 
         public @Nonnull String getSource() {
-            return source.toString();
+            return ObjectId.toString(source);
         }
 
         public @Nonnull Map<String, NodeDefinition> getNodes() {

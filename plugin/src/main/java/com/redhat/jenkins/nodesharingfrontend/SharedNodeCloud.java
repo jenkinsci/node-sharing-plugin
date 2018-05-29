@@ -175,7 +175,9 @@ public class SharedNodeCloud extends Cloud {
             String oldRev = latestConfig == null ? null : latestConfig.getSource();
             latestConfig = getConfigRepo().getSnapshot();
             String newRev = latestConfig.getSource();
-            LOGGER.info("Config repo for " + name + " updated from " + oldRev + " to " + newRev);
+            if (!newRev.equals(oldRev)) {
+                LOGGER.info("Config repo for " + name + " updated from " + oldRev + " to " + newRev);
+            }
         } catch (IOException|TaskLog.TaskFailed ex) {
             ADMIN_MONITOR.report(configRepoUrl, ex);
             LOGGER.log(Level.SEVERE, "Failed updating config", ex);
