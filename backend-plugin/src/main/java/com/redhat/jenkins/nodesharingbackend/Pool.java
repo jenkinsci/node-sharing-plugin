@@ -37,7 +37,6 @@ import hudson.Functions;
 import hudson.Util;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
-import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
@@ -133,7 +132,12 @@ public class Pool {
 
     private void updateConfig(@Nonnull ConfigRepo.Snapshot config) {
         synchronized (configLock) {
+            String oldRev = this.config == null ? null : this.config.getSource();
+            String newRev = config.getSource();
             this.config = config;
+            if (!newRev.equals(oldRev)) {
+                LOGGER.info("Config repo updated from " + oldRev + " to " + newRev);
+            }
         }
 
         updateNodes(config.getNodes());

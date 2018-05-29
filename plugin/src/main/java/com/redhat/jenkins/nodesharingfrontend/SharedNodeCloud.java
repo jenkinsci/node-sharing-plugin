@@ -46,9 +46,7 @@ import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
@@ -174,7 +172,10 @@ public class SharedNodeCloud extends Cloud {
 
     private void updateConfigSnapshot() throws InterruptedException {
         try {
+            String oldRev = latestConfig == null ? null : latestConfig.getSource();
             latestConfig = getConfigRepo().getSnapshot();
+            String newRev = latestConfig.getSource();
+            LOGGER.info("Config repo for " + name + " updated from " + oldRev + " to " + newRev);
         } catch (IOException|TaskLog.TaskFailed ex) {
             ADMIN_MONITOR.report(configRepoUrl, ex);
             LOGGER.log(Level.SEVERE, "Failed updating config", ex);

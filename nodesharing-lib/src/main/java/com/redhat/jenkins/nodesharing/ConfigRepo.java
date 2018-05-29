@@ -277,6 +277,10 @@ public class ConfigRepo {
             this.nodes = nodes;
         }
 
+        public @Nonnull String getSource() {
+            return source.toString();
+        }
+
         public @Nonnull Map<String, NodeDefinition> getNodes() {
             return nodes;
         }
