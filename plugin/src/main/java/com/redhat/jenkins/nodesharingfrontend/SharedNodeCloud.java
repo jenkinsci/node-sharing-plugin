@@ -341,7 +341,7 @@ public class SharedNodeCloud extends Cloud {
             return new StandardListBoxModel().withMatching(
                     anyOf(instanceOf(SSHUserPrivateKey.class), instanceOf(UsernamePasswordCredentials.class)),
                     CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
-            ).includeEmptyValue();
+            );
         }
 
         @Restricted(DoNotUse.class)
@@ -349,7 +349,7 @@ public class SharedNodeCloud extends Cloud {
             return new StandardListBoxModel().withMatching(
                     instanceOf(UsernamePasswordCredentials.class),
                     CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
-            ).includeEmptyValue();
+            );
         }
 
         /**

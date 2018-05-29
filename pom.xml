@@ -85,27 +85,32 @@
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>cloud-stats</artifactId>
-        <version>0.17</version>
+        <version>0.18</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>credentials</artifactId>
-        <version>2.1.13</version>
+        <version>1.27</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>resource-disposer</artifactId>
-        <version>0.1</version>
+        <version>0.8</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>ssh-credentials</artifactId>
-        <version>1.13</version>
+        <version>1.11</version>
       </dependency>
       <dependency>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>ssh-slaves</artifactId>
         <version>1.10</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.plugins.icon-shim</groupId>
+        <artifactId>icon-set</artifactId>
+        <version>2.0.2</version>
       </dependency>
 
       <!-- Java modules -->
@@ -134,11 +139,6 @@
         <artifactId>httpclient</artifactId>
         <version>4.5.2</version>
       </dependency>
-      <!--<dependency>-->
-        <!--<groupId>org.mockito</groupId>-->
-        <!--<artifactId>mockito-core</artifactId>-->
-        <!--<version>2.13.0</version>-->
-      <!--</dependency>-->
     </dependencies>
   </dependencyManagement>
 
@@ -146,7 +146,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>git-client</artifactId>
-      <version>2.5.0</version>
+      <version>1.17.1</version>
     </dependency>
 
     <!-- Test deps -->

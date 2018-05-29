@@ -23,8 +23,6 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
-import org.eclipse.jgit.annotations.NonNull;
-
 import javax.annotation.Nonnull;
 
 /**
