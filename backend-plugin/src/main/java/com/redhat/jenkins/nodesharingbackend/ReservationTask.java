@@ -41,7 +41,6 @@ import org.acegisecurity.AccessDeniedException;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -199,7 +198,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
             String executorName = task.getOwner().getName();
-            LOGGER.info("Reservation of " + nodeName + " started for " + executorName);
+            String taskName = "Reservation of " + nodeName + " by " + executorName;
+            LOGGER.info(taskName + " started");
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
 
@@ -214,13 +214,17 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                         try {
                             Thread.sleep(1000 * 60 * 5);
                         } catch (InterruptedException e) {
-                            LOGGER.log(Level.INFO, "Task interrupted", e);
+                            e.addSuppressed(ex);
+                            LOGGER.log(Level.INFO, taskName + " interrupted", e);
                             return;
                         }
                         continue;
+                    } catch (Throwable ex) {
+                        LOGGER.log(Level.SEVERE, taskName + " failed", ex);
+                        return;
                     }
                     if (!accepted) {
-                        LOGGER.info("Executor " + executorName + " rejected node " + nodeName);
+                        LOGGER.info(taskName + " rejected by executor");
                         return; // Abort reservation
                     } else {
                         break; // Wait for return
@@ -230,12 +234,11 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
             try {
                 done.block();
-                LOGGER.info("Task completed");
+                LOGGER.info(taskName + " completed");
             } catch (InterruptedException e) {
-                LOGGER.log(Level.INFO, "Task interrupted", e);
+                LOGGER.log(Level.INFO, taskName + " interrupted", e);
             }
         }
-
 
         private @Nonnull ShareableComputer getExecutingComputer() {
             Executor executor = Executor.currentExecutor();
