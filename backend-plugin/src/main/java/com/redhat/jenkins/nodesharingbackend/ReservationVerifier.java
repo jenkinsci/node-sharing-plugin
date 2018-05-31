@@ -24,6 +24,7 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.Extension;
@@ -45,6 +46,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -185,7 +187,11 @@ public class ReservationVerifier extends PeriodicWork {
     ) {
         Map<ExecutorJenkins, Collection<String>> responses = new HashMap<>();
         for (ExecutorJenkins executorJenkins : jenkinses) {
-            responses.put(executorJenkins, api.reportUsage(executorJenkins).getUsedNodes());
+            try {
+                responses.put(executorJenkins, api.reportUsage(executorJenkins).getUsedNodes());
+            } catch (ActionFailed e) {
+                LOGGER.log(Level.SEVERE, "Jenkins master '" + executorJenkins + "' didn't respond correctly:", e);
+            }
         }
         return responses;
     }
