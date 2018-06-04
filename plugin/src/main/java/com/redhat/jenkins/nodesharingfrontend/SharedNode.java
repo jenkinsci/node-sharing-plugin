@@ -94,11 +94,6 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     @Override
     protected void _terminate(TaskListener listener) {
-        ProvisioningActivity activity = CloudStatistics.get().getActivityFor(this);
-        if (activity != null) {
-            activity.enterIfNotAlready(COMPLETED);
-        }
-
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
         if (cloud != null) { // Might be deleted or using different config repo
             cloud.getApi().returnNode(this);
