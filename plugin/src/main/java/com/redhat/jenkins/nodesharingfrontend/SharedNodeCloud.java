@@ -54,6 +54,7 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Shared Node Cloud implementation.
@@ -336,16 +337,18 @@ public class SharedNodeCloud extends Cloud {
             return "Shared Nodes";
         }
 
-        @Restricted(DoNotUse.class)
+        @Restricted(DoNotUse.class) @RequirePOST
         public ListBoxModel doFillSshCredentialsIdItems() {
+            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel().withMatching(
                     anyOf(instanceOf(SSHUserPrivateKey.class), instanceOf(UsernamePasswordCredentials.class)),
                     CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
             );
         }
 
-        @Restricted(DoNotUse.class)
+        @Restricted(DoNotUse.class) @RequirePOST
         public ListBoxModel doFillOrchestratorCredentialsIdItems() {
+            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel().withMatching(
                     instanceOf(UsernamePasswordCredentials.class),
                     CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
@@ -359,7 +362,7 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
-        @Restricted(DoNotUse.class)
+        @Restricted(DoNotUse.class) @RequirePOST
         public FormValidation doTestConnection(
                 @Nonnull @QueryParameter("configRepoUrl") String configRepoUrl,
                 @Nonnull @QueryParameter("orchestratorCredentialsId") String restCredentialId

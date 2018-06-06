@@ -86,6 +86,7 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
     @Override
     @Restricted(NoExternalUse.class)
     public HttpResponse doDoDelete() throws IOException {
+        checkPermission(DELETE);
         SharedNode node = getNode();
         if (node == null) {
             super.doDoDelete();

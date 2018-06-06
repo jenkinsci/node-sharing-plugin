@@ -113,9 +113,11 @@ public class Api {
     }
 
     private @Nonnull UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
+        Jenkins instance = Jenkins.getActiveInstance();
+        instance.checkPermission(Jenkins.ADMINISTER);
         String cid = cloud.getOrchestratorCredentialsId();
         UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
+                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, instance, ACL.SYSTEM),
                 CredentialsMatchers.withId(cid)
         );
         if (cred == null) throw new IllegalStateException(
