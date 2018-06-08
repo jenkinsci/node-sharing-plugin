@@ -27,7 +27,7 @@ THE SOFTWARE.
     <st:include page="sidepanel.jelly"/>
     <l:main-panel>
       <p>
-        This is a Shared Node. Configuration not supported!
+        This is a Shared Node. Configuration is not supported!
       </p>
     </l:main-panel>
   </l:layout>

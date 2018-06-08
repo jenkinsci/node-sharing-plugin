@@ -28,7 +28,6 @@ import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import hudson.Extension;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
-import hudson.model.User;
 import hudson.model.queue.QueueListener;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
@@ -59,7 +58,8 @@ public class WorkloadReporter extends PeriodicWork {
         return 3 * MIN;
     }
 
-    @Override @VisibleForTesting
+    @Override
+    @VisibleForTesting
     public void doRun() {
         assert Jenkins.getAuthentication() == ACL.SYSTEM: "Must be called as SYSTEM, not " + Jenkins.getAuthentication();
 
@@ -99,11 +99,13 @@ public class WorkloadReporter extends PeriodicWork {
      * Schedule reportWorkload call for near future once buildable items change. Ignore all changes until the time the
      * push takes place.
      */
-    @Extension @Restricted(NoExternalUse.class)
+    @Extension
+    @Restricted(NoExternalUse.class)
     public static final class Detector extends QueueListener implements Runnable {
         private volatile Future<?> nextPush;
 
-        @Inject WorkloadReporter wr;
+        @Inject
+        WorkloadReporter wr;
 
         @Override
         public void onEnterBuildable(Queue.BuildableItem bi) {
