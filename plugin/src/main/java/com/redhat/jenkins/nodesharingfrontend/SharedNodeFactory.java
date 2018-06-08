@@ -40,7 +40,8 @@ import javax.annotation.Nonnull;
  */
 @Restricted(NoExternalUse.class)
 public abstract class SharedNodeFactory implements ExtensionPoint {
-    public static @Nonnull SharedNode transform(@Nonnull NodeDefinition def) throws IllegalArgumentException {
+    @Nonnull
+    public static SharedNode transform(@Nonnull NodeDefinition def) throws IllegalArgumentException {
         for (SharedNodeFactory factory : ExtensionList.lookup(SharedNodeFactory.class)) {
             SharedNode node = factory.create(def);
             if (node != null) return decorate(node);
@@ -49,17 +50,21 @@ public abstract class SharedNodeFactory implements ExtensionPoint {
         throw new IllegalArgumentException("No SharedNodeFactory to process " + def.getDeclaringFileName());
     }
 
-    private static @Nonnull SharedNode decorate(@Nonnull SharedNode node) {
+    @Nonnull
+    private static SharedNode decorate(@Nonnull SharedNode node) {
         node.setRetentionStrategy(new SharedOnceRetentionStrategy(2));
         return node;
     }
 
-    public abstract @CheckForNull SharedNode create(@Nonnull NodeDefinition def);
+    @CheckForNull
+    public abstract SharedNode create(@Nonnull NodeDefinition def);
 
     @Extension
     public static final class XStreamFactory extends SharedNodeFactory {
 
-        @CheckForNull @Override public SharedNode create(@Nonnull NodeDefinition def) {
+        @Override
+        @CheckForNull
+        public SharedNode create(@Nonnull NodeDefinition def) {
             if (def instanceof NodeDefinition.Xml) {
                 SharedNode node = null;
                 try {

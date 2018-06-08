@@ -18,7 +18,6 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
-import static com.cloudbees.plugins.credentials.CredentialsMatchers.anyOf;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
 
 import java.io.ByteArrayOutputStream;
@@ -49,7 +48,6 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
@@ -65,18 +63,22 @@ public class SharedNodeCloud extends Cloud {
     private static final ConfigRepoAdminMonitor ADMIN_MONITOR = new ConfigRepoAdminMonitor();
 
     /** Git cloneable URL of config repository. */
-    private @Nonnull String configRepoUrl;
+    @Nonnull
+    private String configRepoUrl;
 
     /** Credentials ID for orchestrator REST communication */
-    private @Nonnull String orchestratorCredentialsId;
+    @Nonnull
+    private String orchestratorCredentialsId;
 
     /** The id of the ssh credentials for hosts. */
     private String sshCredentialsId;
 
     private transient Api api = null;
 
-    private transient @Nullable ConfigRepo configRepo; // Null after deserialization until getConfigRepo is called
-    private transient @CheckForNull ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
+    @Nullable
+    private transient ConfigRepo configRepo; // Null after deserialization until getConfigRepo is called
+    @CheckForNull
+    private transient ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
 
     /**
      * Constructor for Config Page.
@@ -100,7 +102,8 @@ public class SharedNodeCloud extends Cloud {
      *
      * @throws IllegalStateException In case cloud is not able to obtain the config.
      */
-    public final @Nonnull Api getApi() throws IllegalStateException {
+    @Nonnull
+    public final Api getApi() throws IllegalStateException {
         if (this.api == null) {
             ConfigRepo.Snapshot latestConfig = getLatestConfig();
             if (latestConfig == null) throw new IllegalStateException("No latest config found");
@@ -134,7 +137,8 @@ public class SharedNodeCloud extends Cloud {
      *
      * @return credential id.
      */
-    @Nonnull @Restricted(DoNotUse.class) // View Only
+    @Restricted(DoNotUse.class) // View Only
+    @Nonnull
     public String getSshCredentialsId() {
         return sshCredentialsId;
     }
@@ -144,7 +148,8 @@ public class SharedNodeCloud extends Cloud {
         return orchestratorCredentialsId;
     }
 
-    private @Nonnull ConfigRepo getConfigRepo() {
+    @Nonnull
+    private ConfigRepo getConfigRepo() {
         synchronized (this) { // Prevent several ConfigRepo instances to be created over same directory
             if (configRepo != null) return configRepo;
 
@@ -188,11 +193,13 @@ public class SharedNodeCloud extends Cloud {
     @Extension
     public static class ConfigRepoUpdater extends PeriodicWork {
 
-        @Override public long getRecurrencePeriod() {
+        @Override
+        public long getRecurrencePeriod() {
             return 5 * MIN;
         }
 
-        @Override protected void doRun() throws Exception {
+        @Override
+        protected void doRun() throws Exception {
             ADMIN_MONITOR.clear();
             for (SharedNodeCloud cloud : getAll()) {
                 cloud.updateConfigSnapshot();
@@ -240,6 +247,7 @@ public class SharedNodeCloud extends Cloud {
         return status;
     }
 
+    @Nonnull
     public SharedNode createNode(@Nonnull final NodeDefinition definition) {
         SharedNode node = SharedNodeFactory.transform(definition);
         final String nodeName = definition.getName();
@@ -289,7 +297,8 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Override
-    public @Nonnull Collection<PlannedNode> provision(@CheckForNull final Label label, final int excessWorkload) {
+    @Nonnull
+    public Collection<PlannedNode> provision(@CheckForNull final Label label, final int excessWorkload) {
         // The nodes are not delivered through PlannedNodes so this is always empty.
         // TODO other clouds will try to deliver this while we are trying as well.
         return Collections.emptyList();
@@ -313,7 +322,8 @@ public class SharedNodeCloud extends Cloud {
     /**
      * Get all configured {@link SharedNodeCloud}s.
      */
-    public static @Nonnull Collection<SharedNodeCloud> getAll() {
+    @Nonnull
+    public static Collection<SharedNodeCloud> getAll() {
         ArrayList<SharedNodeCloud> out = new ArrayList<>();
         for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
             if (cloud instanceof SharedNodeCloud) {
@@ -332,21 +342,16 @@ public class SharedNodeCloud extends Cloud {
 
     @Extension
     public static class DescriptorImpl extends Descriptor<Cloud> {
+
         @Override
+        @Nonnull
         public String getDisplayName() {
             return "Shared Nodes";
         }
 
-        @Restricted(DoNotUse.class) @RequirePOST
-        public ListBoxModel doFillSshCredentialsIdItems() {
-            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
-            return new StandardListBoxModel().withMatching(
-                    anyOf(instanceOf(SSHUserPrivateKey.class), instanceOf(UsernamePasswordCredentials.class)),
-                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
-            );
-        }
-
-        @Restricted(DoNotUse.class) @RequirePOST
+        @Restricted(DoNotUse.class)
+        @RequirePOST
+        @Nonnull
         public ListBoxModel doFillOrchestratorCredentialsIdItems() {
             Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel().withMatching(
@@ -362,7 +367,9 @@ public class SharedNodeCloud extends Cloud {
          * @return Form Validation.
          * @throws ServletException if occurs.
          */
-        @Restricted(DoNotUse.class) @RequirePOST
+        @Restricted(DoNotUse.class)
+        @RequirePOST
+        @Nonnull
         public FormValidation doTestConnection(
                 @Nonnull @QueryParameter("configRepoUrl") String configRepoUrl,
                 @Nonnull @QueryParameter("orchestratorCredentialsId") String restCredentialId

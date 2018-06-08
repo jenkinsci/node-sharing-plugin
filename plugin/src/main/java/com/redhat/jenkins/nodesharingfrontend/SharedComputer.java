@@ -18,6 +18,8 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -29,7 +31,13 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
 
     private final ProvisioningActivity.Id id;
 
+    public SharedComputer(SharedNode slave) {
+        super(slave);
+        id = slave.getId();
+    }
+
     @Override
+    @CheckForNull
     public SharedNode getNode() {
         return super.getNode();
     }
@@ -67,12 +75,8 @@ public class SharedComputer extends AbstractCloudComputer<SharedNode> implements
         terminateComputer(this);
     }
 
-    public SharedComputer(SharedNode slave) {
-        super(slave);
-        id = slave.getId();
-    }
-
     @Override
+    @Nonnull
     public ProvisioningActivity.Id getId() {
         return id;
     }

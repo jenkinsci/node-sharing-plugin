@@ -12,9 +12,4 @@
 
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="configRepoUrl,orchestratorCredentialsId" />
 
-  <f:section title="Node Parameters">
-    <f:entry title="${%SSH Credentials}" field="sshCredentialsId">
-      <c:select/>
-    </f:entry>
-  </f:section>
 </j:jelly>

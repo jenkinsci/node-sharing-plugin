@@ -20,6 +20,7 @@ import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
@@ -44,8 +45,10 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
     };
 
-    private @Nonnull ProvisioningActivity.Id id;
-    private @Nonnull String hostname;
+    @Nonnull
+    private ProvisioningActivity.Id id;
+    @Nonnull
+    private String hostname;
 
     // Never used, the class is always created from NodeDefinition. See: SharedNodeCloud#createNode()
     @Restricted(DoNotUse.class)
@@ -77,11 +80,13 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     }
 
     @Override
+    @Nonnull
     public AbstractCloudComputer<?> createComputer() {
         return new SharedComputer(this);
     }
 
     @Override
+    @CheckForNull
     public CauseOfBlockage canTake(BuildableItem item) {
         if (item.task instanceof Queue.FlyweightTask) {
             return COB_NO_FLYWEIGHTS;
@@ -100,16 +105,19 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         }
     }
 
-    public @Nonnull String getHostName() {
+    @Nonnull
+    public String getHostName() {
         return hostname;
     }
 
     @Override
-    public @Nonnull ProvisioningActivity.Id getId() {
+    @Nonnull
+    public ProvisioningActivity.Id getId() {
         return id;
     }
 
-    public @Nonnull Node asNode() {
+    @Nonnull
+    public Node asNode() {
         return this;
     }
 
@@ -120,6 +128,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     public static final class DescriptorImpl extends SlaveDescriptor {
 
         @Override
+        @Nonnull
         public String getDisplayName() {
             return "Shared Node";
         }

@@ -10,7 +10,6 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.CloudRetentionStrategy;
 import hudson.util.TimeUnit2;
-import jenkins.security.NotReallyRoleSensitiveCallable;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -49,17 +48,21 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
         return 1;
     }
 
-    @Override public void start(AbstractCloudComputer c) {
+    @Override
+    public void start(AbstractCloudComputer c) {
         super.start(c);
     }
 
-    @Override public void taskAccepted(Executor executor, Queue.Task task) {}
+    @Override
+    public void taskAccepted(Executor executor, Queue.Task task) {}
 
-    @Override public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+    @Override
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
         done(executor);
     }
 
-    @Override public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+    @Override
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
         done(executor);
     }
 

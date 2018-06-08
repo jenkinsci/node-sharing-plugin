@@ -76,7 +76,8 @@ import java.util.logging.Logger;
 public class Api {
 
     private static final Logger LOGGER = Logger.getLogger(Api.class.getName());
-    private final @Nonnull ExecutorEntity.Fingerprint fingerprint;
+    @Nonnull
+    private final ExecutorEntity.Fingerprint fingerprint;
 
     private final SharedNodeCloud cloud;
     private final RestEndpoint rest;
@@ -112,7 +113,8 @@ public class Api {
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator", getRestCredential(cloud));
     }
 
-    private @Nonnull UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
+    @Nonnull
+    private UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
         Jenkins instance = Jenkins.getActiveInstance();
         instance.checkPermission(Jenkins.ADMINISTER);
         String cid = cloud.getOrchestratorCredentialsId();
@@ -142,6 +144,7 @@ public class Api {
      *
      * @return Discovery result.
      */
+    @Nonnull
     public DiscoverResponse discover() throws ActionFailed {
         return rest.executeRequest(
                 rest.post("discover"),
