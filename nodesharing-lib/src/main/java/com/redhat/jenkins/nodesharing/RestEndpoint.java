@@ -30,6 +30,8 @@ import com.redhat.jenkins.nodesharing.transport.AbstractEntity;
 import com.redhat.jenkins.nodesharing.transport.CrumbResponse;
 import com.redhat.jenkins.nodesharing.transport.Entity;
 import hudson.Util;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.security.Permission;
 import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
@@ -55,6 +57,8 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -98,6 +102,18 @@ public class RestEndpoint {
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
     private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
     public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, NODE_SHARING_SCOPE);
+
+    // Since the permission is declared in a class that might not be loaded for a while after Jenkins startup or plugin
+    // install, adding dummy initializer to kick in during startup causing Jenkins to initialize this class and register
+    // the permission.
+    @Initializer(before = InitMilestone.JOB_LOADED) @Restricted(DoNotUse.class)
+    public static void checkPermissionRegistered() {
+        final String permId = "com.redhat.jenkins.nodesharing.RestEndpoint.Reserve";
+        for (Permission permission : Permission.getAll()) {
+            if (permId.equals(permission.getId())) return;
+        }
+        throw new AssertionError("Permission " + permId + " not registered");
+    }
 
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
             .setConnectTimeout(TIMEOUT)
