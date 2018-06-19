@@ -261,7 +261,7 @@ public class Api implements RootAction {
             @Override public void run() {
                 Queue queue = Jenkins.getActiveInstance().getQueue();
                 for (Queue.Item item : queue.getItems()) {
-                    if (item.task instanceof ReservationTask) {
+                    if (item.task instanceof ReservationTask && ((ReservationTask) item.task).getOwner().equals(executor)) {
                         // Cancel items executor is no longer interested in and keep those it cares for
                         if (!reportedTasks.contains(item.task)) {
                             queue.cancel(item);
