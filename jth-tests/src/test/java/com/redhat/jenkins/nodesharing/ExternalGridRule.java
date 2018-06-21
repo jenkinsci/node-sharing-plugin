@@ -90,7 +90,7 @@ public final class ExternalGridRule implements TestRule {
                     GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
                     jenkins.setAuthorizationStrategy(gmas);
                     gmas.add(Jenkins.READ, "jerry");
-                    gmas.add(RestEndpoint.INVOKE, "jerry");
+                    gmas.add(RestEndpoint.RESERVE, "jerry");
                     gmas.add(Jenkins.READ, ACL.ANONYMOUS_USERNAME);
                     gmas.add(Jenkins.ADMINISTER, "admin");
 

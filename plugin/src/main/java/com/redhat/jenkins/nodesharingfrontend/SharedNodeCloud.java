@@ -4,6 +4,7 @@ import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
+import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
@@ -104,6 +105,7 @@ public class SharedNodeCloud extends Cloud {
      */
     @Nonnull
     public final Api getApi() throws IllegalStateException {
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
         if (this.api == null) {
             ConfigRepo.Snapshot latestConfig = getLatestConfig();
             if (latestConfig == null) throw new IllegalStateException("No latest config found");
@@ -374,6 +376,7 @@ public class SharedNodeCloud extends Cloud {
                 @Nonnull @QueryParameter("configRepoUrl") String configRepoUrl,
                 @Nonnull @QueryParameter("orchestratorCredentialsId") String restCredentialId
         ) throws Exception {
+            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
             try {
                 new URI(configRepoUrl);
             } catch (URISyntaxException e) {

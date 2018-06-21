@@ -100,7 +100,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             @Override public void evaluate() throws Throwable {
                 jenkins.setSecurityRealm(createDummySecurityRealm());
 
-                mas.grant(Jenkins.READ, RestEndpoint.INVOKE).everywhere().to("jerry");
+                mas.grant(Jenkins.READ, RestEndpoint.RESERVE).everywhere().to("jerry");
                 jenkins.setAuthorizationStrategy(mas);
 
                 cred = new UsernamePasswordCredentialsImpl(

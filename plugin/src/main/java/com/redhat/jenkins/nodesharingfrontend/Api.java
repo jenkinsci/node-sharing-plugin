@@ -115,11 +115,9 @@ public class Api {
 
     @Nonnull
     private UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
-        Jenkins instance = Jenkins.getActiveInstance();
-        instance.checkPermission(Jenkins.ADMINISTER);
         String cid = cloud.getOrchestratorCredentialsId();
         UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, instance, ACL.SYSTEM),
+                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
                 CredentialsMatchers.withId(cid)
         );
         if (cred == null) throw new IllegalStateException(
@@ -186,7 +184,7 @@ public class Api {
      */
     @RequirePOST
     public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
 
         UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
         NodeDefinition definition = NodeDefinition.create(request.getFileName(), request.getDefinition());
@@ -222,7 +220,7 @@ public class Api {
      */
     @RequirePOST
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
 
         NodeStatusRequest request = Entity.fromInputStream(req.getInputStream(), NodeStatusRequest.class);
         String nodeName = request.getNodeName();
@@ -235,7 +233,7 @@ public class Api {
 
     @RequirePOST
     public void doReportUsage(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
 
         ReportUsageRequest request = Entity.fromInputStream(req.getInputStream(), ReportUsageRequest.class);
         ArrayList<String> usedNodes = new ArrayList<>();
@@ -276,7 +274,7 @@ public class Api {
      */
     @RequirePOST
     public void doImmediatelyReturnNode() {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
+        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
         throw new UnsupportedOperationException("TODO");
     }
 }

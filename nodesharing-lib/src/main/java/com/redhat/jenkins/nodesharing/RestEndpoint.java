@@ -101,7 +101,7 @@ public class RestEndpoint {
 
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
     private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
-    public static final Permission INVOKE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, NODE_SHARING_SCOPE);
+    public static final Permission RESERVE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, NODE_SHARING_SCOPE);
 
     // Since the permission is declared in a class that might not be loaded for a while after Jenkins startup or plugin
     // install, adding dummy initializer to kick in during startup causing Jenkins to initialize this class and register
