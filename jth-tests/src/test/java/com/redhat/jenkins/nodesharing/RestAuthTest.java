@@ -100,7 +100,7 @@ public class RestAuthTest {
         WebRequest request = wc.addCrumb(new WebRequest(url, HttpMethod.POST));
         WebResponse webResponse = wc.login(UNPRIVILIGED_USER, UNPRIVILIGED_USER).getPage(request).getWebResponse();
         assertEquals(url.toExternalForm(), 403, webResponse.getStatusCode());
-        assertThat(webResponse.getContentAsString(), containsString(UNPRIVILIGED_USER + " is missing the NodeSharing/Reserve permission for " + method.getName()));
+        assertThat(webResponse.getContentAsString(), containsString(UNPRIVILIGED_USER + " is missing the NodeSharing/Reserve permission"));
     }
 
     private JenkinsRule.WebClient webClient() {
