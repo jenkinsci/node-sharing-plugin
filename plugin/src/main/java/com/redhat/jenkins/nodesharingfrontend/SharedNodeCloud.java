@@ -71,8 +71,8 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     private String orchestratorCredentialsId;
 
-    /** The id of the ssh credentials for hosts. */
-    private String sshCredentialsId;
+    /** DELETED - The id of the ssh credentials for hosts. */
+    @Deprecated private transient String sshCredentialsId;
 
     private transient Api api = null;
 
@@ -86,16 +86,14 @@ public class SharedNodeCloud extends Cloud {
      *
      * @param configRepoUrl ConfigRepo url
      * @param orchestratorCredentialsId Orchestrator credential.
-     * @param sshCredentialsId Creds to use to connect to slave.
      */
     @DataBoundConstructor
-    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId, @Nonnull String sshCredentialsId) {
+    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId) {
         super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
         this.orchestratorCredentialsId = orchestratorCredentialsId;
         this.configRepo = getConfigRepo();
-        this.sshCredentialsId = sshCredentialsId;
     }
 
     /**
@@ -132,17 +130,6 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public String getConfigRepoUrl() {
         return configRepoUrl;
-    }
-
-    /**
-     * Get credentials for SSH connection.
-     *
-     * @return credential id.
-     */
-    @Restricted(DoNotUse.class) // View Only
-    @Nonnull
-    public String getSshCredentialsId() {
-        return sshCredentialsId;
     }
 
     @Nonnull
@@ -385,7 +372,7 @@ public class SharedNodeCloud extends Cloud {
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             try {
-                SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId, "");
+                SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId);
                 Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud);
                 DiscoverResponse discover = api.discover();
                 if (!discover.getDiagnosis().isEmpty()) {

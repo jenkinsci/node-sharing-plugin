@@ -174,7 +174,6 @@ public class SharedNodeCloudTest {
         assertEquals(expected.getName(), actual.getName());
         assertEquals(expected.getConfigRepoUrl(), actual.getConfigRepoUrl());
         assertEquals(expected.getOrchestratorCredentialsId(), actual.getOrchestratorCredentialsId());
-        assertEquals(expected.getSshCredentialsId(), actual.getSshCredentialsId());
     }
 
     @Test

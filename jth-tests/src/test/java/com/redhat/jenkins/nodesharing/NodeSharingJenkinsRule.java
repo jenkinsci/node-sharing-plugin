@@ -84,7 +84,8 @@ import static org.junit.Assert.assertNotNull;
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
-    private UsernamePasswordCredentials cred;
+
+    private UsernamePasswordCredentials restCred;
     private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
     private GitClient configRepo;
 
@@ -103,16 +104,16 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                 mas.grant(Jenkins.READ, RestEndpoint.RESERVE).everywhere().to("jerry");
                 jenkins.setAuthorizationStrategy(mas);
 
-                cred = new UsernamePasswordCredentialsImpl(
+                restCred = new UsernamePasswordCredentialsImpl(
                         CredentialsScope.GLOBAL, getRestCredentialId(), "Testing node sharing credential", "jerry", "jerry"
                 );
                 SystemCredentialsProvider credentialsProvider = SystemCredentialsProvider.getInstance();
-                credentialsProvider.getCredentials().add(cred);
+                credentialsProvider.getCredentials().add(restCred);
                 credentialsProvider.save();
 
                 try {
-                    System.setProperty(Pool.USERNAME_PROPERTY_NAME, cred.getUsername());
-                    System.setProperty(Pool.PASSWORD_PROPERTY_NAME, cred.getPassword().getPlainText());
+                    System.setProperty(Pool.USERNAME_PROPERTY_NAME, restCred.getUsername());
+                    System.setProperty(Pool.PASSWORD_PROPERTY_NAME, restCred.getPassword().getPlainText());
                     base.evaluate();
                 } finally {
                     System.clearProperty(Pool.USERNAME_PROPERTY_NAME);
@@ -229,11 +230,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     }
 
     public UsernamePasswordCredentials getRestCredential() {
-        return cred;
+        return restCred;
     }
-
     public String getRestCredentialId() {
-        return "fake-cred-id";
+        return "rest-cred-id";
     }
 
     protected List<ReservationTask> getQueuedReservations() {
@@ -310,7 +310,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      */
     @Nonnull
     public SharedNodeCloud addSharedNodeCloud(@Nonnull final String configRepoUrl) {
-        SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, getRestCredentialId(), "");
+        SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, getRestCredentialId());
         jenkins.clouds.add(cloud);
         return cloud;
     }
