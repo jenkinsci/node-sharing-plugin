@@ -142,7 +142,7 @@ public class ReservationVerifier extends PeriodicWork {
             for (ReservationTask.ReservationExecutable reservation : trackedExecutorReservations) {
                 // TODO: prone to race conditions
                 ReservationTask parent = reservation.getParent();
-                LOGGER.info("Cancelling dangling reservation for " + parent.getOwner() + " and " + parent.getName());
+                LOGGER.info("Cancelling dangling reservation for " + reservation.getNodeName() + " and " + parent.getName());
                 reservation.complete();
             }
 
