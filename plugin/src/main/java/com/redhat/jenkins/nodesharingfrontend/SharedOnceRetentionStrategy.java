@@ -19,7 +19,7 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
 
     private static final Logger LOGGER = Logger.getLogger(SharedOnceRetentionStrategy.class.getName());
 
-    private transient boolean terminating;
+    private boolean terminating;
 
     private int idleMinutes;
 
@@ -97,13 +97,10 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                             if (node != null) {
                                 node.terminate();
                             }
-                        } catch (InterruptedException e) {
+                            LOGGER.log(Level.INFO, "Terminating computer " + c.getName());
+                        } catch (Exception e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
-                            synchronized (SharedOnceRetentionStrategy.this) {
-                                terminating = false;
-                            }
-                        } catch (IOException e) {
-                            LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                        } finally {
                             synchronized (SharedOnceRetentionStrategy.this) {
                                 terminating = false;
                             }
