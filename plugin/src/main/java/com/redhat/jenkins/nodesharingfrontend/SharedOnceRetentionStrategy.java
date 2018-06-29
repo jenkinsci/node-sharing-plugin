@@ -6,10 +6,13 @@ import hudson.model.Executor;
 import hudson.model.ExecutorListener;
 import hudson.model.OneOffExecutor;
 import hudson.model.Queue;
+import hudson.security.ACL;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.CloudRetentionStrategy;
 import hudson.util.TimeUnit2;
+import org.acegisecurity.context.SecurityContext;
+import org.acegisecurity.context.SecurityContextHolder;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -95,7 +98,12 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                         try {
                             AbstractCloudSlave node = c.getNode();
                             if (node != null) {
-                                node.terminate();
+                                SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
+                                try {
+                                    node.terminate();
+                                } finally {
+                                    SecurityContextHolder.setContext(oldContext);
+                                }                                
                             }
                         } catch (InterruptedException e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
