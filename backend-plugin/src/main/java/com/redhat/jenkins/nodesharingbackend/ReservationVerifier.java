@@ -134,7 +134,7 @@ public class ReservationVerifier extends PeriodicWork {
                 }
                 // TODO node can be already occupied
                 // NC1: Schedule backfill reservation
-                LOGGER.info("Starting backfill reservation for " + executor.getName() + " and " + host);
+                LOGGER.info("Starting backfill reservation for " + host + " and " + executor.getName());
                 startingTasks.add(new ReservationTask(executor, host, true).schedule().getFuture().getStartCondition());
             }
 
