@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.List;
 
 import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.jenkinsci.plugins.cloudstats.ProvisioningActivity.Phase.COMPLETED;
@@ -99,10 +100,22 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     @Override
     protected void _terminate(TaskListener listener) {
+        LOGGER.info("_terminate() invoked for '" + hostname + "' - started");
+
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
+        LOGGER.info("_terminate() invoked for '" + hostname + "' - step 1");
         if (cloud != null) { // Might be deleted or using different config repo
-            cloud.getApi().returnNode(this);
+            try {
+                LOGGER.info("_terminate() invoked for '" + hostname + "' - step 2");
+                Api api = cloud.getApi();
+                LOGGER.info("_terminate() invoked for '" + hostname + "' - step 3");
+                api.returnNode(this);
+                LOGGER.info("_terminate() invoked for '" + hostname + "' - step 4");
+            } catch (Throwable t) {
+                LOGGER.log(Level.SEVERE, "_terminate() invoked for '" + hostname + "' - Throwable occurred: ", t);
+            }
         }
+        LOGGER.info("_terminate() invoked for '" + hostname + "' - finished");
     }
 
     @Nonnull
