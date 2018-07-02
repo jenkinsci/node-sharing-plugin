@@ -292,10 +292,12 @@ public class Api implements RootAction {
 
         String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
+        LOGGER.info("doReturnNode() invoked for '" + request.getNodeName() + "' - started");
         String ecr = request.getConfigRepoUrl();
         if (!Objects.equals(ocr, ecr)) {
             rsp.getWriter().println("Unable to return node - config repo mismatch " + ocr + " != " + ecr);
             rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            LOGGER.info("doReturnNode() invoked for '" + request.getNodeName() + "' - finished");
             return;
         }
 
@@ -307,6 +309,7 @@ public class Api implements RootAction {
             );
             rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
             rsp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            LOGGER.info("doReturnNode() invoked for '" + request.getNodeName() + "' - finished");
             return;
         }
 
@@ -316,6 +319,7 @@ public class Api implements RootAction {
             );
             rsp.getWriter().println("No shareable node named '" + request.getNodeName() + "' exists");
             rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            LOGGER.info("doReturnNode() invoked for '" + request.getNodeName() + "' - finished");
             return;
         }
 
@@ -323,11 +327,13 @@ public class Api implements RootAction {
         ReservationTask.ReservationExecutable executable = computer.getReservation();
         if (executable == null) {
             rsp.setStatus(HttpServletResponse.SC_OK);
+            LOGGER.info("doReturnNode() invoked for '" + request.getNodeName() + "' - finished");
             return;
         }
 
         executable.complete();
         // TODO Report status
         rsp.setStatus(HttpServletResponse.SC_OK);
+        LOGGER.info("doReturnNode() invoked for '" + request.getNodeName() + "' - finished");
     }
 }

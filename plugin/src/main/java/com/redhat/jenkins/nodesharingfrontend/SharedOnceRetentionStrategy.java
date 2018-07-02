@@ -101,14 +101,25 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                                 SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
                                 try {
                                     node.terminate();
+                                } catch (Throwable t) {
+                                    LOGGER.log(Level.SEVERE, "Failed to node.terminate() " + c.getName(), t);
+                                    synchronized (SharedOnceRetentionStrategy.this) {
+                                        terminating = false;
+                                    }
+                                    throw t;
                                 } finally {
                                     SecurityContextHolder.setContext(oldContext);
-                                }                                
+                                }
                             }
                             LOGGER.log(Level.INFO, "Terminating computer " + c.getName());
                         } catch (Exception e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
                         } finally {
+                            synchronized (SharedOnceRetentionStrategy.this) {
+                                terminating = false;
+                            }
+                        } catch (Throwable t) {
+                            LOGGER.log(Level.SEVERE, "Failed to terminate " + c.getName(), t);
                             synchronized (SharedOnceRetentionStrategy.this) {
                                 terminating = false;
                             }

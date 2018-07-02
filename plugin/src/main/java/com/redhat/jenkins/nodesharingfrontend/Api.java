@@ -153,7 +153,8 @@ public class Api {
     /**
      * Send request to return node. No response needed.
      */
-    public void returnNode(@Nonnull SharedNode node) {
+    public void returnNode(@Nonnull final SharedNode node) {
+        LOGGER.info("returnNode() invoked for '" + node.getHostName() + "' - started");
         Computer computer = node.toComputer();
         String offlineCause = null;
         if (computer != null && computer.getOfflineCause() != null) {
@@ -172,6 +173,7 @@ public class Api {
                 return sl.getStatusCode() != 200 && sl.getStatusCode() != 404;
             }
         });
+        LOGGER.info("returnNode() invoked for '" + node.getHostName() + "' - finished");
     }
 
     //// Incoming

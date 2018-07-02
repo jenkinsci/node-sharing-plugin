@@ -108,6 +108,7 @@ public class ReservationVerifier extends PeriodicWork {
 
     @VisibleForTesting
     public static void verify(ConfigRepo.Snapshot config, Api api) throws ExecutionException, InterruptedException {
+        LOGGER.info("ReservationVerifier.verify() - started " + Thread.currentThread().getId());
         // When executor is removed from config repo, it might have ReservationTasks running for a while so it is
         // necessary to query these executors so the task completion can be detected.
         Set<ExecutorJenkins> jenkinses = new HashSet<>(config.getJenkinses());
@@ -161,6 +162,7 @@ public class ReservationVerifier extends PeriodicWork {
 //                }
 //                continue;
 //            }
+            LOGGER.info("ReservationVerifier.verify() - finished " + Thread.currentThread().getId());
         }
 
 //        for (String nodeName : response.getUsedNodes()) {
