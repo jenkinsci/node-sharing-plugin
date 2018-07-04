@@ -214,6 +214,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                         try {
                             Thread.sleep(1000 * 60 * 5);
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                             e.addSuppressed(ex);
                             LOGGER.log(Level.INFO, taskName + " interrupted", e);
                             return;
@@ -227,7 +228,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                         LOGGER.info(taskName + " rejected by executor");
                         return; // Abort reservation
                     } else {
-                        break; // Wait for return
+                        break; // Reserved successfully - wait for node return
                     }
                 }
             }
@@ -236,6 +237,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                 done.block();
                 LOGGER.info(taskName + " completed");
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 LOGGER.log(Level.INFO, taskName + " interrupted", e);
             }
         }

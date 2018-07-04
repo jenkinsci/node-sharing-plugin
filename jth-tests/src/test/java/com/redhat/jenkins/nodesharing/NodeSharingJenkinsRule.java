@@ -93,7 +93,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         try { // Needs to be done before Jenkins is up
             configRepo = createConfigRepo();
             System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, configRepo.getWorkTree().getRemote());
-        } catch (URISyntaxException | IOException | InterruptedException e) {
+        } catch (URISyntaxException | IOException e) {
+            throw new Error(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new Error(e);
         }
 
@@ -102,6 +105,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                 jenkins.setSecurityRealm(createDummySecurityRealm());
 
                 mas.grant(Jenkins.READ, RestEndpoint.RESERVE).everywhere().to("jerry");
+                mas.grant(Jenkins.ADMINISTER, RestEndpoint.RESERVE).everywhere().to("admin");
                 jenkins.setAuthorizationStrategy(mas);
 
                 restCred = new UsernamePasswordCredentialsImpl(
@@ -272,6 +276,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             try {
                 done.block();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 // Proceed
             }
         }
@@ -340,7 +345,9 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             start.signal();
             try {
                 end.block();
-            } catch (InterruptedException ignored) { }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
             super.launch(computer, listener);
         }
     }

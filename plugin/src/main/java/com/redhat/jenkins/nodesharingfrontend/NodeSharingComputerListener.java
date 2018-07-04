@@ -45,7 +45,7 @@ public class NodeSharingComputerListener extends ComputerListener {
     }
 
     @Override
-    public void preLaunch(Computer c, TaskListener taskListener) throws IOException, InterruptedException {
+    public void preLaunch(Computer c, TaskListener taskListener) throws IOException {
         try {
             super.preLaunch(c, taskListener);
         } catch (Exception e) {
@@ -58,8 +58,7 @@ public class NodeSharingComputerListener extends ComputerListener {
                SharedNodeCloud cloud =
                        SharedNodeCloud.getByName(((SharedNode) node).getId().getCloudName());
                if (cloud == null || !cloud.isOperational()) {
-                   // TODO these should never be saved (EphemeralNode) - do we still need this?
-                   // PJ: We should do that because here is the last chance where we can drop the slave (otherwise it can exists forever)
+                   // Be defensive and prevent any slave that got serialized to launch returning it eagerly
                    throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
                }
            }
@@ -78,8 +77,11 @@ public class NodeSharingComputerListener extends ComputerListener {
             if (c.isIdle()) {
                 try {
                     SharedComputer.terminateComputer(c);
-                } catch (InterruptedException | IOException e) {
-                    LOGGER.log(Level.WARNING, "Uncaught unexpected exception occurred while terminaitng computer", e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    LOGGER.log(Level.WARNING, "Uncaught unexpected exception occurred while terminating computer", e);
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Uncaught unexpected exception occurred while terminating computer", e);
                 }
             }
         }
