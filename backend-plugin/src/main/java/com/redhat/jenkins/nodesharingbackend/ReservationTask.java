@@ -174,6 +174,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         private final @Nonnull ReservationTask task;
         private @CheckForNull String nodeName; // Assigned as soon as execution starts
         private @Nonnull OneShotEvent done = new OneShotEvent();
+        private long startTime = -1L;
 
         protected ReservationExecutable(@Nonnull ReservationTask task) {
             this.task = task;
@@ -193,12 +194,17 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
             return nodeName;
         }
 
+        public long getStartTime() {
+            return startTime;
+        }
+
         @Override
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
             String executorName = task.getOwner().getName();
             String taskName = "Reservation of " + nodeName + " by " + executorName;
+            startTime = System.currentTimeMillis();
             LOGGER.info(taskName + " started");
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
@@ -251,6 +257,10 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
         public void complete() {
             done.signal();
+        }
+
+        public boolean isCompleted() {
+            return done.isSignaled();
         }
     }
 }

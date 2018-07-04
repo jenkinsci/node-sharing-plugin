@@ -31,7 +31,6 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.model.Computer;
 import hudson.model.Executor;
-import hudson.model.Label;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
@@ -142,8 +141,14 @@ public class ReservationVerifier extends PeriodicWork {
             for (ReservationTask.ReservationExecutable reservation : trackedExecutorReservations) {
                 // TODO: prone to race conditions
                 ReservationTask parent = reservation.getParent();
-                LOGGER.info("Cancelling dangling reservation for " + reservation.getNodeName() + " and " + parent.getName());
-                reservation.complete();
+                // If still reserved
+                if (!reservation.isCompleted()) {
+                    // Give a chance to process reservation on Executor side (60s now)
+                    if (reservation.getStartTime() < System.currentTimeMillis() - 1000 * 60) {
+                        LOGGER.info("Cancelling dangling reservation for " + reservation.getNodeName() + " and " + parent.getName());
+                        reservation.complete();
+                    }
+                }
             }
 
 //            for (Map.Entry<ExecutorJenkins, List<ReservationTask.ReservationExecutable>> tr : trackedReservations.entrySet()) {
