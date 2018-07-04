@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,13 +36,20 @@ public class NodeSharingComputerListener extends ComputerListener {
             ProvisioningActivity activity = CloudStatistics.get().getActivityFor(fc.getId());
             if (activity != null) {
                 PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
-                        ProvisioningActivity.Status.FAIL, "Launch failed with:\n" + c.getLog()
+                        ProvisioningActivity.Status.FAIL, "Launch failed with:\n" + getLogText(c)
                 );
                 CloudStatistics.get().attach(activity, activity.getCurrentPhase(), attachment);
             }
             LOGGER.info("Launch of the Computer '" + c.getDisplayName() + "' failed, releasing...:\n" + c.getLog());
             SharedComputer.terminateComputer(c);
         }
+    }
+
+    // Stripping off the decoration that is not rendered anyway
+    private String getLogText(Computer c) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        c.getLogText().writeLogTo(0, baos);
+        return baos.toString();
     }
 
     @Override

@@ -86,8 +86,6 @@ public class WorkloadReporter extends PeriodicWork {
             }
         }
 
-        // TODO do not resend the same data to decrease the load
-        // PJ: Actually current behavior is expected from Orchestrator side (after crash/restart etc.)
         for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> entry : workloadMapping.entrySet()) {
             ReportWorkloadRequest.Workload workload = entry.getValue();
             SharedNodeCloud cloud = entry.getKey();

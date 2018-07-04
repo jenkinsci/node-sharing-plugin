@@ -221,7 +221,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                         }
                         continue;
                     } catch (Throwable ex) {
-                        LOGGER.log(Level.SEVERE, taskName + " failed", ex);
+                        LOGGER.log(Level.SEVERE, taskName + " failed to get the node utilized", ex);
                         return;
                     }
                     if (!accepted) {
