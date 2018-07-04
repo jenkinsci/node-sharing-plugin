@@ -179,9 +179,11 @@ public class Api {
     /**
      * Request to utilize reserved computer.
      *
-     * Response code "200 OK" is used when the node was accepted and "410 Gone" when there is no longer the need so it
-     * will not be used in any way and orchestrator can reuse it immediately.
+     * Response codes:
+     * - "200 OK" is used when the node was accepted, the node is expected to be correctly added to Jenkins by the time the request completes with the code.
+     * - "410 Gone" when there is no longer the need for such host and orchestrator can reuse it immediately. The node must not be created.
      */
+    // TODO in the spirit on idempotency, this should return 200 when the node already existed which can be obscured by 410 when there is no load
     @RequirePOST
     public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
         Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);

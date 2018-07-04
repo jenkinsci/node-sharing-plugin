@@ -320,18 +320,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return cloud;
     }
 
-    static final class BlockingBuilder extends TestBuilder {
-        final OneShotEvent start = new OneShotEvent();
-        final OneShotEvent end = new OneShotEvent();
-
-        @Override
-        public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException {
-            start.signal();
-            end.block();
-            return true;
-        }
-    }
-
     static class BlockingCommandLauncher extends CommandLauncher {
         final OneShotEvent start = new OneShotEvent();
         final OneShotEvent end = new OneShotEvent();

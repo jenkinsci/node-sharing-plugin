@@ -28,6 +28,7 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
@@ -227,7 +228,7 @@ public class SharedNodeCloudTest {
 
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedNode(computer.getNode());
-        NodeSharingJenkinsRule.BlockingBuilder builder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder builder = new BlockingBuilder();
         job.getBuildersList().add(builder);
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();
@@ -253,7 +254,7 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isIdle());
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedNode(computer.getNode());
-        NodeSharingJenkinsRule.BlockingBuilder builder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder builder = new BlockingBuilder();
         job.getBuildersList().add(builder);
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();
