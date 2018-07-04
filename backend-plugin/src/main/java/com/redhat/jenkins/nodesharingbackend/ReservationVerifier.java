@@ -60,23 +60,22 @@ import java.util.logging.Logger;
  *
  * <ul>
  *     <li>A1: All nodes agree the host is idle,</li>
- *     <li>A2: Orchestrator agree with the ony executor that claims the host.</li>
+ *     <li>A2: Orchestrator agree with the only executor that claims the host.</li>
  * </ul>
  * No action needed here as grid is in sync.
  *
  * <h2>No collision</h2>
  *
  * <ul>
- *     <li>NC1: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Orchestrator failover.</li>
+ *     <li>NC1: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Host removal and Orchestrator failover.</li>
  *     <li>NC2: Orchestrator tracks a reservation for executor that does not report the host being reserved. UC: Executor failover or Missed returnNode call</li>
- *     <li>NC3: Executor reports reservation for host not tracked by Orchestrator. UC:Host removal and Orchestrator failover</li>
  * </ul>
  *
  * <h2>Collision</h2>
  *
  * <ul>
  *     <li>C1: Orchestrator tracks reservation but extra executors report usage of the host. Bug or race condition.</li>
- *     <li>C2: Several executors report reservation but orchestrator tracks none. Bug or race condition.</li>
+ *     <li>C2: Multiple executors report reservation but orchestrator tracks none. Bug or race condition.</li>
  * </ul>
  */
 @Extension
