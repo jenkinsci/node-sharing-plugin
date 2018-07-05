@@ -45,6 +45,8 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
     };
 
+    private boolean terminating;
+
     @Nonnull
     private ProvisioningActivity.Id id;
     @Nonnull
@@ -99,10 +101,21 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
     @Override
     protected void _terminate(TaskListener listener) {
+        synchronized (this) {
+            if (terminating) {
+                return;
+            }
+            terminating = true;
+        }
+
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
         if (cloud != null) { // Might be deleted or using different config repo
             cloud.getApi().returnNode(this);
         }
+    }
+
+    public boolean isTerminating() {
+        return terminating;
     }
 
     @Nonnull
