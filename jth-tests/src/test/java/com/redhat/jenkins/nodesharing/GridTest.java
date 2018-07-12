@@ -26,9 +26,11 @@ package com.redhat.jenkins.nodesharing;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.BuildResult;
+import com.offbytwo.jenkins.model.BuildWithDetails;
 import com.offbytwo.jenkins.model.Job;
 import com.offbytwo.jenkins.model.JobWithDetails;
 import com.redhat.jenkins.nodesharingbackend.Pool;
+import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import hudson.FilePath;
 import hudson.matrix.AxisList;
@@ -43,14 +45,17 @@ import hudson.model.Result;
 import hudson.tasks.BuildTrigger;
 import hudson.tasks.Shell;
 import hudson.triggers.TimerTrigger;
+import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,6 +65,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -137,7 +143,6 @@ public class GridTest {
         FileBuildBlocker blocker = new FileBuildBlocker();
         p.getBuildersList().add(blocker.getShellStep());
         p.setAssignedLabel(Label.get("solaris11"));
-
         URL executorUrl = grid.executor(crUrl).get();
         p.delete();
 
@@ -148,7 +153,7 @@ public class GridTest {
         // When the build is running and one more is queued
         JenkinsServer exec = new JenkinsServer(executorUrl.toURI(), "admin", "admin");
         exec.getJob("p").build();
-        Build build = waitForBuildStarted(exec);
+        Build build1 = waitForBuildStarted(exec, "p", 1);
         exec.getJob("p").build();
 
         ShareableComputer computer = j.getComputer("solaris1.acme.com");
@@ -156,9 +161,8 @@ public class GridTest {
             Thread.sleep(1000);
         }
 
-        // Then it should pick the state up from executors
-        //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 1, j.jenkins.getQueue().getItems().length); // TODO Fails for a known bug
-        assertFalse("Build in progress on orchestrator side", computer.isIdle());
+        // It should pick the state up from executors
+        assertNotNull("Build in progress on orchestrator side: " + ShareableComputer.getAllReservations(), computer.getReservation());
 
         // When orchestrator is restarted
         // TODO use real restart here
@@ -174,30 +178,40 @@ public class GridTest {
         Thread.sleep(1000);
 
         // Then it should pick the state up from executors
-        //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 1, j.jenkins.getQueue().getItems().length); // TODO DITTO?
-        assertFalse("Build #1 in progress on orchestrator side", computer.isIdle());
+        assertNotNull("Build in progress on orchestrator side: " + ShareableComputer.getAllReservations(), computer.getReservation());
 
         blocker.complete();
+        BuildWithDetails build1details = waitForBuildComplete(build1);
+        assertEquals(BuildResult.SUCCESS, build1details.getResult());
 
-        while (build.details().isBuilding()) {
-            Thread.sleep(2000);
-        }
+        Build build2 = waitForBuildStarted(exec, "p", 2);
+        assertEquals(1, j.getActiveReservations().size());
+        blocker.complete();
+        BuildWithDetails build2details = waitForBuildComplete(build2);
+        assertEquals(BuildResult.SUCCESS, build2details.getResult());
 
-        assertEquals(BuildResult.SUCCESS, build.details().getResult());
-
-        // TODO DITTO takes a while to propagate the same item to the queue
-        //assertEquals(Arrays.asList(j.jenkins.getQueue().getItems()).toString(), 0, j.jenkins.getQueue().getItems().length);
-        //assertTrue("Build #2 in progress on orchestrator side", computer.isIdle());
-
-        //grid.interactiveBreak();
+        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>emptyIterable());
+        assertThat(j.getQueuedReservations(), Matchers.<ReservationTask>emptyIterable());
     }
 
-    private Build waitForBuildStarted(JenkinsServer exec) throws Exception {
+    private @Nonnull BuildWithDetails waitForBuildComplete(Build build) throws IOException, InterruptedException {
+        BuildWithDetails details = build.details();
+        while (details.isBuilding()) {
+            Thread.sleep(2000);
+            details = build.details();
+        }
+        return details;
+    }
+
+    private Build waitForBuildStarted(JenkinsServer jenkins, String job, int number) throws Exception {
+        Build build = null;
         for (;;) {
-            JobWithDetails p = exec.getJob("p");
-            Build build = p.getBuildByNumber(1);
-            if (build == null) continue;
-            if (build.details().isBuilding()) return build;
+            if (build == null) {
+                build = jenkins.getJob(job).getBuildByNumber(number);
+            }
+            if (build != null && build.details().isBuilding()) {
+                return build;
+            }
             Thread.sleep(500);
         }
     }
@@ -231,6 +245,7 @@ public class GridTest {
 
         public Shell getShellStep() {
             return new Shell(
+                    "#!/usr/bin/env bash -x\n" + // Ensure bash is used in case it would not be the default shell
                     "echo 'Started' > '" + tempFile.getRemote() + "'\n" +
                     "while true; do\n" +
                     "  if [ \"$(cat '" + tempFile.getRemote() + "')\" == 'Done' ]; then\n" +

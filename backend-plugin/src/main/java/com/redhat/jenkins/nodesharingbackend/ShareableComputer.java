@@ -23,7 +23,9 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.google.common.annotations.VisibleForTesting;
 import hudson.Functions;
+import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Queue;
 import hudson.model.Slave;
@@ -48,7 +50,9 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.logging.LogRecord;
 
@@ -107,6 +111,18 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
                 return (ReservationTask.ReservationExecutable) executable;
             default: throw new IllegalStateException("More than a single task running on ShareableComputer: " + executables);
         }
+    }
+
+    @VisibleForTesting
+    public static Map<ShareableComputer, ReservationTask.ReservationExecutable> getAllReservations() {
+        Map<ShareableComputer, ReservationTask.ReservationExecutable> out = new HashMap<>();
+        for (Computer computer : Jenkins.getActiveInstance().getComputers()) {
+            if (computer instanceof ShareableComputer) {
+                ShareableComputer shareableComputer = (ShareableComputer) computer;
+                out.put(shareableComputer, shareableComputer.getReservation());
+            }
+        }
+        return out;
     }
 
     @Override
@@ -190,4 +206,7 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
         return (ShareableNode) super.getNode();
     }
 
+    @Override public String toString() {
+        return "ShareableComputer " + nodeName;
+    }
 }
