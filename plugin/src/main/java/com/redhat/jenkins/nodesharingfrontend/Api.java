@@ -47,11 +47,14 @@ import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
+import hudson.remoting.Callable;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
+import jenkins.security.NotReallyRoleSensitiveCallable;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.HttpPost;
+import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -180,41 +183,80 @@ public class Api {
      * Request to utilize reserved computer.
      *
      * Response codes:
-     * - "200 OK" is used when the node was accepted, the node is expected to be correctly added to Jenkins by the time the request completes with the code.
+     * - "200 OK" is used when the node was accepted, the node is expected to be correctly added to Jenkins by the time
+     *   the request completes with the code. The code is also returned when the node is already helt by this executor.
      * - "410 Gone" when there is no longer the need for such host and orchestrator can reuse it immediately. The node must not be created.
      */
-    // TODO in the spirit on idempotency, this should return 200 when the node already existed which can be obscured by 410 when there is no load
     @RequirePOST
     public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        final Jenkins jenkins = Jenkins.getActiveInstance();
+        jenkins.checkPermission(RestEndpoint.RESERVE);
 
         UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
-        NodeDefinition definition = NodeDefinition.create(request.getFileName(), request.getDefinition());
+        final NodeDefinition definition = NodeDefinition.create(request.getFileName(), request.getDefinition());
         if (definition == null) throw new AssertionError("Unknown node definition: " + request.getFileName());
 
-        // Utilize when there is some load for it
-        Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
-        for (Queue.Item item : Jenkins.getActiveInstance().getQueue().getItems()) {
-            // Do not schedule unrestricted items here
-            if (item.getAssignedLabel() != null && item.getAssignedLabel().matches(nodeLabels)) {
-                LOGGER.fine("Accepted: " + definition.getDefinition());
+        final String name = definition.getName();
 
-                try {
-                    Jenkins.getActiveInstance().addNode(cloud.createNode(definition));
-                } catch (IllegalArgumentException e) {
-                    e.printStackTrace(new PrintStream(rsp.getOutputStream()));
-                    rsp.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
-                    return;
-                }
-
-                new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
-                rsp.setStatus(HttpServletResponse.SC_OK);
-                return;
-            }
+        // utilizeNode call received even though the node is already being utilized
+        Node node = getCollidingNode(jenkins, name);
+        if (node == null) {
+            new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
+            rsp.setStatus(HttpServletResponse.SC_OK);
+            LOGGER.warning("Skipping node addition as it already exists");
+            return;
         }
 
-        // Reject otherwise
-        rsp.setStatus(HttpServletResponse.SC_GONE);
+        // Do not accept the node when there is no load for it
+        if (!isThereAWorkloadFor(jenkins, definition)) {
+            rsp.setStatus(HttpServletResponse.SC_GONE);
+            return;
+        }
+
+        try {
+            final SharedNode newNode = cloud.createNode(definition);
+            // Prevent replacing existing node due to a race condition in repeated utilizeNode calls
+            Queue.withLock(new NotReallyRoleSensitiveCallable<Void, IOException>() {
+                @Override public Void call() throws IOException {
+                    Node node = getCollidingNode(jenkins, name);
+                    if (node != null) {
+                        jenkins.addNode(newNode);
+                    } else {
+                        LOGGER.warning("Skipping node addition due to race condition");
+                    }
+                    return null;
+                }
+            });
+
+            new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
+            rsp.setStatus(HttpServletResponse.SC_OK);
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace(new PrintStream(rsp.getOutputStream()));
+            rsp.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+        }
+    }
+
+    private boolean isThereAWorkloadFor(Jenkins jenkins, NodeDefinition definition) {
+        Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
+        for (Queue.Item item : jenkins.getQueue().getItems()) {
+            // Do not schedule unrestricted items here
+            if (item.getAssignedLabel() != null && item.getAssignedLabel().matches(nodeLabels)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private @CheckForNull Node getCollidingNode(Jenkins jenkins, String name) {
+        Node node = jenkins.getNode(name);
+        if (node == null) return null;
+
+        Computer computer = node.toComputer();
+        if (node instanceof SharedNode && computer != null && computer.getTerminatedBy() == null ) {
+            return node;
+        } else {
+            throw new IllegalStateException("Node " + name + " already exists but it is a " + node.getClass().getName());
+        }
     }
 
     /**

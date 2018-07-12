@@ -237,7 +237,7 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Nonnull
-    public SharedNode createNode(@Nonnull final NodeDefinition definition) {
+    public SharedNode createNode(@Nonnull final NodeDefinition definition) throws IllegalArgumentException {
         SharedNode node = SharedNodeFactory.transform(definition);
         final String nodeName = definition.getName();
         node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));

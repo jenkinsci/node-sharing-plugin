@@ -9,15 +9,15 @@ import org.apache.http.client.methods.HttpRequestBase;
  * Dedicated subclasses should be thrown.
  */
 public abstract class ActionFailed extends RuntimeException {
-    public ActionFailed(String message) {
+    protected ActionFailed(String message) {
         super(message);
     }
 
-    public ActionFailed(String message, Throwable cause) {
+    protected ActionFailed(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public ActionFailed(Throwable cause) {
+    protected ActionFailed(Throwable cause) {
         super(cause);
     }
 
@@ -37,6 +37,15 @@ public abstract class ActionFailed extends RuntimeException {
 
         public CommunicationError(Throwable cause) {
             super(cause);
+        }
+    }
+
+    /**
+     * Response have not arrived within the configured timeout.
+     */
+    public static class RequestTimeout extends CommunicationError {
+        public RequestTimeout(String s, Throwable cause) {
+            super(s, cause);
         }
     }
 
@@ -75,5 +84,4 @@ public abstract class ActionFailed extends RuntimeException {
             super(cause);
         }
     }
-
 }

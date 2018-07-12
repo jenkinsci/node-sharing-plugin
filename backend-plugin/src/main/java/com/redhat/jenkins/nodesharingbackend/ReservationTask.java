@@ -23,7 +23,9 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Label;
@@ -220,6 +222,12 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                             return;
                         }
                         continue;
+                    } catch (ActionFailed.RequestTimeout ex) {
+                        // This is a conservative approach to not knowing whether the request passed or not. We presume
+                        // it did so we keep the node reserved because underutilizing resources is less disruptive than
+                        // non-exclusive lease would we risk by stopping the ReservationTask here.
+                        LOGGER.log(Level.WARNING, "utilizeNode request timed out, continuing the reservation speculatively");
+                        break;
                     } catch (Throwable ex) {
                         LOGGER.log(Level.SEVERE, taskName + " failed to get the node utilized", ex);
                         return;
