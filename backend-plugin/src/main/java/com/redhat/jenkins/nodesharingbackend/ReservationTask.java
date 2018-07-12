@@ -241,6 +241,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                 }
             }
 
+            // TODO This this point, we might want to a) check/wait until executor creates the node and b) expose that
+            // for ReservationVerifier to help balance executor nodes with running reservations
             try {
                 done.block();
                 LOGGER.info(taskName + " completed");

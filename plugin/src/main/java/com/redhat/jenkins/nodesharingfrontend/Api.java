@@ -251,11 +251,14 @@ public class Api {
 
         Computer computer = node.toComputer();
         if (node instanceof SharedNode) {
-            if (computer != null && computer.getTerminatedBy() == null ) {
+            if (computer != null && computer.getTerminatedBy() == null) {
                 return node;
             } else {
                 return null; // being terminated
             }
+        } else if ("com.redhat.jenkins.nodesharingbackend.ShareableNode".equals(node.getClass().getName())) {
+            /* jth-test hack */
+            return null;
         } else {
             throw new IllegalStateException("Node " + name + " already exists but it is a " + node.getClass().getName());
         }

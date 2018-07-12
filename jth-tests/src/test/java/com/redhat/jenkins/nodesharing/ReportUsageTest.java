@@ -103,7 +103,7 @@ public class ReportUsageTest {
         }
     }
 
-    @Test
+    @Test // TODO I have no idea what this was supposed to test - broken by 7d6eb1fff85fc6993d5c2e1affd8ecb775df8970
     public void orchestratorFailover() throws Exception {
         j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
