@@ -198,7 +198,7 @@ public class Api {
 
         // utilizeNode call received even though the node is already being utilized
         Node node = getCollidingNode(jenkins, name);
-        if (node == null) {
+        if (node != null) {
             new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
             rsp.setStatus(HttpServletResponse.SC_OK);
             LOGGER.warning("Skipping node addition as it already exists");
@@ -217,7 +217,7 @@ public class Api {
             Queue.withLock(new NotReallyRoleSensitiveCallable<Void, IOException>() {
                 @Override public Void call() throws IOException {
                     Node node = getCollidingNode(jenkins, name);
-                    if (node != null) {
+                    if (node == null) {
                         jenkins.addNode(newNode);
                     } else {
                         LOGGER.warning("Skipping node addition due to race condition");
@@ -250,8 +250,12 @@ public class Api {
         if (node == null) return null;
 
         Computer computer = node.toComputer();
-        if (node instanceof SharedNode && computer != null && computer.getTerminatedBy() == null ) {
-            return node;
+        if (node instanceof SharedNode) {
+            if (computer != null && computer.getTerminatedBy() == null ) {
+                return node;
+            } else {
+                return null; // being terminated
+            }
         } else {
             throw new IllegalStateException("Node " + name + " already exists but it is a " + node.getClass().getName());
         }
