@@ -47,14 +47,12 @@ import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
-import hudson.remoting.Callable;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.security.NotReallyRoleSensitiveCallable;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.HttpPost;
-import org.jenkinsci.remoting.RoleChecker;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerRequest;
@@ -295,23 +293,6 @@ public class Api {
 
         new ReportUsageResponse(fingerprint, usedNodes).toOutputStream(rsp.getOutputStream());
     }
-
-//    /**
-//     * Query Executor Jenkins to report the status of executed item.
-//     */
-//    @RequirePOST
-//    public void doRunStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-//        Jenkins.getActiveInstance().checkPermission(RestEndpoint.INVOKE);
-//        RunStatusRequest request = com.redhat.jenkins.nodesharing.transport.Entity.fromInputStream(
-//                req.getInputStream(), RunStatusRequest.class);
-//        RunStatusResponse response = new RunStatusResponse(
-//                fingerprint,
-//                request.getRunId(),
-//                cloud.getRunStatus(request.getRunId())
-//        );
-//        rsp.setContentType("application/json");
-//        response.toOutputStream(rsp.getOutputStream());
-//    }
 
     /**
      * Immediately return node to orchestrator. (Nice to have feature)
