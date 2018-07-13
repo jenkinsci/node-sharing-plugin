@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -41,6 +42,7 @@ import org.acegisecurity.AccessDeniedException;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.net.SocketTimeoutException;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -221,6 +223,12 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                         }
                         continue;
                     } catch (Throwable ex) {
+                        // Handle TIMEOUT from Api.utilizeNode() call differently
+                        if (ex instanceof ActionFailed.CommunicationError
+                                && ((ActionFailed.CommunicationError) ex).getCause() instanceof SocketTimeoutException) {
+                            LOGGER.warning(taskName + " timeout, however the node is marked as reserved");
+                            break; // Handle as Reserved successfully - wait for node return or ReservationVerifier.verify()
+                        }
                         LOGGER.log(Level.SEVERE, taskName + " failed to get the node utilized", ex);
                         return;
                     }
