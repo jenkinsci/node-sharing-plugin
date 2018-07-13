@@ -68,7 +68,7 @@ import java.util.logging.Logger;
  *
  * <ul>
  *     <li>NC1: Orchestrator tracks a reservation for executor that does not report the host being reserved. UC: Executor failover or Missed returnNode call</li>
- *     <li>NC2: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Host removal and Orchestrator failover.</li>
+ *     <li>NC2: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Orchestrator failover.</li>
  *     <li>NC3: Orchestrator tracks reservation of a host for executor X that does not report it while executor Y does. Bug or Race Condition</li>
  * </ul>
  * State representation of the Orchestrator is adjusted to match the one of the grid.
@@ -177,25 +177,17 @@ public class ReservationVerifier extends PeriodicWork {
             all.put(jenkins, new HashMap<String, ReservationTask.ReservationExecutable>());
         }
 
-        for (Computer computer : Jenkins.getActiveInstance().getComputers()) {
-            if (computer instanceof ShareableComputer) {
-                ShareableComputer shareableComputer = (ShareableComputer) computer;
-                for (Executor executor : shareableComputer.getExecutors()) {
-                    Queue.Executable executable = executor.getCurrentExecutable();
-                    if (executable instanceof ReservationTask.ReservationExecutable) {
-                        ReservationTask.ReservationExecutable rex = (ReservationTask.ReservationExecutable) executable;
-                        ExecutorJenkins owner = rex.getParent().getOwner();
-                        Map<String, ReservationTask.ReservationExecutable> list = all.get(owner);
-                        if (list == null) {
-                            list = new HashMap<>();
-                            all.put(owner, list);
-                        }
-                        list.put(rex.getNodeName(), rex);
-                        // Make sure executors no longer in config repo yet still occupying hosts are added
-                        jenkinses.add(owner);
-                    }
-                }
+        for (ReservationTask.ReservationExecutable rex: ShareableComputer.getAllReservations().values()) {
+            if (rex == null) continue;
+            ExecutorJenkins owner = rex.getParent().getOwner();
+            Map<String, ReservationTask.ReservationExecutable> list = all.get(owner);
+            if (list == null) {
+                list = new HashMap<>();
+                all.put(owner, list);
             }
+            list.put(rex.getNodeName(), rex);
+            // Make sure executors no longer in config repo yet still occupying hosts are added
+            jenkinses.add(owner);
         }
 
         return all;

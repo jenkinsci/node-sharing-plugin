@@ -113,7 +113,6 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
         }
     }
 
-    @VisibleForTesting
     public static Map<ShareableComputer, ReservationTask.ReservationExecutable> getAllReservations() {
         Map<ShareableComputer, ReservationTask.ReservationExecutable> out = new HashMap<>();
         for (Computer computer : Jenkins.getActiveInstance().getComputers()) {

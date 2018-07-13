@@ -1,7 +1,11 @@
 package com.redhat.jenkins.nodesharing;
 
+import com.google.common.collect.Sets;
+import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
+import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharing.utils.DoNotSquashQueueAction;
+import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ReservationVerifier;
@@ -19,14 +23,18 @@ import hudson.model.queue.QueueTaskFuture;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.hamcrest.Description;
+import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -34,25 +42,33 @@ import java.util.logging.Logger;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.getInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 public class ReservationVerifierTest {
 
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
     @Rule public LoggerRule l = new LoggerRule();
 
+    private Pool pool;
+    private SharedNodeCloud cloud;
+
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         l.record(Logger.getLogger(ReservationVerifier.class.getName()), Level.INFO);
         l.capture(10);
+
+        j.singleJvmGrid(j.jenkins);
+        pool = getInstance();
+        cloud = j.addSharedNodeCloud(pool.getConfigRepoUrl());
     }
 
     @Test // Case: A1, A2
     public void stress() throws Exception {
-        j.singleJvmGrid(j.jenkins);
-        j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
-
         FreeStyleProject project = j.createProject(FreeStyleProject.class);
         project.setAssignedLabel(Label.get("windows||solaris"));
         project.setConcurrentBuild(true);
@@ -80,12 +96,8 @@ public class ReservationVerifierTest {
         assertThat(l, notLogged(Level.WARNING, ".*"));
     }
 
-    @Test
+    @Test // Case: NC1
     public void completeReservationWhenNotUsedOnExecutor() throws Exception {
-        j.singleJvmGrid(j.jenkins);
-        Pool pool = getInstance();
-        j.addSharedNodeCloud(pool.getConfigRepoUrl());
-
         ExecutorJenkins executor = getSomeExecutor(pool);
         ShareableNode node = getSomeShareableNode();
 
@@ -99,25 +111,8 @@ public class ReservationVerifierTest {
         assertNull(node.getComputer().getReservation());
     }
 
-    private void startDanglingReservation(ExecutorJenkins executor, ShareableNode node) throws InterruptedException, java.util.concurrent.ExecutionException {
-        assertNull(node.getComputer().getReservation());
-        new ReservationTask(executor, node.getNodeName(), true).schedule().getFuture().getStartCondition().get();
-        assertNotNull(node.getComputer().getReservation());
-    }
-
-    private ShareableNode getSomeShareableNode() {
-        return ShareableNode.getAll().values().iterator().next();
-    }
-
-    private ExecutorJenkins getSomeExecutor(Pool pool) {
-        return pool.getConfig().getJenkinses().iterator().next();
-    }
-
-    @Test
+    @Test // Case: NC2
     public void createBackfillWhenReservationNotTrackedOnOrchestrator() throws Exception {
-        j.singleJvmGrid(j.jenkins);
-        Pool pool = getInstance();
-        SharedNodeCloud cloud = j.addSharedNodeCloud(pool.getConfigRepoUrl());
         ShareableNode shareableNode = getSomeShareableNode();
         assertNotNull(cloud.getLatestConfig());
         SharedNode sharedNode = cloud.createNode(shareableNode.getNodeDefinition());
@@ -145,6 +140,44 @@ public class ReservationVerifierTest {
         assertThat(l, logged(Level.INFO, "Starting backfill reservation for " + shareableNode.getNodeName() + ".*"));
 
         j.waitUntilNoActivity();
+    }
+
+    @Test
+    public void orchestratorFailover() throws Exception {
+        ConfigRepo.Snapshot c = cloud.getLatestConfig();
+        ArrayList<String> nodes = new ArrayList<>(c.getNodes().keySet());
+
+        ConfigRepo.Snapshot config = spy(c);
+        when(config.getJenkinses()).thenReturn(Sets.newHashSet(
+                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake one"),
+                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake two")
+        ));
+        Api api = mock(Api.class);
+        ExecutorEntity.Fingerprint fp = new ExecutorEntity.Fingerprint("", "", "");
+        when(api.reportUsage(Mockito.any(ExecutorJenkins.class))).thenReturn(
+                new ReportUsageResponse(fp, Arrays.asList(nodes.get(0), nodes.get(1))),
+                new ReportUsageResponse(fp, Collections.singletonList(nodes.get(3)))
+        );
+
+        ReservationVerifier.verify(config, api);
+        Thread.sleep(1000); // Queued reservations to get active
+
+        assertThat(j.getQueuedReservations(), emptyIterable());
+        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
+    }
+
+    private void startDanglingReservation(ExecutorJenkins executor, ShareableNode node) throws InterruptedException, java.util.concurrent.ExecutionException {
+        assertNull(node.getComputer().getReservation());
+        new ReservationTask(executor, node.getNodeName(), true).schedule().getFuture().getStartCondition().get();
+        assertNotNull(node.getComputer().getReservation());
+    }
+
+    private ShareableNode getSomeShareableNode() {
+        return ShareableNode.getAll().values().iterator().next();
+    }
+
+    private ExecutorJenkins getSomeExecutor(Pool pool) {
+        return pool.getConfig().getJenkinses().iterator().next();
     }
 
     private static TypeSafeDiagnosingMatcher<LoggerRule> logged(final Level level, final String pattern) {
