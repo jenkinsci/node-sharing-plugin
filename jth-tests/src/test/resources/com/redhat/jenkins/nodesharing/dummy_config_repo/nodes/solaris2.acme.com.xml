@@ -16,6 +16,6 @@
       </tree-map>
     </env>
   </launcher>
-  <label>solaris10 sparc</label>
+  <label>solaris solaris10 sparc</label>
   <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

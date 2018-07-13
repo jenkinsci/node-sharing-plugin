@@ -157,7 +157,7 @@ public class PoolTest {
         DumbSlave doNotTouchMe = j.createOnlineSlave(); // There is no reason for using some other slave kinds on orchestrator but ...
 
         Assert.assertEquals("windows w2k16", j.getNode("win2.acme.com").getLabelString());
-        Assert.assertEquals("solaris11 sparc", j.getNode("solaris1.acme.com").getLabelString());
+        Assert.assertEquals("solaris solaris11 sparc", j.getNode("solaris1.acme.com").getLabelString());
         assertNull(j.jenkins.getNode("windows.acme.com"));
 
         Node nodeW1 = j.getNode("win1.acme.com");
@@ -175,7 +175,7 @@ public class PoolTest {
         Updater.getInstance().doRun();
 
         Assert.assertEquals("windows w2k16", j.getNode("windows.acme.com").getLabelString());
-        Assert.assertEquals("solaris12 sparc", j.getNode("solaris1.acme.com").getLabelString());
+        Assert.assertEquals("solaris solaris12 sparc", j.getNode("solaris1.acme.com").getLabelString());
         assertNull(j.jenkins.getNode("win2.acme.com"));
         assertNull(j.jenkins.getComputer("win2.acme.com"));
         assertSame(nodeW1, j.getNode("win1.acme.com"));

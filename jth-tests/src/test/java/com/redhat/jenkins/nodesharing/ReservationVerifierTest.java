@@ -94,6 +94,34 @@ public class ReservationVerifierTest {
         }
 
         assertThat(l, notLogged(Level.WARNING, ".*"));
+        assertThat(l, notLogged(Level.INFO, ".*"));
+    }
+
+    @Test
+    public void stress2() throws Exception {
+        FreeStyleProject project = j.createProject(FreeStyleProject.class);
+        project.setAssignedLabel(Label.get("windows||solaris"));
+        project.setConcurrentBuild(true);
+        project.getBuildersList().add(new TestBuilder() {
+            @Override
+            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+                return true;
+            }
+        });
+
+        Timer.get().scheduleAtFixedRate(new ReservationVerifier(), 0, 1, TimeUnit.SECONDS);
+
+        for (int i = 0; i < 50; i++) {
+            project.scheduleBuild2(0, new DoNotSquashQueueAction());
+        }
+
+        j.waitUntilNoActivity();
+        for (FreeStyleBuild build : project.getBuilds()) {
+            j.assertBuildStatusSuccess(build);
+        }
+
+        assertThat(l, notLogged(Level.WARNING, ".*"));
+        assertThat(l, notLogged(Level.INFO, ".*"));
     }
 
     @Test // Case: NC1
