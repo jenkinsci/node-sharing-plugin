@@ -5,6 +5,7 @@ import com.redhat.jenkins.nodesharing.utils.DoNotSquashQueueAction;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ReservationVerifier;
+import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -134,7 +135,7 @@ public class ReservationVerifierTest {
         assertNull(shareableNode.getComputer().getReservation());
         ReservationVerifier.getInstance().doRun();
         Thread.sleep(5000);
-        assertNotNull(shareableNode.getComputer().getReservation());
+        assertNotNull(ShareableComputer.getAllReservations().toString(), shareableNode.getComputer().getReservation());
 
         bb.end.signal();
         fb.get();

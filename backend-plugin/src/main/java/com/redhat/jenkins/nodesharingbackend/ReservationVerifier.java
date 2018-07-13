@@ -131,7 +131,7 @@ public class ReservationVerifier extends PeriodicWork {
             toSchedule.removeAll(reservedNodes);
 
             ArrayList<String> toCancel = new ArrayList<>(reservedNodes);
-            toSchedule.removeAll(utilizedNodes);
+            toCancel.removeAll(utilizedNodes);
 
             // NC1
             for (String cancel : toCancel) {
