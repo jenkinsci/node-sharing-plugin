@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Future;
 import java.util.logging.LogRecord;
 
@@ -70,6 +71,26 @@ import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
 @Restricted(NoExternalUse.class)
 public class ShareableComputer extends SlaveComputer implements EphemeralNode {
     private final Channel channel;
+
+    public static Map<ShareableComputer, ReservationTask.ReservationExecutable> getAllReservations() {
+        Map<ShareableComputer, ReservationTask.ReservationExecutable> out = new HashMap<>();
+        for (Computer computer : Jenkins.getActiveInstance().getComputers()) {
+            if (computer instanceof ShareableComputer) {
+                ShareableComputer shareableComputer = (ShareableComputer) computer;
+                out.put(shareableComputer, shareableComputer.getReservation());
+            }
+        }
+        return out;
+    }
+
+    public static ShareableComputer getByName(String name) throws NoSuchElementException {
+        Computer computer = Jenkins.getActiveInstance().getComputer(name);
+        if (computer instanceof ShareableComputer) {
+            return (ShareableComputer) computer;
+        }
+        throw new NoSuchElementException();
+    }
+
     /*package*/ ShareableComputer(Slave slave) {
         super(slave);
         // A lot of Jenkins abstractions presumes Computers are either SlaveComputers or a single MasterComputer which
@@ -111,17 +132,6 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
                 return (ReservationTask.ReservationExecutable) executable;
             default: throw new IllegalStateException("More than a single task running on ShareableComputer: " + executables);
         }
-    }
-
-    public static Map<ShareableComputer, ReservationTask.ReservationExecutable> getAllReservations() {
-        Map<ShareableComputer, ReservationTask.ReservationExecutable> out = new HashMap<>();
-        for (Computer computer : Jenkins.getActiveInstance().getComputers()) {
-            if (computer instanceof ShareableComputer) {
-                ShareableComputer shareableComputer = (ShareableComputer) computer;
-                out.put(shareableComputer, shareableComputer.getReservation());
-            }
-        }
-        return out;
     }
 
     @Override

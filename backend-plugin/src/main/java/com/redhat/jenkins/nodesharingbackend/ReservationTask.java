@@ -43,6 +43,7 @@ import org.acegisecurity.AccessDeniedException;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -79,7 +80,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         this.backfill = false;
     }
 
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) {
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) throws NoSuchElementException {
+        ShareableComputer.getByName(host); // Verify the host exists
         this.jenkins = owner;
         this.label = Label.get(host);
         this.taskName = host;

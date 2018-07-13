@@ -97,7 +97,7 @@ public class ReservationVerifierTest {
         assertThat(l, notLogged(Level.INFO, ".*"));
     }
 
-    @Test
+    @Test // Case: A1, A2 (no collisions intended here - though the rapid scheduling approach invokes race conditions that resembled collisions to ReservationVErifier)
     public void stress2() throws Exception {
         FreeStyleProject project = j.createProject(FreeStyleProject.class);
         project.setAssignedLabel(Label.get("windows||solaris"));
