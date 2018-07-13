@@ -84,18 +84,25 @@ public class RestEndpoint {
     /*package for testing*/ static final int TIMEOUT = parseTimeout();
 
     // Default REST calls timeout in ms
-    private static final int DEFAULT_TIMEOUT = 5 * 1000;
+    private static final int DEFAULT_TIMEOUT = 30 * 1000;
+    private static final String PROPERTY_NAME = "com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT";
 
     private static int parseTimeout() {
-        try {
-            String strTimeout = Util.fixEmptyAndTrim(System.getProperty("com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT"));
-            if (strTimeout != null) {
+        String strTimeout = Util.fixEmptyAndTrim(System.getProperty(PROPERTY_NAME));
+        if (strTimeout != null) {
+            try {
                 int timeout = Integer.parseInt(strTimeout);
-                if (timeout > 0) return timeout;
+                if (timeout > 0) {
+                    if (timeout < DEFAULT_TIMEOUT) {
+                        LOGGER.warning("Using " + PROPERTY_NAME + " shorter than the default (" + DEFAULT_TIMEOUT + ") may be problematic");
+                    }
+                    return timeout;
+                } else {
+                    LOGGER.warning("Value of " + PROPERTY_NAME + " is invalid, using default " + DEFAULT_TIMEOUT);
+                }
+            } catch (NumberFormatException e) {
+                LOGGER.log(Level.WARNING, "Unable to parse TIMEOUT, using default value " + DEFAULT_TIMEOUT, e);
             }
-            LOGGER.info("Value of com.redhat.jenkins.nodesharing.RestEndpoint.TIMEOUT isn't defined or not >0, using default " + DEFAULT_TIMEOUT);
-        } catch (NumberFormatException e) {
-            LOGGER.log(Level.WARNING, "Unable to parse TIMEOUT, using default value " + DEFAULT_TIMEOUT, e);
         }
         return DEFAULT_TIMEOUT;
     }

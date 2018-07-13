@@ -218,7 +218,7 @@ public final class ExternalGridRule implements TestRule {
         return Timer.get().schedule(new Callable<URL>() {
             @Override public URL call() throws Exception {
                 ExecutorJenkins jenkins = new ExecutorJenkins("http://localhost:" + port, "executor-" + port);
-                for (; ; ) {
+                for (;;) {
                     try {
                         Thread.sleep(5000);
                         try {
