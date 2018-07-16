@@ -80,8 +80,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         this.backfill = false;
     }
 
-    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) throws NoSuchElementException {
-        ShareableComputer.getByName(host); // Verify the host exists
+    public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) {
         this.jenkins = owner;
         this.label = Label.get(host);
         this.taskName = host;
