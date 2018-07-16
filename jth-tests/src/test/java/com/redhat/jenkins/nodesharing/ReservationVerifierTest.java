@@ -111,7 +111,7 @@ public class ReservationVerifierTest {
 
         Timer.get().scheduleAtFixedRate(new ReservationVerifier(), 0, 1, TimeUnit.SECONDS);
 
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 40; i++) {
             project.scheduleBuild2(0, new DoNotSquashQueueAction());
         }
 
@@ -168,30 +168,6 @@ public class ReservationVerifierTest {
         assertThat(l, logged(Level.INFO, "Starting backfill reservation for " + shareableNode.getNodeName() + ".*"));
 
         j.waitUntilNoActivity();
-    }
-
-    @Test
-    public void orchestratorFailover() throws Exception {
-        ConfigRepo.Snapshot c = cloud.getLatestConfig();
-        ArrayList<String> nodes = new ArrayList<>(c.getNodes().keySet());
-
-        ConfigRepo.Snapshot config = spy(c);
-        when(config.getJenkinses()).thenReturn(Sets.newHashSet(
-                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake one"),
-                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake two")
-        ));
-        Api api = mock(Api.class);
-        ExecutorEntity.Fingerprint fp = new ExecutorEntity.Fingerprint("", "", "");
-        when(api.reportUsage(Mockito.any(ExecutorJenkins.class))).thenReturn(
-                new ReportUsageResponse(fp, Arrays.asList(nodes.get(0), nodes.get(1))),
-                new ReportUsageResponse(fp, Collections.singletonList(nodes.get(3)))
-        );
-
-        ReservationVerifier.verify(config, api);
-        Thread.sleep(1000); // Queued reservations to get active
-
-        assertThat(j.getQueuedReservations(), emptyIterable());
-        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
     }
 
     private void startDanglingReservation(ExecutorJenkins executor, ShareableNode node) throws InterruptedException, java.util.concurrent.ExecutionException {
