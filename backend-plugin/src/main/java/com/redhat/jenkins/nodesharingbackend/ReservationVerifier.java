@@ -107,6 +107,7 @@ public class ReservationVerifier extends PeriodicWork {
 
     @VisibleForTesting
     public static void verify(ConfigRepo.Snapshot config, Api api) {
+        // Capture multiple plans so we can identify long-lasting problems. The number of samples and delay is to be fine-tuned.
         Map<ExecutorJenkins, PlannedFixup> plan = PlannedFixup.reduce(
                 computePlannedFixup(config, api),
                 computePlannedFixup(config, api)
@@ -263,6 +264,12 @@ public class ReservationVerifier extends PeriodicWork {
             return new PlannedFixup(rCancel, rSchedule);
         }
 
+        /**
+         * Merge set of plans for whole orchestrator.
+         *
+         * Individual plans for particular executor will be merged, Executors that do not have plans for all samples will
+         * be eliminated.
+         */
         /*package*/ static Map<ExecutorJenkins, PlannedFixup> reduce(Map<ExecutorJenkins, PlannedFixup>... samples) {
             if (samples == null || samples.length <= 1) throw new IllegalArgumentException();
 
