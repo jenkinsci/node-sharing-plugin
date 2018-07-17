@@ -29,6 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,13 +37,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.getInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.any;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -101,7 +102,8 @@ public class ReservationVerifierTest {
         assertThat(l, notLogged(Level.INFO, ".*"));
     }
 
-    @Test // Case: A1, A2 (no collisions intended here - though the rapid scheduling approach invokes race conditions that resembled collisions to ReservationVErifier)
+    @Test // Case: A1, A2
+    // no collisions intended here - though the rapid scheduling approach invokes race conditions that resembles collisions to ReservationVerifier
     // TODO extend timeout and add more iterations after https://issues.jenkins-ci.org/browse/JENKINS-49046 is fixed
     public void stress2() throws Exception {
         FreeStyleProject project = j.createProject(FreeStyleProject.class);
@@ -136,12 +138,20 @@ public class ReservationVerifierTest {
 
         startDanglingReservation(executor, node);
 
-        ReservationVerifier.getInstance().doRun();
+        // Executor will report no node usage
+        Api api = mock(Api.class);
+        when(api.reportUsage(Mockito.any(ExecutorJenkins.class))).thenReturn(new ReportUsageResponse(
+                new ExecutorEntity.Fingerprint(pool.getConfigRepoUrl(), "7", executor.getUrl().toExternalForm()),
+                Collections.<String>emptyList()
+        ));
+
+        ReservationVerifier.verify(pool.getConfig(), api);
         Thread.sleep(1000);
 
         assertThat(l, notLogged(Level.WARNING, ".*"));
-        assertThat(l, logged(Level.INFO, "Cancelling dangling reservation for " + node.getNodeName() + " and " + executor.getName()));
+        assertThat(l, logged(Level.INFO, "Canceling dangling Reservation of " + node.getNodeName() + " by " + executor.getName() + ".*"));
         assertNull(node.getComputer().getReservation());
+        j.waitUntilNoActivity();
     }
 
     @Test // Case: NC2
@@ -170,7 +180,7 @@ public class ReservationVerifierTest {
         j.assertBuildStatusSuccess(build);
 
         assertThat(l, notLogged(Level.WARNING, ".*"));
-        assertThat(l, logged(Level.INFO, "Starting backfill reservation for " + shareableNode.getNodeName() + ".*"));
+        assertThat(l, logged(Level.INFO, "Starting backfill Reservation '" + shareableNode.getNodeName() + "'.*"));
 
         j.waitUntilNoActivity();
     }

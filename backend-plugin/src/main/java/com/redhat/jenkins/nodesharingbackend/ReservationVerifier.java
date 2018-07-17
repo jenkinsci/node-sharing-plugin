@@ -116,8 +116,6 @@ public class ReservationVerifier extends PeriodicWork {
         // First kill all dangling reservations, then schedule new ones across the orchestrator to make sure backfills
         // are not blocked by reservations we are about to kill
 
-        LOGGER.info("Executing plan: " + plan);
-
         // Completed reservations may stick around for a while - avoid reporting that as a problem
         ArrayList<ReservationTask.ReservationExecutable> justCompleted = new ArrayList<>();
 
@@ -175,7 +173,7 @@ public class ReservationVerifier extends PeriodicWork {
         assert executorReservations.keySet().equals(trackedReservations.keySet()) : executorReservations + " != " + trackedReservations;
 
         // TODO verify multiple executors are not using same host
-        // TODO the executor might no longer use the plugin or respond to anything (down, terminated, busy)
+        // TODO the executor might no longer use the plugin
 
         Map<ExecutorJenkins, PlannedFixup> plan = new HashMap<>();
         for (Map.Entry<ExecutorJenkins, Set<String>> er: executorReservations.entrySet()) {
@@ -214,7 +212,6 @@ public class ReservationVerifier extends PeriodicWork {
             try {
                 responses.put(executorJenkins, new HashSet<>(api.reportUsage(executorJenkins).getUsedNodes()));
             } catch (Exception e) {
-                // TODO do not treat failing executors as if they do not reserved anything
                 responses.put(executorJenkins, null);
                 LOGGER.log(Level.SEVERE, "Jenkins master '" + executorJenkins + "' didn't respond correctly:", e);
             }
@@ -251,13 +248,17 @@ public class ReservationVerifier extends PeriodicWork {
     }
 
     /**
-     * Planned actions to take for Executor Jenkins to bring it back in sync with orchestrator.
+     * Planned actions to take or bring Executor Jenkins back in sync with Orchestrator.
      */
     @VisibleForTesting
     /*package*/ static final class PlannedFixup {
         private final List<String> toCancel;
         private final List<String> toSchedule;
 
+        /**
+         * @param toCancel Set of host reservations that should be canceled.
+         * @param toSchedule Set of host reservations that should be scheduled.
+         */
         /*package*/ PlannedFixup(List<String> toCancel, List<String> toSchedule) {
             if (toCancel == null || toSchedule == null) throw new IllegalArgumentException();
             if (CollectionUtils.containsAny(toCancel, toSchedule)) throw new IllegalArgumentException(
@@ -269,7 +270,11 @@ public class ReservationVerifier extends PeriodicWork {
 
         /**
          * Merge several plans computed at different time together keeping the actions that are present in all the plans.
-         * This is to separate the long-lasting problems that did not corrected itself from race conditions and minor glitches.
+         *
+         * This is to separate the long-lasting problems that did not corrected itself from race conditions and minor
+         * glitches that either are not problems or gets healed by normal operation.
+         *
+         * @return A plan to address only the problems that has persisted through all the samples.
          */
         /*package*/ static PlannedFixup reduce(PlannedFixup... pf) {
             if (pf == null || pf.length <= 1) throw new IllegalArgumentException();
@@ -289,6 +294,8 @@ public class ReservationVerifier extends PeriodicWork {
          *
          * Individual plans for particular executor will be merged, Executors that do not have plans for all samples will
          * be eliminated.
+         *
+         * @return A plan to address only the problems that has persisted through all the samples.
          */
         /*package*/ static Map<ExecutorJenkins, PlannedFixup> reduce(List<Map<ExecutorJenkins, PlannedFixup>> samples) {
             if (samples == null || samples.size() <= 1) throw new IllegalArgumentException();
