@@ -34,6 +34,7 @@ import hudson.model.PeriodicWork;
 import jenkins.model.Jenkins;
 import org.apache.commons.collections.CollectionUtils;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -113,6 +114,7 @@ public class ReservationVerifier extends PeriodicWork {
                 computePlannedFixup(config, api)
         );
 
+        // TODO first kill all, then schedule all to resolve conflicts
         for (Map.Entry<ExecutorJenkins, PlannedFixup> e2pf : plan.entrySet()) {
             ExecutorJenkins executor = e2pf.getKey();
             List<String> toSchedule = e2pf.getValue().toSchedule;
@@ -162,17 +164,25 @@ public class ReservationVerifier extends PeriodicWork {
         Set<ExecutorJenkins> jenkinses = new HashSet<>(config.getJenkinses());
         Map<ExecutorJenkins, Map<String, ReservationTask.ReservationExecutable>> trackedReservations = trackedReservations(jenkinses);
         Map<ExecutorJenkins, Set<String>> executorReservations = queryExecutorReservations(jenkinses, api);
-        assert executorReservations.keySet().equals(trackedReservations.keySet());
+        assert executorReservations.keySet().equals(trackedReservations.keySet()) : executorReservations + " != " + trackedReservations;
 
         // TODO verify multiple executors are not using same host
-        // TODO the executor might no longer use the plugin
+        // TODO the executor might no longer use the plugin or respond to anything (down, terminated, busy)
 
         Map<ExecutorJenkins, PlannedFixup> plan = new HashMap<>();
         for (Map.Entry<ExecutorJenkins, Set<String>> er: executorReservations.entrySet()) {
             ExecutorJenkins executor = er.getKey();
-            Collection<String> utilizedNodes = er.getValue();
+            @CheckForNull Collection<String> utilizedNodes = er.getValue(); // Might fail getting the data
 
             Collection<String> reservedNodes = trackedReservations.get(executor).keySet();
+
+            // Failed to query the host - no balancing
+            if (utilizedNodes == null) {
+                if (!reservedNodes.isEmpty()) {
+                    LOGGER.warning("Failed to query executor " + executor.getName() + " with reserved nodes tracked");
+                }
+                continue;
+            }
 
             if (utilizedNodes.equals(reservedNodes)) continue; // In sync
 
@@ -195,7 +205,9 @@ public class ReservationVerifier extends PeriodicWork {
         for (ExecutorJenkins executorJenkins : jenkinses) {
             try {
                 responses.put(executorJenkins, new HashSet<>(api.reportUsage(executorJenkins).getUsedNodes()));
-            } catch (ActionFailed e) {
+            } catch (Exception e) {
+                // TODO do not treat failing executors as if they do not reserved anything
+                responses.put(executorJenkins, null);
                 LOGGER.log(Level.SEVERE, "Jenkins master '" + executorJenkins + "' didn't respond correctly:", e);
             }
         }
@@ -310,6 +322,10 @@ public class ReservationVerifier extends PeriodicWork {
 
         @Override public int hashCode() {
             return Objects.hash(toCancel, toSchedule);
+        }
+
+        @Override public String toString() {
+            return "Plan to cancel: " + toCancel + " and schedule: " + toSchedule;
         }
     }
 }
