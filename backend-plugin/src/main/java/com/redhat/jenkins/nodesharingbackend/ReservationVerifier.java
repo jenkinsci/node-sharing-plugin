@@ -24,7 +24,6 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.Extension;
@@ -109,19 +108,23 @@ public class ReservationVerifier extends PeriodicWork {
     @VisibleForTesting
     public static void verify(ConfigRepo.Snapshot config, Api api) {
         // Capture multiple plans so we can identify long-lasting problems. The number of samples and delay is to be fine-tuned.
-        Map<ExecutorJenkins, PlannedFixup> plan = PlannedFixup.reduce(
-                computePlannedFixup(config, api),
-                computePlannedFixup(config, api)
-        );
+        ArrayList<Map<ExecutorJenkins, PlannedFixup>> plans = new ArrayList<>();
+        plans.add(computePlannedFixup(config, api));
+        plans.add(computePlannedFixup(config, api));
+        Map<ExecutorJenkins, PlannedFixup> plan = PlannedFixup.reduce(plans);
 
-        // TODO first kill all, then schedule all to resolve conflicts
+        // First kill all dangling reservations, then schedule new ones across the orchestrator to make sure backfills
+        // are not blocked by reservations we are about to kill
+
+        LOGGER.info("Executing plan: " + plan);
+
+        // Completed reservations may stick around for a while - avoid reporting that as a problem
+        ArrayList<ReservationTask.ReservationExecutable> justCompleted = new ArrayList<>();
+
+        // NC1
         for (Map.Entry<ExecutorJenkins, PlannedFixup> e2pf : plan.entrySet()) {
             ExecutorJenkins executor = e2pf.getKey();
-            List<String> toSchedule = e2pf.getValue().toSchedule;
-            List<String> toCancel = e2pf.getValue().toCancel;
-
-            // NC1
-            for (String cancel : toCancel) {
+            for (String cancel : e2pf.getValue().toCancel) {
                 ShareableComputer computer;
                 try {
                     computer = ShareableComputer.getByName(cancel);
@@ -134,23 +137,28 @@ public class ReservationVerifier extends PeriodicWork {
                 ReservationTask parent = reservation.getParent();
                 if (!parent.getOwner().equals(executor)) continue;
 
-                LOGGER.info("Cancelling dangling reservation for " + reservation.getNodeName() + " and " + parent.getName());
+                LOGGER.info("Canceling dangling " + reservation);
                 reservation.complete();
+                justCompleted.add(reservation);
             }
+        }
 
-            // NC2
-            for (String host : toSchedule) {
+        // NC2
+        for (Map.Entry<ExecutorJenkins, PlannedFixup> e2pf : plan.entrySet()) {
+            ExecutorJenkins executor = e2pf.getKey();
+            for (String host : e2pf.getValue().toSchedule) {
                 try {
                     ShareableComputer computer = ShareableComputer.getByName(host);
-                    LOGGER.info("Starting backfill reservation for " + host + " and " + executor.getName());
+                    ReservationTask task = new ReservationTask(executor, host, true);
+                    LOGGER.info("Starting backfill " + task);
                     ReservationTask.ReservationExecutable reservation = computer.getReservation();
-                    if (reservation != null) {
+                    if (reservation != null && !justCompleted.contains(reservation)) {
                         ExecutorJenkins owner = reservation.getParent().getOwner();
                         if (owner.equals(executor)) continue;
-                        LOGGER.warning("Host " + host + " is already reserved by " + owner.getName());
+                        LOGGER.warning("Host " + host + " is already used by " + reservation);
                     }
 
-                    new ReservationTask(executor, host, true).schedule();
+                    task.schedule();
                 } catch (NoSuchElementException ex) {
                     continue; // host disappeared
                 }
@@ -282,12 +290,12 @@ public class ReservationVerifier extends PeriodicWork {
          * Individual plans for particular executor will be merged, Executors that do not have plans for all samples will
          * be eliminated.
          */
-        /*package*/ static Map<ExecutorJenkins, PlannedFixup> reduce(Map<ExecutorJenkins, PlannedFixup>... samples) {
-            if (samples == null || samples.length <= 1) throw new IllegalArgumentException();
+        /*package*/ static Map<ExecutorJenkins, PlannedFixup> reduce(List<Map<ExecutorJenkins, PlannedFixup>> samples) {
+            if (samples == null || samples.size() <= 1) throw new IllegalArgumentException();
 
-            ArrayList<ExecutorJenkins> jenkinsesWithPlanForEverySample = new ArrayList<>(samples[0].keySet());
-            for (int i = 1; i < samples.length; i++) {
-                jenkinsesWithPlanForEverySample.retainAll(samples[i].keySet());
+            ArrayList<ExecutorJenkins> jenkinsesWithPlanForEverySample = new ArrayList<>(samples.get(0).keySet());
+            for (int i = 1; i < samples.size(); i++) {
+                jenkinsesWithPlanForEverySample.retainAll(samples.get(i).keySet());
             }
 
             Map<ExecutorJenkins, List<PlannedFixup>> collectedPlans = new HashMap<>();
