@@ -93,9 +93,9 @@ public class PoolTest {
             Pool.getInstance().getConfig();
             fail();
         } catch (Pool.PoolMisconfigured ex) {
-            assertEquals("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property", ex.getMessage());
+            assertEquals("Node-sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property", ex.getMessage());
         }
-        assertReports("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property");
+        assertReports("Node-sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property");
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
     }
 
@@ -125,9 +125,9 @@ public class PoolTest {
                 new ExecutorJenkins("https://jenkins1.acme.com:80/context-path", "jenkins2")
         ));
 
-        assertFalse(Pool.ADMIN_MONITOR.isActivated());
-
+        assertFalse(Pool.ADMIN_MONITOR.getErrors().toString(), Pool.ADMIN_MONITOR.isActivated());
     }
+
     @Test
     public void populateComputers() throws Exception {
         assertNull(getConfigTaskException("config-repo"));
@@ -403,7 +403,7 @@ public class PoolTest {
 
     @Test
     public void failRestCallsWhenNoPoolConfigRepoSpecified() throws Exception {
-        final String NO_CONFIG_REPO_PROPERTY = "Node sharing Config Repo not configured by ";
+        final String NO_CONFIG_REPO_PROPERTY = "Node-sharing Config Repo not configured by ";
         eraseLoadConfig();
         System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
 

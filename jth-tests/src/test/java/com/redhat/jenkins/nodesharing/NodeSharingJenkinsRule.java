@@ -84,6 +84,7 @@ import static org.junit.Assert.assertNotNull;
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public static final ExecutorJenkins DUMMY_OWNER = new ExecutorJenkins("https://jenkins42.acme.com", "jenkins42");
+    public static final String USER = "jerry";
 
     private UsernamePasswordCredentials restCred;
     private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
@@ -93,6 +94,8 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         try { // Needs to be done before Jenkins is up
             configRepo = createConfigRepo();
             System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, configRepo.getWorkTree().getRemote());
+            System.setProperty(Pool.USERNAME_PROPERTY_NAME, USER);
+            System.setProperty(Pool.PASSWORD_PROPERTY_NAME, USER);
         } catch (URISyntaxException | IOException e) {
             throw new Error(e);
         } catch (InterruptedException e) {
@@ -109,15 +112,13 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                 jenkins.setAuthorizationStrategy(mas);
 
                 restCred = new UsernamePasswordCredentialsImpl(
-                        CredentialsScope.GLOBAL, getRestCredentialId(), "Testing node sharing credential", "jerry", "jerry"
+                        CredentialsScope.GLOBAL, getRestCredentialId(), "Testing node sharing credential", USER, USER
                 );
                 SystemCredentialsProvider credentialsProvider = SystemCredentialsProvider.getInstance();
                 credentialsProvider.getCredentials().add(restCred);
                 credentialsProvider.save();
 
                 try {
-                    System.setProperty(Pool.USERNAME_PROPERTY_NAME, restCred.getUsername());
-                    System.setProperty(Pool.PASSWORD_PROPERTY_NAME, restCred.getPassword().getPlainText());
                     base.evaluate();
                 } finally {
                     System.clearProperty(Pool.USERNAME_PROPERTY_NAME);
