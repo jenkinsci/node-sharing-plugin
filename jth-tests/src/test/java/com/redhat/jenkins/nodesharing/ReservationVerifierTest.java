@@ -98,6 +98,7 @@ public class ReservationVerifierTest {
     }
 
     @Test // Case: A1, A2 (no collisions intended here - though the rapid scheduling approach invokes race conditions that resembled collisions to ReservationVErifier)
+    // TODO extend timeout and add more iterations after https://issues.jenkins-ci.org/browse/JENKINS-49046 is fixed
     public void stress2() throws Exception {
         FreeStyleProject project = j.createProject(FreeStyleProject.class);
         project.setAssignedLabel(Label.get("windows||solaris"));
