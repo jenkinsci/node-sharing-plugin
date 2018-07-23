@@ -23,7 +23,9 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Label;
@@ -41,6 +43,7 @@ import org.acegisecurity.AccessDeniedException;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -165,18 +168,19 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     @Override public String toString() {
-        return "ReservationTask '" + taskName + "' (qid=" + qid + ") for "
-                + jenkins.getName() + " (" + label + ")";
+        return "Reservation '" + taskName + "' by " + jenkins.getName() + " (qid=" + qid + ", labels=" + label + ")";
     }
 
     public static class ReservationExecutable implements Queue.Executable {
 
         private final @Nonnull ReservationTask task;
         private @CheckForNull String nodeName; // Assigned as soon as execution starts
+        private @CheckForNull String taskName; // Assigned as soon as execution starts
         private @Nonnull OneShotEvent done = new OneShotEvent();
 
         protected ReservationExecutable(@Nonnull ReservationTask task) {
             this.task = task;
+            this.taskName = task.toString();
         }
 
         @Override
@@ -198,7 +202,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
             String executorName = task.getOwner().getName();
-            String taskName = "Reservation of " + nodeName + " by " + executorName;
+            taskName = "Reservation of " + nodeName + " by " + executorName + " (qid=" + task.qid + ")";
             LOGGER.info(taskName + " started");
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
@@ -220,6 +224,12 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                             return;
                         }
                         continue;
+                    } catch (ActionFailed.RequestTimeout ex) {
+                        // This is a conservative approach to not knowing whether the request passed or not. We presume
+                        // it did so we keep the node reserved because underutilizing resources is less disruptive than
+                        // non-exclusive lease would we risk by stopping the ReservationTask here.
+                        LOGGER.log(Level.WARNING, "utilizeNode request timed out, continuing the reservation speculatively");
+                        break;
                     } catch (Throwable ex) {
                         LOGGER.log(Level.SEVERE, taskName + " failed to get the node utilized", ex);
                         return;
@@ -233,6 +243,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
                 }
             }
 
+            // TODO This this point, we might want to a) check/wait until executor creates the node and b) expose that
+            // for ReservationVerifier to help balance executor nodes with running reservations
             try {
                 done.block();
                 LOGGER.info(taskName + " completed");
@@ -253,6 +265,10 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
         public void complete() {
             done.signal();
+        }
+
+        @Override public String toString() {
+            return taskName;
         }
     }
 }

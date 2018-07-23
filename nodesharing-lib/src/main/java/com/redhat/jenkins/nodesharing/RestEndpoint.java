@@ -65,6 +65,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -176,6 +177,7 @@ public class RestEndpoint {
      * @param handler Response handler to be used.
      *
      * @throws ActionFailed.CommunicationError When there ware problems executing the request.
+     * @throws ActionFailed.RequestTimeout When the request timed out.
      * @throws ActionFailed.ProtocolMismatch When there is a problem reading the response.
      * @throws ActionFailed.RequestFailed When status code different from 200 was returned.
      */
@@ -205,6 +207,8 @@ public class RestEndpoint {
         CloseableHttpClient client = HttpClients.createSystem();
         try {
             return client.execute(method, handler, getAuthenticatingContext(method));
+        } catch (SocketTimeoutException e) {
+            throw new ActionFailed.RequestTimeout("Failed executing REST call: " + method, e);
         } catch (IOException e) {
             throw new ActionFailed.CommunicationError("Failed executing REST call: " + method, e);
         } finally {

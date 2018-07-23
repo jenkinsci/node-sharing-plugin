@@ -13,6 +13,6 @@
     <maxNumRetries>0</maxNumRetries>
     <retryWaitTime>0</retryWaitTime>
   </launcher>
-  <label>solaris11 sparc</label>
+  <label>solaris solaris11 sparc</label>
   <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

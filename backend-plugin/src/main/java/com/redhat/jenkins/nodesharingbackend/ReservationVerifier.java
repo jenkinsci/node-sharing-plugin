@@ -24,28 +24,26 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.Extension;
 import hudson.ExtensionList;
-import hudson.model.Computer;
-import hudson.model.Executor;
-import hudson.model.Label;
+import hudson.Functions;
 import hudson.model.PeriodicWork;
-import hudson.model.Queue;
 import jenkins.model.Jenkins;
+import org.apache.commons.collections.CollectionUtils;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,23 +58,24 @@ import java.util.logging.Logger;
  *
  * <ul>
  *     <li>A1: All nodes agree the host is idle,</li>
- *     <li>A2: Orchestrator agree with the ony executor that claims the host.</li>
+ *     <li>A2: Orchestrator agree with the only executor that claims the host.</li>
  * </ul>
  * No action needed here as grid is in sync.
  *
  * <h2>No collision</h2>
  *
  * <ul>
- *     <li>NC1: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Orchestrator failover.</li>
- *     <li>NC2: Orchestrator tracks a reservation for executor that does not report the host being reserved. UC: Executor failover or Missed returnNode call</li>
- *     <li>NC3: Executor reports reservation for host not tracked by Orchestrator. UC:Host removal and Orchestrator failover</li>
+ *     <li>NC1: Orchestrator tracks a reservation for executor that does not report the host being reserved. UC: Executor failover or Missed returnNode call</li>
+ *     <li>NC2: Orchestrator tracks no reservation for the host yet one executor claims it. UC: Orchestrator failover.</li>
+ *     <li>NC3: Orchestrator tracks reservation of a host for executor X that does not report it while executor Y does. Bug or Race Condition</li>
  * </ul>
+ * State representation of the Orchestrator is adjusted to match the one of the grid.
  *
  * <h2>Collision</h2>
  *
  * <ul>
- *     <li>C1: Orchestrator tracks reservation but extra executors report usage of the host. Bug or race condition.</li>
- *     <li>C2: Several executors report reservation but orchestrator tracks none. Bug or race condition.</li>
+ *     <li>C1: Orchestrator tracks reservation but extra executors report usage of the host. Bug or Race condition.</li>
+ *     <li>C2: Multiple executors report reservation but orchestrator tracks none. Bug or Race condition.</li>
  * </ul>
  */
 @Extension
@@ -91,11 +90,11 @@ public class ReservationVerifier extends PeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return 5 * MIN;
+        return Functions.getIsUnitTest() ? Integer.MAX_VALUE : 5 * MIN;
     }
 
     @Override
-    public void doRun() throws Exception {
+    public void doRun() {
         ConfigRepo.Snapshot config;
         try {
             config = Pool.getInstance().getConfig();
@@ -107,89 +106,113 @@ public class ReservationVerifier extends PeriodicWork {
     }
 
     @VisibleForTesting
-    public static void verify(ConfigRepo.Snapshot config, Api api) throws ExecutionException, InterruptedException {
+    public static void verify(ConfigRepo.Snapshot config, Api api) {
+        // Capture multiple plans so we can identify long-lasting problems. The number of samples and delay is to be fine-tuned.
+        ArrayList<Map<ExecutorJenkins, PlannedFixup>> plans = new ArrayList<>();
+        plans.add(computePlannedFixup(config, api));
+        plans.add(computePlannedFixup(config, api));
+        Map<ExecutorJenkins, PlannedFixup> plan = PlannedFixup.reduce(plans);
+
+        // First kill all dangling reservations, then schedule new ones across the orchestrator to make sure backfills
+        // are not blocked by reservations we are about to kill
+
+        // Completed reservations may stick around for a while - avoid reporting that as a problem
+        ArrayList<ReservationTask.ReservationExecutable> justCompleted = new ArrayList<>();
+
+        // NC1
+        for (Map.Entry<ExecutorJenkins, PlannedFixup> e2pf : plan.entrySet()) {
+            ExecutorJenkins executor = e2pf.getKey();
+            for (String cancel : e2pf.getValue().toCancel) {
+                ShareableComputer computer;
+                try {
+                    computer = ShareableComputer.getByName(cancel);
+                } catch (NoSuchElementException e) {
+                    continue;
+                }
+                ReservationTask.ReservationExecutable reservation = computer.getReservation();
+
+                if (reservation == null) continue;
+                ReservationTask parent = reservation.getParent();
+                if (!parent.getOwner().equals(executor)) continue;
+
+                LOGGER.info("Canceling dangling " + reservation);
+                reservation.complete();
+                justCompleted.add(reservation);
+            }
+        }
+
+        // NC2
+        for (Map.Entry<ExecutorJenkins, PlannedFixup> e2pf : plan.entrySet()) {
+            ExecutorJenkins executor = e2pf.getKey();
+            for (String host : e2pf.getValue().toSchedule) {
+                try {
+                    ShareableComputer computer = ShareableComputer.getByName(host);
+                    ReservationTask task = new ReservationTask(executor, host, true);
+                    LOGGER.info("Starting backfill " + task);
+                    ReservationTask.ReservationExecutable reservation = computer.getReservation();
+                    if (reservation != null && !justCompleted.contains(reservation)) {
+                        ExecutorJenkins owner = reservation.getParent().getOwner();
+                        if (owner.equals(executor)) continue;
+                        LOGGER.warning("Host " + host + " is already used by " + reservation);
+                    }
+
+                    task.schedule();
+                } catch (NoSuchElementException ex) {
+                    continue; // host disappeared
+                }
+            }
+        }
+    }
+
+    private static Map<ExecutorJenkins, PlannedFixup> computePlannedFixup(ConfigRepo.Snapshot config, Api api) {
         // When executor is removed from config repo, it might have ReservationTasks running for a while so it is
         // necessary to query these executors so the task completion can be detected.
         Set<ExecutorJenkins> jenkinses = new HashSet<>(config.getJenkinses());
-        Map<ExecutorJenkins, Collection<ReservationTask.ReservationExecutable>> trackedReservations = trackedReservations(jenkinses);
-        Map<ExecutorJenkins, Collection<String>> executorReservations = queryExecutorReservations(jenkinses, api);
-        assert executorReservations.keySet().equals(trackedReservations.keySet());
+        Map<ExecutorJenkins, Map<String, ReservationTask.ReservationExecutable>> trackedReservations = trackedReservations(jenkinses);
+        Map<ExecutorJenkins, Set<String>> executorReservations = queryExecutorReservations(jenkinses, api);
+        assert executorReservations.keySet().equals(trackedReservations.keySet()) : executorReservations + " != " + trackedReservations;
 
         // TODO verify multiple executors are not using same host
         // TODO the executor might no longer use the plugin
 
-        ArrayList<Future<Queue.Executable>> startingTasks = new ArrayList<>();
-        for (Map.Entry<ExecutorJenkins, Collection<String>> er: executorReservations.entrySet()) {
+        Map<ExecutorJenkins, PlannedFixup> plan = new HashMap<>();
+        for (Map.Entry<ExecutorJenkins, Set<String>> er: executorReservations.entrySet()) {
             ExecutorJenkins executor = er.getKey();
+            @CheckForNull Collection<String> utilizedNodes = er.getValue(); // Might fail getting the data
 
-            Collection<ReservationTask.ReservationExecutable> trackedExecutorReservations = trackedReservations.get(executor);
-            hosts: for (String host: er.getValue()) {
-                for (Iterator<ReservationTask.ReservationExecutable> iterator = trackedExecutorReservations.iterator(); iterator.hasNext(); ) {
-                    ReservationTask.ReservationExecutable e = iterator.next();
-                    if (host.equals(e.getNodeName())) {
-                        // A2: Orchestrator and executor are in sync - host is reserved for the executor
-                        iterator.remove();
-                        continue hosts;
-                    }
+            Collection<String> reservedNodes = trackedReservations.get(executor).keySet();
+
+            // Failed to query the host - no balancing
+            if (utilizedNodes == null) {
+                if (!reservedNodes.isEmpty()) {
+                    LOGGER.warning("Failed to query executor " + executor.getName() + " with reserved nodes tracked");
                 }
-                // TODO node can be already occupied
-                // NC1: Schedule backfill reservation
-                LOGGER.info("Starting backfill reservation for " + host + " and " + executor.getName());
-                startingTasks.add(new ReservationTask(executor, host, true).schedule().getFuture().getStartCondition());
+                continue;
             }
 
-            // NC2: Cancel reservation no longer reported by executor
-            for (ReservationTask.ReservationExecutable reservation : trackedExecutorReservations) {
-                // TODO: prone to race conditions
-                ReservationTask parent = reservation.getParent();
-                LOGGER.info("Cancelling dangling reservation for " + reservation.getNodeName() + " and " + parent.getName());
-                reservation.complete();
-            }
+            if (utilizedNodes.equals(reservedNodes)) continue; // In sync
 
-//            for (Map.Entry<ExecutorJenkins, List<ReservationTask.ReservationExecutable>> tr : trackedReservations.entrySet()) {
-//                ExecutorJenkins trackedOwner = tr.getKey();
-//                for (ReservationTask.ReservationExecutable trackedExecutable : tr.getValue()) {
-//
-//                }
-//            }
-//
-//            if (response.getUsedNodes().isEmpty()) {
-//                List<ReservationTask.ReservationExecutable> danglingExecutables = trackedReservations.get(config.getJenkinsByName(response.getExecutorName()));
-//                for (ReservationTask.ReservationExecutable executable : danglingExecutables) {
-//                    // Executor stopped utilizing the node without orchestrator noticing
-//                    executable.complete();
-//                }
-//                continue;
-//            }
+            ArrayList<String> toSchedule = new ArrayList<>(utilizedNodes);
+            toSchedule.removeAll(reservedNodes);
+
+            ArrayList<String> toCancel = new ArrayList<>(reservedNodes);
+            toCancel.removeAll(utilizedNodes);
+
+            plan.put(executor, new PlannedFixup(toCancel, toSchedule));
         }
 
-//        for (String nodeName : response.getUsedNodes()) {
-//            ShareableNode node = ShareableNode.getNodeByName(nodeName);
-//            if (node != null) {
-//                ShareableComputer shareableComputer = node.getComputer();
-//                ReservationTask.ReservationExecutable reservation = shareableComputer.getReservation();
-//                if (reservation == null) {
-//                    // TODO schedule reservation
-//                    continue;
-//                }
-//                ExecutorJenkins reservationOwner = reservation.getParent().getOwner();
-//                if (reservationOwner.equals(owner)) continue; // We are in sync
-//
-//                LOGGER.severe(owner + " utilizes node '" + nodeName + "' we shared for " + reservationOwner);
-//            } else {
-//                LOGGER.info(owner + " utilizes node '" + nodeName + "' that is not (likely no longer) shared by orchestrator");
-//            }
-//        }
+        return plan;
     }
 
-    private static @Nonnull Map<ExecutorJenkins, Collection<String>> queryExecutorReservations(
+    private static @Nonnull Map<ExecutorJenkins, Set<String>> queryExecutorReservations(
             @Nonnull Set<ExecutorJenkins> jenkinses, @Nonnull Api api
     ) {
-        Map<ExecutorJenkins, Collection<String>> responses = new HashMap<>();
+        Map<ExecutorJenkins, Set<String>> responses = new HashMap<>();
         for (ExecutorJenkins executorJenkins : jenkinses) {
             try {
-                responses.put(executorJenkins, api.reportUsage(executorJenkins).getUsedNodes());
-            } catch (ActionFailed e) {
+                responses.put(executorJenkins, new HashSet<>(api.reportUsage(executorJenkins).getUsedNodes()));
+            } catch (Exception e) {
+                responses.put(executorJenkins, null);
                 LOGGER.log(Level.SEVERE, "Jenkins master '" + executorJenkins + "' didn't respond correctly:", e);
             }
         }
@@ -201,34 +224,123 @@ public class ReservationVerifier extends PeriodicWork {
      *
      * Executors that does not utilize any node will be reported with empty mapping.
      */
-    private static @Nonnull Map<ExecutorJenkins, Collection<ReservationTask.ReservationExecutable>> trackedReservations(Set<ExecutorJenkins> jenkinses) {
-        Map<ExecutorJenkins, Collection<ReservationTask.ReservationExecutable>> all = new HashMap<>();
+    private static @Nonnull Map<ExecutorJenkins, Map<String, ReservationTask.ReservationExecutable>> trackedReservations(Set<ExecutorJenkins> jenkinses) {
+        Map<ExecutorJenkins, Map<String, ReservationTask.ReservationExecutable>> all = new HashMap<>();
         for (ExecutorJenkins jenkins : jenkinses) {
             // Make sure tracked executors without running reservation will be reported with empty mapping
-            all.put(jenkins, new ArrayList<ReservationTask.ReservationExecutable>());
+            all.put(jenkins, new HashMap<String, ReservationTask.ReservationExecutable>());
         }
 
-        for (Computer computer : Jenkins.getActiveInstance().getComputers()) {
-            if (computer instanceof ShareableComputer) {
-                ShareableComputer shareableComputer = (ShareableComputer) computer;
-                for (Executor executor : shareableComputer.getExecutors()) {
-                    Queue.Executable executable = executor.getCurrentExecutable();
-                    if (executable instanceof ReservationTask.ReservationExecutable) {
-                        ReservationTask.ReservationExecutable rex = (ReservationTask.ReservationExecutable) executable;
-                        ExecutorJenkins owner = rex.getParent().getOwner();
-                        Collection<ReservationTask.ReservationExecutable> list = all.get(owner);
-                        if (list == null) {
-                            list = new ArrayList<>();
-                            all.put(owner, list);
-                        }
-                        list.add(rex);
-                        // Make sure executors no longer in config repo yet still occupying hosts are added
-                        jenkinses.add(owner);
-                    }
-                }
+        for (ReservationTask.ReservationExecutable rex: ShareableComputer.getAllReservations().values()) {
+            if (rex == null) continue;
+            ExecutorJenkins owner = rex.getParent().getOwner();
+            Map<String, ReservationTask.ReservationExecutable> list = all.get(owner);
+            if (list == null) {
+                list = new HashMap<>();
+                all.put(owner, list);
             }
+            list.put(rex.getNodeName(), rex);
+            // Make sure executors no longer in config repo yet still occupying hosts are added
+            jenkinses.add(owner);
         }
 
         return all;
+    }
+
+    /**
+     * Planned actions to take or bring Executor Jenkins back in sync with Orchestrator.
+     */
+    @VisibleForTesting
+    /*package*/ static final class PlannedFixup {
+        private final List<String> toCancel;
+        private final List<String> toSchedule;
+
+        /**
+         * @param toCancel Set of host reservations that should be canceled.
+         * @param toSchedule Set of host reservations that should be scheduled.
+         */
+        /*package*/ PlannedFixup(List<String> toCancel, List<String> toSchedule) {
+            if (toCancel == null || toSchedule == null) throw new IllegalArgumentException();
+            if (CollectionUtils.containsAny(toCancel, toSchedule)) throw new IllegalArgumentException(
+                    "List to-cancel and to-schedule overlap"
+            );
+            this.toCancel = toCancel;
+            this.toSchedule = toSchedule;
+        }
+
+        /**
+         * Merge several plans computed at different time together keeping the actions that are present in all the plans.
+         *
+         * This is to separate the long-lasting problems that did not corrected itself from race conditions and minor
+         * glitches that either are not problems or gets healed by normal operation.
+         *
+         * @return A plan to address only the problems that has persisted through all the samples.
+         */
+        /*package*/ static PlannedFixup reduce(PlannedFixup... pf) {
+            if (pf == null || pf.length <= 1) throw new IllegalArgumentException();
+
+            ArrayList<String> rCancel = new ArrayList<>(pf[0].toCancel);
+            ArrayList<String> rSchedule = new ArrayList<>(pf[0].toSchedule);
+            for (int i = 1; i < pf.length; i++) {
+                rCancel.retainAll(pf[i].toCancel);
+                rSchedule.retainAll(pf[i].toSchedule);
+            }
+
+            return new PlannedFixup(rCancel, rSchedule);
+        }
+
+        /**
+         * Merge set of plans for whole orchestrator.
+         *
+         * Individual plans for particular executor will be merged, Executors that do not have plans for all samples will
+         * be eliminated.
+         *
+         * @return A plan to address only the problems that has persisted through all the samples.
+         */
+        /*package*/ static Map<ExecutorJenkins, PlannedFixup> reduce(List<Map<ExecutorJenkins, PlannedFixup>> samples) {
+            if (samples == null || samples.size() <= 1) throw new IllegalArgumentException();
+
+            ArrayList<ExecutorJenkins> jenkinsesWithPlanForEverySample = new ArrayList<>(samples.get(0).keySet());
+            for (int i = 1; i < samples.size(); i++) {
+                jenkinsesWithPlanForEverySample.retainAll(samples.get(i).keySet());
+            }
+
+            Map<ExecutorJenkins, List<PlannedFixup>> collectedPlans = new HashMap<>();
+            for (ExecutorJenkins ej: jenkinsesWithPlanForEverySample) {
+                collectedPlans.put(ej, new ArrayList<PlannedFixup>());
+            }
+
+            for (Map<ExecutorJenkins, PlannedFixup> planSample : samples) {
+                Set<ExecutorJenkins> jenkinses = planSample.keySet();
+                // Remove all plans for all Executors that do not have plans in all samples
+                jenkinses.retainAll(jenkinsesWithPlanForEverySample);
+
+                // Collect plans per-executor
+                for (Map.Entry<ExecutorJenkins, PlannedFixup> executorPlanSample: planSample.entrySet()) {
+                    collectedPlans.get(executorPlanSample.getKey()).add(executorPlanSample.getValue());
+                }
+            }
+
+            Map<ExecutorJenkins, PlannedFixup> finalPlan = new HashMap<>();
+            for (Map.Entry<ExecutorJenkins, List<PlannedFixup>> cp : collectedPlans.entrySet()) {
+                finalPlan.put(cp.getKey(), PlannedFixup.reduce(cp.getValue().toArray(new PlannedFixup[0])));
+            }
+            return finalPlan;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            PlannedFixup that = (PlannedFixup) o;
+            return Objects.equals(toCancel, that.toCancel) && Objects.equals(toSchedule, that.toSchedule);
+        }
+
+        @Override public int hashCode() {
+            return Objects.hash(toCancel, toSchedule);
+        }
+
+        @Override public String toString() {
+            return "Plan to cancel: " + toCancel + " and schedule: " + toSchedule;
+        }
     }
 }

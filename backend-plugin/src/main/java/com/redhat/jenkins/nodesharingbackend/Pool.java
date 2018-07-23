@@ -92,7 +92,7 @@ public class Pool {
     public @Nonnull String getConfigRepoUrl() throws PoolMisconfigured {
         String property = Util.fixEmptyAndTrim(System.getProperty(CONFIG_REPO_PROPERTY_NAME));
         if (property == null) {
-            String msg = "Node sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
+            String msg = "Node-sharing Config Repo not configured by '" + CONFIG_REPO_PROPERTY_NAME + "' property";
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
             throw new PoolMisconfigured(msg);
         }
@@ -103,20 +103,20 @@ public class Pool {
         String username = Util.fixEmptyAndTrim(System.getProperty(USERNAME_PROPERTY_NAME));
         if (username == null) {
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
-                    "No node sharing username specified by " + USERNAME_PROPERTY_NAME + " property"
+                    "No node-sharing username specified by " + USERNAME_PROPERTY_NAME + " property"
             ));
             return null;
         }
         String password = Util.fixEmptyAndTrim(System.getProperty(PASSWORD_PROPERTY_NAME));
         if (password == null) {
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
-                    "No node sharing password specified by " + PASSWORD_PROPERTY_NAME + " property"
+                    "No node-sharing password specified by " + PASSWORD_PROPERTY_NAME + " property"
             ));
             return null;
         }
 
         return new UsernamePasswordCredentialsImpl(
-                null, "transient-instance", "Node sharing orchestrator credential", username, password
+                null, "transient-instance", "Node-sharing orchestrator credential", username, password
         );
     }
 
@@ -191,13 +191,13 @@ public class Pool {
         Jenkins jenkins = Jenkins.getActiveInstance();
         jenkins.doQuietDown(); // Prevent builds to be scheduled during the process
         jenkins.getQueue().clear(); // Clear any items that might be there from before restart - we can get more recent here
-        ReservationVerifier.getInstance().doRun(); // Schedule all lost items
         try {
             Updater.getInstance().doRun();
         } catch (PoolMisconfigured ex) {
             // Do not treat the fatally. Show inactive orchestrator instead with problems reported.
             ex.printStackTrace();
         }
+        ReservationVerifier.getInstance().doRun(); // Schedule all lost items
         jenkins.doCancelQuietDown();
         LOGGER.info(jenkins.getQueue().getItems().length + " reservations still in queue");
     }

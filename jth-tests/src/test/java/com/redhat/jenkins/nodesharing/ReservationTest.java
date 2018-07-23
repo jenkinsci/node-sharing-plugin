@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -86,18 +87,18 @@ public class ReservationTest {
         Label winLabel = Label.get("w2k12");
         FreeStyleProject winJob = j.createFreeStyleProject("win");
         winJob.setAssignedLabel(winLabel);
-        NodeSharingJenkinsRule.BlockingBuilder winBuilder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder winBuilder = new BlockingBuilder();
         winJob.getBuildersList().add(winBuilder);
 
         Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
         FreeStyleProject solarisJob = j.createFreeStyleProject("sol");
         solarisJob.setAssignedLabel(solarisLabel);
-        NodeSharingJenkinsRule.BlockingBuilder solarisBuilder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder solarisBuilder = new BlockingBuilder();
         solarisJob.getBuildersList().add(solarisBuilder);
 
         FreeStyleProject solaris2Job = j.createFreeStyleProject("sol2");
         solaris2Job.setAssignedLabel(solarisLabel);
-        NodeSharingJenkinsRule.BlockingBuilder solaris2Builder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder solaris2Builder = new BlockingBuilder();
         solaris2Job.getBuildersList().add(solaris2Builder);
 
         QueueTaskFuture<FreeStyleBuild> winBuildFuture = winJob.scheduleBuild2(0);

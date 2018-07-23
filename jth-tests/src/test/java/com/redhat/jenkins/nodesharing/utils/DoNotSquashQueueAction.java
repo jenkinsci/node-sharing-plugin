@@ -21,33 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing.transport;
+package com.redhat.jenkins.nodesharing.utils;
 
-import javax.annotation.Nonnull;
+import hudson.model.Action;
+import hudson.model.Queue;
 
-/**
- * @author pjanouse.
- */
-public class RunStatusRequest extends AbstractEntity {
-    private final @Nonnull long runId;
+import java.util.List;
 
-    public final static String REQUEST_URI = "/runStatus";
-    /**
-     * @param runId ID of the run to be returned.
-     */
-    public RunStatusRequest(
-            @Nonnull String configRepoUrl,
-            @Nonnull String version,
-            long runId
-    ) {
-        super(configRepoUrl, version);
-        this.runId = runId;
+public final class DoNotSquashQueueAction implements Queue.QueueAction {
+
+    @Override
+    public String getIconFileName() {
+        return null;
     }
 
-    /**
-     * @return Run ID.
-     */
-    public long getRunId() {
-        return runId;
+    @Override
+    public String getDisplayName() {
+        return null;
+    }
+
+    @Override
+    public String getUrlName() {
+        return null;
+    }
+
+    @Override
+    public boolean shouldSchedule(List<Action> actions) {
+        return true;
     }
 }

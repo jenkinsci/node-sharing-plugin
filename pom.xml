@@ -196,6 +196,6 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
-    <concurrency>1C</concurrency>
+    <concurrency>0.5C</concurrency>
   </properties>
 </project>

@@ -166,6 +166,7 @@ public class GridTest {
 
         // When orchestrator is restarted
         // TODO use real restart here
+        System.out.println("Simulating restart");
         j.jenkins.getQueue().clear();
         for (Node node : j.jenkins.getNodes()) {
             for (Executor executor : node.toComputer().getExecutors()) {
@@ -174,11 +175,12 @@ public class GridTest {
             j.jenkins.removeNode(node);
         }
         Pool.ensureOrchestratorIsUpToDateWithTheGrid();
-        computer = j.getComputer("solaris1.acme.com");
+        assertThat(Pool.ADMIN_MONITOR.getErrors().values(), Matchers.emptyIterable());
         Thread.sleep(1000);
+        computer = j.getComputer("solaris1.acme.com");
 
         // Then it should pick the state up from executors
-        assertNotNull("Build in progress on orchestrator side: " + ShareableComputer.getAllReservations(), computer.getReservation());
+        assertNotNull("Build was not rescheduled by ReservationVerifier: " + ShareableComputer.getAllReservations(), computer.getReservation());
 
         blocker.complete();
         BuildWithDetails build1details = waitForBuildComplete(build1);
@@ -249,6 +251,7 @@ public class GridTest {
                     "echo 'Started' > '" + tempFile.getRemote() + "'\n" +
                     "while true; do\n" +
                     "  if [ \"$(cat '" + tempFile.getRemote() + "')\" == 'Done' ]; then\n" +
+                    "    rm '" + tempFile.getRemote() + "'\n" +
                     "    exit 0\n" +
                     "  fi\n" +
                     "  sleep 1\n" +

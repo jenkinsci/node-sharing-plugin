@@ -28,6 +28,7 @@ import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
@@ -146,8 +147,6 @@ public class SharedNodeCloudTest {
         assertThat(validation.kind, equalTo(FormValidation.Kind.WARNING));
     }
 
-    // TODO Implementation isn't completed
-    // PJ: What next should be here from Executor side?
     @Test
     public void doReportWorkloadTest() throws Exception {
         final GitClient gitClient = j.singleJvmGrid(j.jenkins);
@@ -227,7 +226,7 @@ public class SharedNodeCloudTest {
 
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedNode(computer.getNode());
-        NodeSharingJenkinsRule.BlockingBuilder builder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder builder = new BlockingBuilder();
         job.getBuildersList().add(builder);
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();
@@ -253,7 +252,7 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isIdle());
         FreeStyleProject job = j.createFreeStyleProject();
         job.setAssignedNode(computer.getNode());
-        NodeSharingJenkinsRule.BlockingBuilder builder = new NodeSharingJenkinsRule.BlockingBuilder();
+        BlockingBuilder builder = new BlockingBuilder();
         job.getBuildersList().add(builder);
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();
@@ -320,81 +319,6 @@ public class SharedNodeCloudTest {
                 equalTo(nodeStatus)
         );
     }
-
-//    @Test
-//    public void runStatusTest() throws Exception {
-//        final GitClient gitClient = j.injectConfigRepo(configRepo.createReal(getClass().getResource("dummy_config_repo"), j.jenkins));
-//        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-////        j.jenkins.setCrumbIssuer(null);
-//
-//        // NOT_FOUND status
-//        assertNull(j.jenkins.getQueue().getItem(-1));
-//        checkRunStatus(cloud, -1, RunStatusResponse.Status.NOT_FOUND);
-//
-//        MockTask task = new MockTask(j.DUMMY_OWNER, Label.get("solaris11"));
-//        Queue.Item item = task.schedule();
-//
-//        for (Queue.Item i : j.jenkins.getQueue().getItems()) {
-//            System.out.println(i.getId() + ": " + cloud.getRunStatus(i.getId()) + i.isBuildable());
-//        }
-//
-////        RunState.getStatus((Integer) cloud.getApi().doRunStatus("-1")),
-////                equalTo(RunState.NOT_FOUND)
-////
-////        boolean ex_thrown = false;
-////        try {
-////            RunState.getStatus((Integer) cloud.getApi().doRunStatus("Invalid"));
-////            fail("Expected thrown exception!");
-////        } catch (IllegalArgumentException e) {
-////            ex_thrown = true;
-////        }
-////        assertThat(
-////                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("-1")),
-////                equalTo(Communication.RunState.NOT_FOUND)
-////        );
-////        assertThat(
-////                Communication.RunState.getStatus((Integer) cloud.getApi().runStatus(((Long) item.getId()).toString())),
-////                equalTo(Communication.RunState.DONE)
-////        );
-////
-////        boolean ex_thrown = false;
-////        try {
-////            Communication.RunState.getStatus((Integer) cloud.getApi().runStatus("Invalid"));
-////            fail("Expected thrown exception!");
-////        } catch (IllegalArgumentException e) {
-////            ex_thrown = true;
-////        }
-////        assertThat(
-////                ex_thrown,
-////                equalTo(true)
-////        );
-//    }
-//
-//    private void checkRunStatus(
-//            @Nonnull SharedNodeCloud cloud,
-//            @Nonnull final long runId,
-//            @Nonnull final RunStatusResponse.Status runStatus
-//    ) throws Exception {
-//        assertThat(
-//                cloud.getRunStatus(runId),
-//                equalTo(runStatus)
-//        );
-//        RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api");
-//        assertThat(
-//                rest.executeRequest(rest.post("runStatus"), RunStatusResponse.class, new RunStatusRequest(
-//                        Pool.getInstance().getConfigEndpoint(),
-//                        "4.2",
-//                        runId
-//                )).getStatus(),
-//                equalTo(runStatus)
-//        );
-//        assertThat(
-//                Api.getInstance().runStatus(
-//                        new ExecutorJenkins(j.jenkins.getRootUrl(), cloud.getName(), cloud.getConfigRepoUrl()),
-//                        runId),
-//                equalTo(runStatus)
-//        );
-//    }
 
     @Test
     public void testGetByName() throws Exception {

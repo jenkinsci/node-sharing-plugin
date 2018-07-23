@@ -93,9 +93,9 @@ public class PoolTest {
             Pool.getInstance().getConfig();
             fail();
         } catch (Pool.PoolMisconfigured ex) {
-            assertEquals("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property", ex.getMessage());
+            assertEquals("Node-sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property", ex.getMessage());
         }
-        assertReports("Node sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property");
+        assertReports("Node-sharing Config Repo not configured by 'com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT' property");
         MatcherAssert.assertThat(j.jenkins.getNodes(), Matchers.<Node>emptyIterable());
     }
 
@@ -125,9 +125,9 @@ public class PoolTest {
                 new ExecutorJenkins("https://jenkins1.acme.com:80/context-path", "jenkins2")
         ));
 
-        assertFalse(Pool.ADMIN_MONITOR.isActivated());
-
+        assertFalse(Pool.ADMIN_MONITOR.getErrors().toString(), Pool.ADMIN_MONITOR.isActivated());
     }
+
     @Test
     public void populateComputers() throws Exception {
         assertNull(getConfigTaskException("config-repo"));
@@ -157,7 +157,7 @@ public class PoolTest {
         DumbSlave doNotTouchMe = j.createOnlineSlave(); // There is no reason for using some other slave kinds on orchestrator but ...
 
         Assert.assertEquals("windows w2k16", j.getNode("win2.acme.com").getLabelString());
-        Assert.assertEquals("solaris11 sparc", j.getNode("solaris1.acme.com").getLabelString());
+        Assert.assertEquals("solaris solaris11 sparc", j.getNode("solaris1.acme.com").getLabelString());
         assertNull(j.jenkins.getNode("windows.acme.com"));
 
         Node nodeW1 = j.getNode("win1.acme.com");
@@ -175,7 +175,7 @@ public class PoolTest {
         Updater.getInstance().doRun();
 
         Assert.assertEquals("windows w2k16", j.getNode("windows.acme.com").getLabelString());
-        Assert.assertEquals("solaris12 sparc", j.getNode("solaris1.acme.com").getLabelString());
+        Assert.assertEquals("solaris solaris12 sparc", j.getNode("solaris1.acme.com").getLabelString());
         assertNull(j.jenkins.getNode("win2.acme.com"));
         assertNull(j.jenkins.getComputer("win2.acme.com"));
         assertSame(nodeW1, j.getNode("win1.acme.com"));
@@ -403,7 +403,7 @@ public class PoolTest {
 
     @Test
     public void failRestCallsWhenNoPoolConfigRepoSpecified() throws Exception {
-        final String NO_CONFIG_REPO_PROPERTY = "Node sharing Config Repo not configured by ";
+        final String NO_CONFIG_REPO_PROPERTY = "Node-sharing Config Repo not configured by ";
         eraseLoadConfig();
         System.clearProperty(Pool.CONFIG_REPO_PROPERTY_NAME);
 

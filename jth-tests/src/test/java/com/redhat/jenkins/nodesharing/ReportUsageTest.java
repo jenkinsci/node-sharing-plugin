@@ -23,10 +23,6 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.google.common.collect.Sets;
-import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
-import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
-import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ReservationVerifier;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
@@ -44,12 +40,8 @@ import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.TestBuilder;
-import org.mockito.Mockito;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.getInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -57,9 +49,6 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 public class ReportUsageTest {
 
@@ -101,33 +90,6 @@ public class ReportUsageTest {
         for (ReservationTask.ReservationExecutable executable : j.getActiveReservations()) {
             executable.complete();
         }
-    }
-
-    @Test
-    public void orchestratorFailover() throws Exception {
-        j.singleJvmGrid(j.jenkins);
-        SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
-
-        ConfigRepo.Snapshot c = cloud.getLatestConfig();
-        ArrayList<String> nodes = new ArrayList<>(c.getNodes().keySet());
-
-        ConfigRepo.Snapshot config = spy(c);
-        when(config.getJenkinses()).thenReturn(Sets.newHashSet(
-                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake one"),
-                new ExecutorJenkins(j.jenkins.getRootUrl(), "Fake two")
-        ));
-        Api api = mock(Api.class);
-        ExecutorEntity.Fingerprint fp = new ExecutorEntity.Fingerprint("", "", "");
-        when(api.reportUsage(Mockito.any(ExecutorJenkins.class))).thenReturn(
-                new ReportUsageResponse(fp, Arrays.asList(nodes.get(0), nodes.get(1))),
-                new ReportUsageResponse(fp, Collections.singletonList(nodes.get(3)))
-        );
-
-        ReservationVerifier.verify(config, api);
-        Thread.sleep(1000); // Queued reservations to get active
-
-        assertThat(j.getQueuedReservations(), emptyIterable());
-        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>iterableWithSize(3));
     }
 
     @Test

@@ -220,7 +220,7 @@ public class SharedNodeCloud extends Cloud {
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
         Computer computer = Jenkins.getActiveInstance().getComputer(getNodeName(nodeName));
-        if (computer != null && computer instanceof SharedComputer) {
+        if (computer instanceof SharedComputer) {
             status = NodeStatusResponse.Status.FOUND;
             if (computer.isIdle() && !computer.isConnecting()) {
                 status = NodeStatusResponse.Status.IDLE;
@@ -237,37 +237,13 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Nonnull
-    public SharedNode createNode(@Nonnull final NodeDefinition definition) {
+    public SharedNode createNode(@Nonnull final NodeDefinition definition) throws IllegalArgumentException {
         SharedNode node = SharedNodeFactory.transform(definition);
         final String nodeName = definition.getName();
         node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
         assert CloudStatistics.get().getActivityFor(node.getId()) != null;
         return node;
     }
-
-//    /**
-//     * Get the run status.
-//     *
-//     * @param runId The run id.
-//     * @return The run status.
-//     */
-//    @Nonnull
-//    public RunStatusResponse.Status getRunStatus(final long runId) {
-//        RunStatusResponse.Status status = RunStatusResponse.Status.NOT_FOUND;
-//        Queue.Item item = Jenkins.getActiveInstance().getQueue().getItem(runId);
-//        if (item != null) {
-//            status = RunStatusResponse.Status.FOUND;
-//            if (item.isBlocked()) {
-//                status = RunStatusResponse.Status.BLOCKED;
-//            } else if (item.isStuck()) {
-//                status = RunStatusResponse.Status.STUCK;
-//            } else if (item.getFuture().isDone()) {
-//                status = RunStatusResponse.Status.DONE;
-//            }
-//            // TODO Extract EXECUTING
-//        }
-//        return status;
-//    }
 
     // Rely on content of ConfigRepo and not what Orchestrator advertises simply as it is less fragile. No strong preference otherwise.
     @Override
