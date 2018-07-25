@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharingbackend;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.RestEndpoint;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
@@ -110,6 +111,15 @@ public class ReservationVerifier extends PeriodicWork {
         // Capture multiple plans so we can identify long-lasting problems. The number of samples and delay is to be fine-tuned.
         ArrayList<Map<ExecutorJenkins, PlannedFixup>> plans = new ArrayList<>();
         plans.add(computePlannedFixup(config, api));
+        if (plans.get(0).isEmpty()) return; // If there is nothing to do, no need to doublecheck
+
+        try {
+            Thread.sleep(RestEndpoint.TIMEOUT * 2);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
         plans.add(computePlannedFixup(config, api));
         Map<ExecutorJenkins, PlannedFixup> plan = PlannedFixup.reduce(plans);
 

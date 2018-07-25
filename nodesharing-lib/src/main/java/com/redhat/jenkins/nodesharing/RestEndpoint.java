@@ -81,7 +81,7 @@ public class RestEndpoint {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
 
     // Timeout for REST network communication in ms
-    /*package for testing*/ static final int TIMEOUT = parseTimeout();
+    public static final int TIMEOUT = parseTimeout();
 
     // Default REST calls timeout in ms
     private static final int DEFAULT_TIMEOUT = 30 * 1000;
