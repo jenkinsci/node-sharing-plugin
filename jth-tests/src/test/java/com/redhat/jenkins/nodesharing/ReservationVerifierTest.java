@@ -29,6 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -102,7 +103,7 @@ public class ReservationVerifierTest {
         assertThat(l, notLogged(Level.INFO, ".*"));
     }
 
-    @Test // Case: A1, A2
+    @Test @WithTimeout(300) // Case: A1, A2
     // no collisions intended here - though the rapid scheduling approach invokes race conditions that resembles collisions to ReservationVerifier
     // TODO extend timeout and add more iterations after https://issues.jenkins-ci.org/browse/JENKINS-49046 is fixed
     public void stress2() throws Exception {

@@ -47,6 +47,7 @@ import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.SimpleCommandLauncher;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -272,8 +273,9 @@ public class SharedNodeCloudTest {
         final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
 
-        NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher =
-                new NodeSharingJenkinsRule.BlockingCommandLauncher(j.createComputerLauncher(null).getCommand());
+        NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher = new NodeSharingJenkinsRule.BlockingCommandLauncher(
+                ((SimpleCommandLauncher) j.createComputerLauncher(null)).cmd
+        );
 
         SharedNode connectingSlave = cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
         connectingSlave.setLauncher(blockingLauncher);
