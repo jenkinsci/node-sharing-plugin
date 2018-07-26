@@ -168,7 +168,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     @Override public String toString() {
-        return "Reservation '" + taskName + "' by " + jenkins.getName() + " (qid=" + qid + ", labels=" + label + ")";
+        return "Reservation '" + taskName + "' by " + jenkins.getName() + " (qid=" + qid + ", hash=" + System.identityHashCode(this) + ", labels=" + label + ")";
     }
 
     public static class ReservationExecutable implements Queue.Executable {
@@ -202,7 +202,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
             String executorName = task.getOwner().getName();
-            taskName = "Reservation of " + nodeName + " by " + executorName + " (qid=" + task.qid + ")";
+            taskName = "Reservation of " + nodeName + " by " + executorName + " (qid=" + task.qid + ", hash=" + System.identityHashCode(task) + ")";
             LOGGER.info(taskName + " started");
             ShareableNode node = computer.getNode();
             if (node == null) throw new AssertionError(); // $COVERAGE-IGNORE$
