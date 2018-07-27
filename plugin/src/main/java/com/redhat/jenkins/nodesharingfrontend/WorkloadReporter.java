@@ -64,23 +64,24 @@ public class WorkloadReporter extends PeriodicWork {
         assert Jenkins.getAuthentication() == ACL.SYSTEM: "Must be called as SYSTEM, not " + Jenkins.getAuthentication();
 
         Map<SharedNodeCloud, ReportWorkloadRequest.Workload> workloadMapping = new HashMap<>();
+        for (SharedNodeCloud cloud : SharedNodeCloud.getAll()) {
+            // Create empty workload for every cloud to make sure clouds we have no workload for will receive empty workload
+            ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload.WorkloadBuilder().build();
+            workloadMapping.put(cloud, workload);
+        }
+
         // Make sure those scheduled sooner are at the beginning
         List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
-
         for (Queue.Item item : items) {
             if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) {
                 // TEST HACK: these are not supposed to coexist but they do in jth-tests
                 continue;
             }
 
-            for (SharedNodeCloud cloud : SharedNodeCloud.getAll()) {
+            for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> e: workloadMapping.entrySet()) {
+                SharedNodeCloud cloud = e.getKey();
+                ReportWorkloadRequest.Workload workload = e.getValue();
                 if (cloud.canProvision(item.getAssignedLabel())) {
-                    ReportWorkloadRequest.Workload workload = workloadMapping.get(cloud);
-                    if (workload == null) {
-                        workload = new ReportWorkloadRequest.Workload.WorkloadBuilder().build();
-                        workloadMapping.put(cloud, workload);
-                    }
-
                     workload.addItem(item);
                 }
             }
