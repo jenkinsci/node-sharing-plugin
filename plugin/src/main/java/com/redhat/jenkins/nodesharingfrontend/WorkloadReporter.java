@@ -70,19 +70,22 @@ public class WorkloadReporter extends PeriodicWork {
             workloadMapping.put(cloud, workload);
         }
 
-        // Make sure those scheduled sooner are at the beginning
-        List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
-        for (Queue.Item item : items) {
-            if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) {
-                // TEST HACK: these are not supposed to coexist but they do in jth-tests
-                continue;
-            }
+        // Fill only if Jenkins isn't going to restart, report empty workload otherwise
+        if (!Jenkins.getActiveInstance().isQuietingDown() && Jenkins.getActiveInstance().isTerminating()) {
+            // Make sure those scheduled sooner are at the beginning
+            List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
+            for (Queue.Item item : items) {
+                if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) {
+                    // TEST HACK: these are not supposed to coexist but they do in jth-tests
+                    continue;
+                }
 
-            for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> e: workloadMapping.entrySet()) {
-                SharedNodeCloud cloud = e.getKey();
-                ReportWorkloadRequest.Workload workload = e.getValue();
-                if (cloud.canProvision(item.getAssignedLabel())) {
-                    workload.addItem(item);
+                for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> e : workloadMapping.entrySet()) {
+                    SharedNodeCloud cloud = e.getKey();
+                    ReportWorkloadRequest.Workload workload = e.getValue();
+                    if (cloud.canProvision(item.getAssignedLabel())) {
+                        workload.addItem(item);
+                    }
                 }
             }
         }
