@@ -235,6 +235,11 @@ public class Api {
     }
 
     private boolean isThereAWorkloadFor(Jenkins jenkins, NodeDefinition definition) {
+        // Nothing will be executed
+        if (jenkins.isQuietingDown() || jenkins.isTerminating()) {
+            return false;
+        }
+        
         Collection<LabelAtom> nodeLabels = definition.getLabelAtoms();
         for (Queue.Item item : jenkins.getQueue().getItems()) {
             // Do not schedule unrestricted items here
