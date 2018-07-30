@@ -4,7 +4,7 @@ import com.redhat.jenkins.nodesharingbackend.Dashboard
 
 Dashboard d = my
 
-h1("Node Sharing Pool Orchestrator")
+h1(d.displayName)
 
 table {
     tr {

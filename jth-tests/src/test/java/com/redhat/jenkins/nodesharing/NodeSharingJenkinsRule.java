@@ -80,6 +80,7 @@ import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
@@ -262,6 +263,21 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             }
         }
         return out;
+    }
+
+    public void startDanglingReservation(ExecutorJenkins executor, ShareableNode node) throws InterruptedException, java.util.concurrent.ExecutionException {
+        assertNull(node.getComputer().getReservation());
+        // Using backfill tasks to prevent utilizeNode calls to fail as the Executor might not be real
+        new ReservationTask(executor, node.getNodeName(), true).schedule().getFuture().getStartCondition().get();
+        assertNotNull(node.getComputer().getReservation());
+    }
+
+    public ShareableNode getSomeShareableNode() {
+        return ShareableNode.getAll().values().iterator().next();
+    }
+
+    public ExecutorJenkins getSomeExecutor() {
+        return Pool.getInstance().getConfig().getJenkinses().iterator().next();
     }
 
     protected static class BlockingTask extends MockTask {

@@ -51,7 +51,6 @@ public class Dashboard extends View {
     // It is quite delicate when this is invoked to fit between primary view updates hardcoded in Jenkins class itself
     @Initializer(after = InitMilestone.JOB_LOADED)
     public static void registerDashboard() throws IOException {
-        System.out.println("Attaching dashboard");
         Jenkins j = Jenkins.getActiveInstance();
         Dashboard dashboard = new Dashboard();
         j.addView(dashboard);
@@ -59,11 +58,32 @@ public class Dashboard extends View {
     }
 
     public Dashboard() {
-        super("Node Sharing Dashboard");
+        super("Node Sharing Pool Orchestrator");
     }
 
     public @Nonnull ConfigRepo.Snapshot getConfigSnapshot() {
         return Pool.getInstance().getConfig();
+    }
+
+    // Reservation tasks URLs are limited to orchestrator local. This is here to redirect to Executor Jenkins
+    public void doRedirectToExecutor(StaplerRequest req) {
+        // Cannot use multiple query parameters as output of `ReservationTask#getUrl()` gets escaped breaking `&`
+        // Expected `/<EXECUTOR>/<NODE>`
+        String[] split = req.getRestOfPath().split("/");
+        assert split.length == 3;
+        assert split[0].isEmpty();
+
+        String executorName = split[1];
+        String nodeName = split[2];
+
+        Jenkins.checkGoodName(nodeName);
+        ConfigRepo.Snapshot snapshot = getConfigSnapshot();
+        String executorUrl = snapshot.getJenkinsByName(executorName).getUrl().toExternalForm();
+        if (snapshot.getNodes().containsKey(nodeName)) {
+            throw HttpResponses.redirectTo(executorUrl + "/computer/" + nodeName + "/");
+        }
+
+        throw HttpResponses.redirectToContextRoot();
     }
 
     // Satisfy the view interface

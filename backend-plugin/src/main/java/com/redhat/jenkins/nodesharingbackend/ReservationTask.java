@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import hudson.Functions;
 import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -64,6 +65,10 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     private final @Nonnull Label label;
     private final @Nonnull String taskName;
     private final long qid;
+
+    // Url to trampoline that redirects to relevant executor URL. Note this changes when particular node is assigned (task sv. executable)
+    private @Nonnull String url;
+
     /**
      * The task is created for reservation we failed to track so the node is already utilized by the executor and therefore
      * the utilizeNode call must not be reattempted. Note backfill are create when Executor is detected to utilize the node
@@ -78,14 +83,20 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         this.taskName = taskName;
         this.qid = qid;
         this.backfill = false;
+        setUrlToNode("");
     }
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) {
         this.jenkins = owner;
         this.label = Label.get(host);
         this.taskName = host;
-        this.backfill = backfill;
         this.qid = -1;
+        this.backfill = backfill;
+        setUrlToNode(host);
+    }
+
+    private void setUrlToNode(String node) {
+        url = "redirectToExecutor/" + getOwner().getName() + "/" + node;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
@@ -120,8 +131,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     @Override public String getUrl() {
-        // TODO: link to Real Jenkins computer ?
-        return "";
+        return url;
     }
 
     @Override public ResourceList getResourceList() {
@@ -201,6 +211,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
+            task.setUrlToNode(nodeName);
             String executorName = task.getOwner().getName();
             taskName = "Reservation of " + nodeName + " by " + executorName + " (qid=" + task.qid + ", hash=" + System.identityHashCode(task) + ")";
             LOGGER.info(taskName + " started");
