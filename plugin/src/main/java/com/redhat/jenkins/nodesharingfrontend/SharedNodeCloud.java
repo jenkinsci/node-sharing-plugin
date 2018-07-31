@@ -347,6 +347,7 @@ public class SharedNodeCloud extends Cloud {
             }
 
             FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
+            testConfigRepoDir.deleteRecursive();
             try {
                 SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId);
                 Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud);
