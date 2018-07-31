@@ -39,9 +39,11 @@ import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jenkins.model.JenkinsLocationConfiguration;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
@@ -107,7 +109,7 @@ public class SharedNodeCloud extends Cloud {
         if (this.api == null) {
             ConfigRepo.Snapshot latestConfig = getLatestConfig();
             if (latestConfig == null) throw new IllegalStateException("No latest config found");
-            this.api = new Api(latestConfig, configRepoUrl, this);
+            this.api = new Api(latestConfig, configRepoUrl, this, JenkinsLocationConfiguration.get().getUrl());
         }
         return this.api;
     }
@@ -177,6 +179,19 @@ public class SharedNodeCloud extends Cloud {
             ADMIN_MONITOR.report(configRepoUrl, ex);
             LOGGER.log(Level.SEVERE, "Failed updating config", ex);
         }
+    }
+
+    /*package*/ boolean isActive() {
+        ConfigRepo.Snapshot config = getLatestConfig();
+        if (config != null) {
+            try {
+                config.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl());
+                return true;
+            } catch (NoSuchElementException e) {
+                // Expected
+            }
+        }
+        return false;
     }
 
     @Extension
@@ -328,6 +343,9 @@ public class SharedNodeCloud extends Cloud {
         /**
          * Test connection.
          *
+         * Better avoid checking if this executor is in config repo as there is no reliable way to detect the URL in this
+         * method. Orchestrator does that for us.
+         *
          * @param configRepoUrl Config repository URL.
          * @return Form Validation.
          * @throws ServletException if occurs.
@@ -350,7 +368,8 @@ public class SharedNodeCloud extends Cloud {
             testConfigRepoDir.deleteRecursive();
             try {
                 SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId);
-                Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud);
+                String jenkinsUrl = JenkinsLocationConfiguration.get().getUrl();
+                Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud, jenkinsUrl);
                 DiscoverResponse discover = api.discover();
                 if (!discover.getDiagnosis().isEmpty()) {
                     return FormValidation.warning(discover.getDiagnosis());

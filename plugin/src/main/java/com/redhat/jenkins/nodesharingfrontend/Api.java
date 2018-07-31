@@ -49,7 +49,6 @@ import hudson.model.Queue;
 import hudson.model.labels.LabelAtom;
 import hudson.security.ACL;
 import jenkins.model.Jenkins;
-import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.security.NotReallyRoleSensitiveCallable;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.HttpPost;
@@ -84,9 +83,10 @@ public class Api {
     private final RestEndpoint rest;
     private final String version;
 
-    public Api(@Nonnull final ConfigRepo.Snapshot snapshot,
-               @Nonnull final String configRepoUrl,
-               @CheckForNull final SharedNodeCloud cloud
+    public Api(@Nonnull ConfigRepo.Snapshot snapshot,
+               @Nonnull String configRepoUrl,
+               @Nonnull SharedNodeCloud cloud,
+               @Nonnull String jenkinsUrl
     ) throws IllegalStateException {
         this.cloud = cloud;
 
@@ -106,11 +106,7 @@ public class Api {
             throw new AssertionError("Cannot load assembly properties", e);
         }
 
-        this.fingerprint = new ExecutorEntity.Fingerprint(
-                configRepoUrl,
-                version,
-                JenkinsLocationConfiguration.get().getUrl()
-        );
+        this.fingerprint = new ExecutorEntity.Fingerprint(configRepoUrl, version, jenkinsUrl);
         rest = new RestEndpoint(snapshot.getOrchestratorUrl(), "node-sharing-orchestrator", getRestCredential(cloud));
     }
 
@@ -141,6 +137,9 @@ public class Api {
     /**
      * Request to discover the state of the Orchestrator.
      *
+     * Note is is expected this call is made when executor is no longer part of the grid in order to complete existing
+     * reservations.
+     *
      * @return Discovery result.
      */
     @Nonnull
@@ -153,6 +152,9 @@ public class Api {
 
     /**
      * Send request to return node. No response needed.
+     *
+     * Note is is expected this call is made when executor is no longer part of the grid in order to complete existing
+     * reservations.
      */
     public void returnNode(@Nonnull SharedNode node) {
         Computer computer = node.toComputer();

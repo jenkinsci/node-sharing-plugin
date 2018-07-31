@@ -27,9 +27,13 @@ import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
+import com.redhat.jenkins.nodesharingbackend.ReservationTask;
+import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingfrontend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
+import hudson.ExtensionList;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
@@ -41,9 +45,12 @@ import org.jvnet.hudson.test.LoggerRule;
 
 import javax.servlet.http.HttpServletResponse;
 
+import java.util.logging.Level;
+
 import static com.redhat.jenkins.nodesharingbackend.Pool.getInstance;
 import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -106,6 +113,29 @@ public class RemovingExecutorFromConfigRepo {
         } catch (ActionFailed.RequestFailed ex) {
             assertEquals(HttpServletResponse.SC_CONFLICT, ex.getStatusCode());
         }
+    }
+
+    @Test
+    public void doNotReportWorkloadWhenTheExecutorIsLeavingTheGrid() throws Exception {
+        GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        String configRepoUrl = getInstance().getConfigRepoUrl();
+        SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
+        removeExecutor(gitClient);
+
+        l.record(WorkloadReporter.class, Level.FINE);
+        l.capture(5);
+
+        FreeStyleProject p = j.createFreeStyleProject();
+        p.setAssignedLabel(Label.get("solaris11"));
+        p.scheduleBuild2(0);
+        Thread.sleep(100);
+        assertEquals(1, j.jenkins.getQueue().countBuildableItems());
+
+        ExtensionList.lookup(WorkloadReporter.class).get(0).doRun();
+
+        assertThat(l.getMessages(), contains("Skipping cloud " + cloud.name + " as it is not declared in config repo: " + configRepoUrl));
+        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>emptyIterable());
+        assertThat(j.getQueuedReservations(), Matchers.<ReservationTask>emptyIterable());
     }
 
     private void removeExecutor(GitClient gitClient) throws Exception {
