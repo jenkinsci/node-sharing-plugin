@@ -63,10 +63,10 @@ public class WorkloadReporter extends PeriodicWork {
     public void doRun() {
         assert Jenkins.getAuthentication() == ACL.SYSTEM: "Must be called as SYSTEM, not " + Jenkins.getAuthentication();
 
-        Map<SharedNodeCloud, ReportWorkloadRequest.Workload> workloadMapping = new HashMap<>();
+        Map<SharedNodeCloud, ReportWorkloadRequest.Workload.WorkloadBuilder> workloadMapping = new HashMap<>();
         for (SharedNodeCloud cloud : SharedNodeCloud.getAll()) {
             // Create empty workload for every cloud to make sure clouds we have no workload for will receive empty workload
-            ReportWorkloadRequest.Workload workload = new ReportWorkloadRequest.Workload.WorkloadBuilder().build();
+            ReportWorkloadRequest.Workload.WorkloadBuilder workload = ReportWorkloadRequest.Workload.builder();
             workloadMapping.put(cloud, workload);
         }
 
@@ -78,19 +78,19 @@ public class WorkloadReporter extends PeriodicWork {
                 continue;
             }
 
-            for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> e: workloadMapping.entrySet()) {
+            for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload.WorkloadBuilder> e: workloadMapping.entrySet()) {
                 SharedNodeCloud cloud = e.getKey();
-                ReportWorkloadRequest.Workload workload = e.getValue();
+                ReportWorkloadRequest.Workload.WorkloadBuilder workload = e.getValue();
                 if (cloud.canProvision(item.getAssignedLabel())) {
                     workload.addItem(item);
                 }
             }
         }
 
-        for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload> entry : workloadMapping.entrySet()) {
-            ReportWorkloadRequest.Workload workload = entry.getValue();
+        for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload.WorkloadBuilder> entry : workloadMapping.entrySet()) {
+            ReportWorkloadRequest.Workload.WorkloadBuilder workload = entry.getValue();
             SharedNodeCloud cloud = entry.getKey();
-            cloud.getApi().reportWorkload(workload);
+            cloud.getApi().reportWorkload(workload.build());
         }
     }
 
