@@ -331,6 +331,13 @@ public class Api implements RootAction {
             return;
         }
 
+        String reservationOwnerUrl = executable.getParent().getOwner().getUrl().toExternalForm();
+        if (!reservationOwnerUrl.equals(request.getExecutorUrl())) {
+            rsp.getWriter().println("Executor '" + request.getExecutorUrl() + "' is not an owner of the host");
+            rsp.setStatus(HttpServletResponse.SC_CONFLICT);
+            return;
+        }
+
         executable.complete();
         // TODO Report status
         rsp.setStatus(HttpServletResponse.SC_OK);
