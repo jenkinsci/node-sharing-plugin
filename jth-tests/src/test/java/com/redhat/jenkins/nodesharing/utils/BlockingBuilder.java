@@ -25,18 +25,28 @@ package com.redhat.jenkins.nodesharing.utils;
 
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
+import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.util.OneShotEvent;
 import org.jvnet.hudson.test.TestBuilder;
 
-public final class BlockingBuilder extends TestBuilder {
+public final class BlockingBuilder<T extends AbstractProject<?, ?>> extends TestBuilder {
     public final OneShotEvent start = new OneShotEvent();
     public final OneShotEvent end = new OneShotEvent();
+    private final T project;
+
+    public BlockingBuilder(T project) {
+        this.project = project;
+    }
 
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException {
         start.signal();
         end.block();
         return true;
+    }
+
+    public T getProject() {
+        return project;
     }
 }

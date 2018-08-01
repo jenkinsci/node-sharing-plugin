@@ -27,6 +27,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
@@ -43,6 +44,7 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.model.Executor;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -262,6 +264,25 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             }
         }
         return out;
+    }
+
+    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(String label) throws IOException {
+        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+        bb.getProject().setAssignedLabel(Label.get(label));
+        return bb;
+    }
+
+    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(Node node) throws IOException {
+        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+        bb.getProject().setAssignedNode(node);
+        return bb;
+    }
+
+    @Nonnull private BlockingBuilder<FreeStyleProject> getBlockingProject() throws IOException {
+        FreeStyleProject p = createFreeStyleProject();
+        BlockingBuilder<FreeStyleProject> bb = new BlockingBuilder<>(p);
+        p.getBuildersList().add(bb);
+        return bb;
     }
 
     protected static class BlockingTask extends MockTask {

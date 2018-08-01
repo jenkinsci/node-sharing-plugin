@@ -124,11 +124,8 @@ public class ReturnNodeTest {
         String configEndpoint = Pool.getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configEndpoint);
 
-        FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedLabel(Label.get("solaris11"));
-        BlockingBuilder bb = new BlockingBuilder();
-        p.getBuildersList().add(bb);
-        FreeStyleBuild b = p.scheduleBuild2(0).getStartCondition().get();
+        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
+        FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
         bb.start.block();
 
         Api differentJenkinsApi = new Api(cloud.getLatestConfig(), configEndpoint, cloud, "https://foo.com");

@@ -28,7 +28,6 @@ import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
-import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingfrontend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
@@ -37,6 +36,7 @@ import hudson.ExtensionList;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
+import hudson.model.queue.QueueTaskFuture;
 import org.hamcrest.Matchers;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
@@ -53,6 +53,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 public class RemovingExecutorFromConfigRepo {
@@ -82,11 +83,8 @@ public class RemovingExecutorFromConfigRepo {
         String configRepoUrl = getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
 
-        FreeStyleProject p = j.createFreeStyleProject();
-        p.setAssignedLabel(Label.get("solaris11"));
-        BlockingBuilder bb = new BlockingBuilder();
-        p.getBuildersList().add(bb);
-        FreeStyleBuild b = p.scheduleBuild2(0).getStartCondition().get();
+        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
+        FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
         bb.start.block();
 
         removeExecutor(gitClient);
@@ -131,11 +129,40 @@ public class RemovingExecutorFromConfigRepo {
         Thread.sleep(100);
         assertEquals(1, j.jenkins.getQueue().countBuildableItems());
 
-        ExtensionList.lookup(WorkloadReporter.class).get(0).doRun();
+        j.reportWorkloadToOrchestrator();
 
         assertThat(l.getMessages(), contains("Skipping cloud " + cloud.name + " as it is not declared in config repo: " + configRepoUrl));
         assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>emptyIterable());
         assertThat(j.getQueuedReservations(), Matchers.<ReservationTask>emptyIterable());
+    }
+
+    @Test
+    public void cancelPendingReservations() throws Exception {
+        GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        String configRepoUrl = getInstance().getConfigRepoUrl();
+        j.addSharedNodeCloud(configRepoUrl);
+
+        BlockingBuilder<FreeStyleProject> active = j.getBlockingProject("solaris11");
+        QueueTaskFuture<FreeStyleBuild> blocked = active.getProject().scheduleBuild2(0);
+        active.start.block();
+        FreeStyleProject pending = j.createFreeStyleProject();
+        pending.setAssignedLabel(Label.get("solaris11"));
+        QueueTaskFuture<FreeStyleBuild> queued = pending.scheduleBuild2(0);
+        Thread.sleep(100);
+        assertFalse(queued.getStartCondition().isDone());
+        j.reportWorkloadToOrchestrator();
+
+        assertEquals(1, j.getActiveReservations().size());
+        assertEquals(1, j.getQueuedReservations().size());
+
+        removeExecutor(gitClient);
+
+        assertEquals(1, j.getActiveReservations().size());
+        assertEquals(0, j.getQueuedReservations().size());
+
+        active.end.signal();
+        j.assertBuildStatusSuccess(blocked.get());
+        assertFalse(queued.getStartCondition().isDone());
     }
 
     private void removeExecutor(GitClient gitClient) throws Exception {
