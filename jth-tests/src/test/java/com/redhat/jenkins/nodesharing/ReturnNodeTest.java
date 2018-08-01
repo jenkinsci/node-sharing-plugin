@@ -41,6 +41,7 @@ import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
 import org.junit.Test;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -128,13 +129,19 @@ public class ReturnNodeTest {
         FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
         bb.start.block();
 
+        assertEquals(1, j.getActiveReservations().size());
+
         Api differentJenkinsApi = new Api(cloud.getLatestConfig(), configEndpoint, cloud, "https://foo.com");
-        differentJenkinsApi.returnNode(((SharedNode) b.getBuiltOn()));
+        try {
+            differentJenkinsApi.returnNode(((SharedNode) b.getBuiltOn()));
+            fail();
+        } catch (com.redhat.jenkins.nodesharing.ActionFailed.RequestFailed ex) {
+            assertEquals(HttpServletResponse.SC_CONFLICT, ex.getStatusCode());
+        }
 
         assertEquals(1, j.getActiveReservations().size());
 
         bb.end.signal();
-        j.interactiveBreak();
         j.waitUntilNoActivity();
     }
 }
