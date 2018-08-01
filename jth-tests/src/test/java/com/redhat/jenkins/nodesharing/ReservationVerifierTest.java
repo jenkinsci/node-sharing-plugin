@@ -161,7 +161,7 @@ public class ReservationVerifierTest {
         assertNotNull(cloud.getLatestConfig());
         SharedNode sharedNode = cloud.createNode(shareableNode.getNodeDefinition());
 
-        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject(shareableNode);
+        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject(sharedNode);
         QueueTaskFuture<FreeStyleBuild> fb = bb.getProject().scheduleBuild2(0);
 
         Jenkins.getActiveInstance().addNode(sharedNode);

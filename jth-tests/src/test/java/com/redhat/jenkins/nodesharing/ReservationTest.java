@@ -93,7 +93,7 @@ public class ReservationTest {
         FreeStyleProject solarisJob = solarisBuilder.getProject();
 
         BlockingBuilder<FreeStyleProject> solaris2Builder = j.getBlockingProject(solarisLabel.getExpression());
-        FreeStyleProject solaris2Job = solarisBuilder.getProject();
+        FreeStyleProject solaris2Job = solaris2Builder.getProject();
 
         QueueTaskFuture<FreeStyleBuild> winBuildFuture = winJob.scheduleBuild2(0);
         QueueTaskFuture<FreeStyleBuild> solBuildFuture =  solarisJob.scheduleBuild2(0);
