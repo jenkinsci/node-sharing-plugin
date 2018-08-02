@@ -59,7 +59,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -195,6 +197,17 @@ public class Api implements RootAction {
         DiscoverRequest request = Entity.fromInputStream(req.getInputStream(), DiscoverRequest.class);
 
         String version = this.version;
+        String configEndpoint = pool.getConfigRepoUrl();
+
+        String executorUrl = request.getExecutorUrl();
+        try {
+            pool.getConfig().getJenkinsByUrl(executorUrl);
+        } catch (NoSuchElementException ex) {
+            // Do not disclose any other diagnostics to executor not approved in config repo
+            String diagnosis = unknownExecutor(executorUrl, configEndpoint);
+            new DiscoverResponse(configEndpoint, "N/A", diagnosis, Collections.<NodeDefinition>emptyList()).toOutputStream(rsp.getOutputStream());
+            return;
+        }
 
         // Sanity checking
         StringBuilder diagnosisBuilder = new StringBuilder();
@@ -206,7 +219,6 @@ public class Api implements RootAction {
                     .append(". ")
             ;
         }
-        String configEndpoint = pool.getConfigRepoUrl();
         if (!request.getConfigRepoUrl().equals(configEndpoint)) {
             diagnosisBuilder.append("Orchestrator is configured from ")
                     .append(configEndpoint)
@@ -217,10 +229,7 @@ public class Api implements RootAction {
         }
 
         String diagnosis = diagnosisBuilder.toString();
-        DiscoverResponse response = new DiscoverResponse(configEndpoint, version, diagnosis, nodes);
-
-        rsp.setContentType("application/json");
-        response.toOutputStream(rsp.getOutputStream());
+        new DiscoverResponse(configEndpoint, version, diagnosis, nodes).toOutputStream(rsp.getOutputStream());
     }
 
     /**
@@ -240,7 +249,15 @@ public class Api implements RootAction {
 
         final List<ReportWorkloadRequest.Workload.WorkloadItem> reportedItems = request.getWorkload().getItems();
         final ArrayList<ReservationTask> reportedTasks = new ArrayList<>(reportedItems.size());
-        final ExecutorJenkins executor = config.getJenkinsByUrl(request.getExecutorUrl());
+        final ExecutorJenkins executor;
+        try {
+            executor = config.getJenkinsByUrl(request.getExecutorUrl());
+        } catch (NoSuchElementException ex) {
+            rsp.setStatus(HttpServletResponse.SC_CONFLICT);
+            rsp.getWriter().println(unknownExecutor(request.getExecutorUrl(), pool.getConfigRepoUrl()));
+            return;
+        }
+
         for (ReportWorkloadRequest.Workload.WorkloadItem item : reportedItems) {
             reportedTasks.add(new ReservationTask(executor, item.getLabel(), item.getName(), item.getId()));
         }
@@ -271,6 +288,10 @@ public class Api implements RootAction {
         new ReportWorkloadResponse(pool.getConfigRepoUrl(), version).toOutputStream(rsp.getOutputStream());
     }
 
+    private String unknownExecutor(String executorUrl, String configRepoUrl) {
+        return "Executor '" + executorUrl + "' is not declared to be a member of the sharing pool in " + configRepoUrl;
+    }
+
     /**
      * Return node to orchestrator when no longer needed.
      */
@@ -281,7 +302,7 @@ public class Api implements RootAction {
         String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
         String ecr = request.getConfigRepoUrl();
-        if (!Objects.equals(ocr, ecr)) {
+        if (!Objects.equals(ocr, ecr)) { // TODO we do not require this anywhere else, should we?
             rsp.getWriter().println("Unable to return node - config repo mismatch " + ocr + " != " + ecr);
             rsp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
             return;
@@ -311,6 +332,13 @@ public class Api implements RootAction {
         ReservationTask.ReservationExecutable executable = computer.getReservation();
         if (executable == null) {
             rsp.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
+        String reservationOwnerUrl = executable.getParent().getOwner().getUrl().toExternalForm();
+        if (!reservationOwnerUrl.equals(request.getExecutorUrl())) {
+            rsp.getWriter().println("Executor '" + request.getExecutorUrl() + "' is not an owner of the host");
+            rsp.setStatus(HttpServletResponse.SC_CONFLICT);
             return;
         }
 

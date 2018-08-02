@@ -41,10 +41,8 @@ public class ReservationTaskTest {
         j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
         j.singleJvmGrid(j.jenkins);
 
-        FreeStyleProject p = j.createProject(FreeStyleProject.class);
-        p.setAssignedLabel(Label.get("solaris11"));
-        BlockingBuilder bb = new BlockingBuilder();
-        p.getBuildersList().add(bb);
+        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
+        FreeStyleProject p = bb.getProject();
         p.scheduleBuild2(0).getStartCondition().get();
         p.scheduleBuild2(0);
 

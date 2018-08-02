@@ -36,6 +36,7 @@ import jenkins.model.Jenkins;
 import jenkins.security.ConfidentialKey;
 import jenkins.security.CryptoConfidentialKey;
 import jenkins.util.Timer;
+import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -49,6 +50,7 @@ import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -145,24 +147,22 @@ public final class ExternalGridRule implements TestRule {
         };
     }
 
-    // Not yet implemented
-    public ScheduledFuture<URL> orchestrator(final String configRepo) throws Exception {
-        return launchSut(configRepo, "node-sharing-orchestrator");
-    }
-
-    public ScheduledFuture<URL> executor(final String configRepo) throws Exception {
+    public ScheduledFuture<URL> executor(final GitClient configRepo) throws Exception {
         return launchSut(configRepo, "node-sharing-executor");
     }
 
-    private @Nonnull ScheduledFuture<URL> launchSut(final String configRepo, String role) throws IOException, InterruptedException {
+    private @Nonnull ScheduledFuture<URL> launchSut(final GitClient configRepo, String role) throws IOException, InterruptedException {
         final int port = randomLocalPort();
         final URL url = new URL("http://localhost:" + port + "/");
+        final ExecutorJenkins jenkins = new ExecutorJenkins(url.toExternalForm(), "executor-" + port);
+        // Commit new Jenkins before launching it. Otherwise it will not be in repo by the time it comes up considering itself inactive
+        jenkinsRule.addExecutor(configRepo, jenkins);
 
         FilePath jenkinsHome = new FilePath(File.createTempFile(role, getClass().getSimpleName()));
         jenkinsHome.delete();
         jenkinsHome.mkdirs();
 
-        jenkinsRule.addSharedNodeCloud(configRepo);
+        jenkinsRule.addSharedNodeCloud(configRepo.getWorkTree().getRemote());
         jenkinsRule.jenkins.save();
         FilePath jthJenkinsRoot = jenkinsRule.jenkins.getRootPath();
         jthJenkinsRoot.child("config.xml").copyTo(jenkinsHome.child("config.xml"));
@@ -217,7 +217,6 @@ public final class ExternalGridRule implements TestRule {
         executors.put(process, jenkinsHome);
         return Timer.get().schedule(new Callable<URL>() {
             @Override public URL call() throws Exception {
-                ExecutorJenkins jenkins = new ExecutorJenkins("http://localhost:" + port, "executor-" + port);
                 for (;;) {
                     try {
                         Thread.sleep(5000);
@@ -305,5 +304,21 @@ public final class ExternalGridRule implements TestRule {
         } catch (Exception ex) {
             throw new Error(ex);
         }
+    }
+
+    /**
+     * Populate config repo to declare JTH an Orchestrator expecting remote Executors.
+     *
+     * Until executors are added, the config repo is practically invalid as `jenkinses` dir is not committed.
+     */
+    public GitClient masterGrid(Jenkins jenkins) throws Exception {
+        GitClient git = jenkinsRule.getConfigRepo();
+
+        jenkinsRule.makeJthAnOrchestrator(jenkins, git);
+
+        jenkinsRule.declareExecutors(git, Collections.<String, String>emptyMap());
+        jenkinsRule.makeNodesLaunchable(git);
+
+        return git;
     }
 }

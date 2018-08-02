@@ -28,6 +28,7 @@ import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import hudson.AbortException;
@@ -55,6 +56,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -140,14 +142,32 @@ public class Pool {
             }
         }
 
-        updateNodes(config.getNodes());
+        updateOrchestrator(config);
     }
 
-    private void updateNodes(final Map<String, NodeDefinition> configured) {
+    private void updateOrchestrator(final ConfigRepo.Snapshot config) {
         final Jenkins j = Jenkins.getActiveInstance();
         // Use queue lock so pool changes appear atomic from perspective of Queue#maintian and Api#doReportWorkload
         Queue.withLock(new Runnable() {
             @Override public void run() {
+                purgeOrphanedQueueItems(config.getJenkinses());
+                updateNodes(config.getNodes());
+            }
+
+            private void purgeOrphanedQueueItems(Set<ExecutorJenkins> jenkinses) {
+                Queue queue = j.getQueue();
+                for (Queue.Item item : queue.getItems()) {
+                    if (item.task instanceof ReservationTask) {
+                        ReservationTask rt = (ReservationTask) item.task;
+                        if (!jenkinses.contains(rt.getOwner())) {
+                            // Queue reservations for executor no longer in config repo will be canceled
+                            queue.cancel(rt);
+                        }
+                    }
+                }
+            }
+
+            private void updateNodes(final Map<String, NodeDefinition> configured) {
                 Map<String, ShareableNode> existing = ShareableNode.getAll();
                 ArrayList<String> removed = new ArrayList<>(existing.keySet());
                 removed.removeAll(configured.keySet());

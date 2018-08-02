@@ -1,9 +1,6 @@
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor
-import com.redhat.jenkins.nodesharing.TaskLog
 import hudson.Functions
 import jenkins.model.Jenkins
-import org.apache.commons.jelly.XMLOutput
-import org.kohsuke.stapler.jelly.HTMLWriterOutput
 
 def j = namespace(lib.JenkinsTagLib)
 def l = namespace(lib.LayoutTagLib)
@@ -19,14 +16,7 @@ l.layout(permission: app.ADMINISTER) {
             h2(context)
 
             pre {
-                if (ex instanceof TaskLog.TaskFailed) {
-                    j.out(value: Functions.generateConsoleAnnotationScriptAndStylesheet())
-                    XMLOutput output = getOutput()
-                    ex.log.annotatedText.writeLogTo(0, output.asWriter())
-                    //text(ex.log.readContent())
-                } else {
-                    text(Functions.printThrowable(ex))
-                }
+                text(Functions.printThrowable(ex))
             }
         }
     }

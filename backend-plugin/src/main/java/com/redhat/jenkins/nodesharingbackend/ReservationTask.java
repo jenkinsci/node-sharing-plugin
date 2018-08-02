@@ -25,8 +25,6 @@ package com.redhat.jenkins.nodesharingbackend;
 
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
-import hudson.Functions;
-import hudson.model.Action;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.Label;
@@ -44,7 +42,6 @@ import org.acegisecurity.AccessDeniedException;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -62,7 +59,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     private static final Logger LOGGER = Logger.getLogger(ReservationTask.class.getName());
 
     private final @Nonnull ExecutorJenkins jenkins;
-    private final @Nonnull Label label;
+    private final @Nonnull String label;
     private final @Nonnull String taskName;
     private final long qid;
 
@@ -79,7 +76,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label, @Nonnull String taskName, long qid) {
         this.jenkins = owner;
-        this.label = label;
+        this.label = label.getExpression();
         this.taskName = taskName;
         this.qid = qid;
         this.backfill = false;
@@ -88,7 +85,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) {
         this.jenkins = owner;
-        this.label = Label.get(host);
+        this.label = host;
         this.taskName = host;
         this.qid = -1;
         this.backfill = backfill;
@@ -107,7 +104,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     @Override public String getDisplayName() { return jenkins.getName(); }
 
     @Override public Label getAssignedLabel() {
-        return label;
+        // Always create new Label object to reflect changes in the node set
+        return Label.get(label);
     }
     public ExecutorJenkins getOwner() { return jenkins; }
     public @Nonnull String getTaskName() {

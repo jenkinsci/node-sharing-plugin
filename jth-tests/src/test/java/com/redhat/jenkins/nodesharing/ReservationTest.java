@@ -85,21 +85,15 @@ public class ReservationTest {
 
         // When I schedule a bunch of tasks on executor
         Label winLabel = Label.get("w2k12");
-        FreeStyleProject winJob = j.createFreeStyleProject("win");
-        winJob.setAssignedLabel(winLabel);
-        BlockingBuilder winBuilder = new BlockingBuilder();
-        winJob.getBuildersList().add(winBuilder);
+        BlockingBuilder<FreeStyleProject> winBuilder = j.getBlockingProject(winLabel.getExpression());
+        FreeStyleProject winJob = winBuilder.getProject();
 
         Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
-        FreeStyleProject solarisJob = j.createFreeStyleProject("sol");
-        solarisJob.setAssignedLabel(solarisLabel);
-        BlockingBuilder solarisBuilder = new BlockingBuilder();
-        solarisJob.getBuildersList().add(solarisBuilder);
+        BlockingBuilder<FreeStyleProject> solarisBuilder = j.getBlockingProject(solarisLabel.getExpression());
+        FreeStyleProject solarisJob = solarisBuilder.getProject();
 
-        FreeStyleProject solaris2Job = j.createFreeStyleProject("sol2");
-        solaris2Job.setAssignedLabel(solarisLabel);
-        BlockingBuilder solaris2Builder = new BlockingBuilder();
-        solaris2Job.getBuildersList().add(solaris2Builder);
+        BlockingBuilder<FreeStyleProject> solaris2Builder = j.getBlockingProject(solarisLabel.getExpression());
+        FreeStyleProject solaris2Job = solaris2Builder.getProject();
 
         QueueTaskFuture<FreeStyleBuild> winBuildFuture = winJob.scheduleBuild2(0);
         QueueTaskFuture<FreeStyleBuild> solBuildFuture =  solarisJob.scheduleBuild2(0);
@@ -163,9 +157,18 @@ public class ReservationTest {
         j.singleJvmGrid(j.jenkins);
         j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
-        j.jenkins.doQuietDown(); // To keep the items in the queue
+        Label label = Label.get("w2k12");
 
-        Label label = Label.get("windows");
+        // Create and run a blocking job so the state of Queue isn't changed anymore
+        BlockingBuilder<FreeStyleProject> blockingBuilder = j.getBlockingProject(label.getExpression());
+        FreeStyleProject blocking = blockingBuilder.getProject();
+        blocking.scheduleBuild2(0);
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
+        j.reportWorkloadToOrchestrator();
+        while (blocking.isInQueue() || !blocking.isBuilding()) {
+            Thread.sleep(10);
+        }
+
         FreeStyleProject remove = j.createFreeStyleProject("remove");
         FreeStyleProject introduce = j.createFreeStyleProject("introduce");
         FreeStyleProject keep = j.createFreeStyleProject("keep");

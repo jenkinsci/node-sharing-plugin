@@ -14,7 +14,7 @@ public class ReportWorkloadRequest extends ExecutorEntity {
 
     @Nonnull private final Workload workload;
 
-    public ReportWorkloadRequest(@Nonnull Fingerprint fingerprint, Workload workload) {
+    public ReportWorkloadRequest(@Nonnull Fingerprint fingerprint, @Nonnull Workload workload) {
         super(fingerprint);
         this.workload = workload;
     }
@@ -24,26 +24,26 @@ public class ReportWorkloadRequest extends ExecutorEntity {
     }
 
     public static final class Workload {
-        private List<WorkloadItem> items = new ArrayList<>();
+        private final @Nonnull List<WorkloadItem> items;
 
         private Workload(List<WorkloadItem> items) {
-            this.items = items;
-        }
-
-        public void addItem(@Nonnull final Queue.Item item) {
-            items.add(new WorkloadItem(item));
+            this.items = new ArrayList<>(items);
         }
 
         public long size() {
             return items.size();
         }
 
-        public List<WorkloadItem> getItems() {
-            return new ArrayList<WorkloadItem>(items);
+        public @Nonnull List<WorkloadItem> getItems() {
+            return items;
+        }
+
+        public static @Nonnull WorkloadBuilder builder() {
+            return new WorkloadBuilder();
         }
 
         public static final class WorkloadBuilder {
-            private List<WorkloadItem> items = null;
+            private List<WorkloadItem> items;
 
             public WorkloadBuilder() {
                 this.items = new ArrayList<>();

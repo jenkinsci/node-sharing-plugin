@@ -55,16 +55,14 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -78,8 +76,7 @@ public class GridTest {
 
     @Test
     public void delegateBuildsToMultipleExecutors() throws Exception {
-        GitClient repo = j.singleJvmGrid(j.jenkins);
-        String crUrl = repo.getWorkTree().getRemote();
+        GitClient repo = grid.masterGrid(j.jenkins);
 
         MatrixProject win = j.jenkins.createProject(MatrixProject.class, "win");
         win.addTrigger(new TimerTrigger("* * * * *"));
@@ -99,20 +96,18 @@ public class GridTest {
         sol.getBuildersList().add(new Shell("sleep 0"));
         sol.getPublishersList().add(new BuildTrigger("sol", true));
 
-        Map<String, ScheduledFuture<URL>> launchingExecutors = new HashMap<>();
+        Set<ScheduledFuture<URL>> launchingExecutors = new HashSet<>();
         for (int i = 0; i < 3; i++) {
-            launchingExecutors.put("jenkins" + i, grid.executor(crUrl));
+            launchingExecutors.add(grid.executor(repo));
         }
         win.delete();sol.delete();
 
 //        grid.interactiveBreak();
 
-        Map<String, String> executors = new HashMap<>();
-        for (Map.Entry<String, ScheduledFuture<URL>> launchingExecutor : launchingExecutors.entrySet()) {
-            executors.put(launchingExecutor.getKey(), launchingExecutor.getValue().get().toExternalForm());
+        for (ScheduledFuture<URL> launchingExecutor : launchingExecutors) {
+            launchingExecutor.get();
         }
 
-        j.writeJenkinses(repo, executors);
         Pool.Updater.getInstance().doRun();
         assertEquals(3, Pool.getInstance().getConfig().getJenkinses().size());
 
@@ -135,24 +130,22 @@ public class GridTest {
 
     @Test
     public void restartOrchestrator() throws Exception {
-        // Given single executor setup with one build
-        GitClient repo = j.singleJvmGrid(j.jenkins);
-        String crUrl = repo.getWorkTree().getRemote();
+        GitClient repo = grid.masterGrid(j.jenkins);
 
         FreeStyleProject p = j.jenkins.createProject(FreeStyleProject.class, "p");
         FileBuildBlocker blocker = new FileBuildBlocker();
         p.getBuildersList().add(blocker.getShellStep());
         p.setAssignedLabel(Label.get("solaris11"));
-        URL executorUrl = grid.executor(crUrl).get();
+        URL executorUrl = grid.executor(repo).get();
         p.delete();
 
-        j.writeJenkinses(repo, Collections.singletonMap("foo", executorUrl.toExternalForm()));
         Pool.Updater.getInstance().doRun();
         assertEquals(1, Pool.getInstance().getConfig().getJenkinses().size());
 
         // When the build is running and one more is queued
         JenkinsServer exec = new JenkinsServer(executorUrl.toURI(), "admin", "admin");
         exec.getJob("p").build();
+
         Build build1 = waitForBuildStarted(exec, "p", 1);
         exec.getJob("p").build();
 
