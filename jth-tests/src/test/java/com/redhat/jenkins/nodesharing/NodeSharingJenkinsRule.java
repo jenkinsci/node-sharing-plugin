@@ -159,13 +159,24 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     protected GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
+        makeJthAnOrchestrator(jenkins, git);
+
+        writeJenkinses(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
+        makeNodesLaunchable(git);
+
+        Pool.Updater.getInstance().doRun();
+        assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
+        return configRepo;
+    }
+
+    public void makeJthAnOrchestrator(Jenkins jenkins, GitClient git) throws IOException, InterruptedException {
         git.getWorkTree().child("config").write("orchestrator.url=" + jenkins.getRootUrl() + System.lineSeparator() + "enforce_https=false", "UTF-8");
         git.add("config");
         git.commit("Writing config repo config");
+    }
 
-        writeJenkinses(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
-
-        // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
+    // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
+    public void makeNodesLaunchable(GitClient git) throws IOException, InterruptedException {
         final File slaveJar = Which.jarFile(hudson.remoting.Launcher.class).getAbsoluteFile();
         for (FilePath xmlNode : git.getWorkTree().child("nodes").list("*.xml")) {
             SharedNode node = SharedNodeFactory.transform(NodeDefinition.Xml.create(xmlNode));
@@ -178,12 +189,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         }
         git.add("nodes");
         git.commit("Making nodes in config repo launchable");
-        Pool.Updater.getInstance().doRun();
-        assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
-        return configRepo;
     }
 
-    private Map<String, String> printExceptions(Map<String, Throwable> values) throws IOException, InterruptedException {
+    // TODO should not be needed as TaskLog.TaskFailed was fixed to print itself
+    public Map<String, String> printExceptions(Map<String, Throwable> values) throws IOException, InterruptedException {
         Map<String, String> out = new HashMap<>(values.size());
         for (Map.Entry<String, Throwable> entry : values.entrySet()) {
             Throwable value = entry.getValue();
@@ -226,14 +235,28 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         }
         for (Map.Entry<String, String> j : jenkinses.entrySet()) {
             String url = j.getValue();
-            String amendment = url.startsWith("http://")
-                    ? (System.lineSeparator() + "enforce_https=false")
-                    : ""
-            ;
-            jenkinsesDir.child(j.getKey()).write("url=" + url + amendment, "UTF-8");
+            jenkinsesDir.child(j.getKey()).write(getJenkinsfileContent(url), "UTF-8");
         }
         git.add("jenkinses");
         git.commit("Update Jenkinses");
+    }
+
+    @Nonnull private String getJenkinsfileContent(String url) {
+        StringBuilder sb = new StringBuilder("url=").append(url).append(System.lineSeparator());
+        if (url.startsWith("http://")) {
+            sb.append("enforce_https=false").append(System.lineSeparator());
+        }
+        return sb.toString();
+    }
+
+    public void addJenkins(GitClient git, ExecutorJenkins j) throws IOException, InterruptedException {
+        FilePath jenkinsFile = git.getWorkTree().child("jenkinses").child(j.getName());
+        assert !jenkinsFile.exists();
+
+        jenkinsFile.write(getJenkinsfileContent(j.getUrl().toExternalForm()), "UTF-8");
+
+        git.add("jenkinses");
+        git.commit("Add Jenkins");
     }
 
     public UsernamePasswordCredentials getRestCredential() {
