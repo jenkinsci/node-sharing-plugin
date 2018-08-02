@@ -160,10 +160,8 @@ public class ReservationTest {
         Label label = Label.get("w2k12");
 
         // Create and run a blocking job so the state of Queue isn't changed anymore
-        FreeStyleProject blocking = j.createFreeStyleProject("blocking");
-        blocking.setAssignedLabel(label);
-        BlockingBuilder blockingBuilder = new BlockingBuilder();
-        blocking.getBuildersList().add(blockingBuilder);
+        BlockingBuilder<FreeStyleProject> blockingBuilder = j.getBlockingProject(label.getExpression());
+        FreeStyleProject blocking = blockingBuilder.getProject();
         blocking.scheduleBuild2(0);
         j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
         j.reportWorkloadToOrchestrator();
