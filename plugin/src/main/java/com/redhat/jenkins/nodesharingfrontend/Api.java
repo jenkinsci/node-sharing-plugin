@@ -210,6 +210,7 @@ public class Api {
         // Do not accept the node when there is no load for it
         if (!isThereAWorkloadFor(jenkins, definition)) {
             rsp.setStatus(HttpServletResponse.SC_GONE);
+            LOGGER.info("Skipping node addition as there isn't a workload for it");
             return;
         }
 
