@@ -71,7 +71,7 @@ public class WorkloadReporter extends PeriodicWork {
         }
 
         // Fill only if Jenkins isn't going to restart, report empty workload otherwise
-        if (!Jenkins.getActiveInstance().isQuietingDown() && Jenkins.getActiveInstance().isTerminating()) {
+        if (!Jenkins.getActiveInstance().isQuietingDown() && !Jenkins.getActiveInstance().isTerminating()) {
             // Make sure those scheduled sooner are at the beginning
             List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
             for (Queue.Item item : items) {

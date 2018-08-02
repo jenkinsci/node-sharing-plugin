@@ -163,9 +163,20 @@ public class ReservationTest {
         j.singleJvmGrid(j.jenkins);
         j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
 
-        j.jenkins.doQuietDown(); // To keep the items in the queue
+        Label label = Label.get("w2k12");
 
-        Label label = Label.get("windows");
+        // Create and run a blocking job so the state of Queue isn't changed anymore
+        FreeStyleProject blocking = j.createFreeStyleProject("blocking");
+        blocking.setAssignedLabel(label);
+        BlockingBuilder blockingBuilder = new BlockingBuilder();
+        blocking.getBuildersList().add(blockingBuilder);
+        blocking.scheduleBuild2(0);
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
+        j.reportWorkloadToOrchestrator();
+        while (blocking.isInQueue() || !blocking.isBuilding()) {
+            Thread.sleep(10);
+        }
+
         FreeStyleProject remove = j.createFreeStyleProject("remove");
         FreeStyleProject introduce = j.createFreeStyleProject("introduce");
         FreeStyleProject keep = j.createFreeStyleProject("keep");
