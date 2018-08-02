@@ -203,8 +203,8 @@ public class Api implements RootAction {
         try {
             pool.getConfig().getJenkinsByUrl(executorUrl);
         } catch (NoSuchElementException ex) {
-            // Do not disclose any other diagnostics to executor no approved in config repo
-            String diagnosis = "Jenkins '" + executorUrl + "' is not declared as a member of the pool in " + configEndpoint;
+            // Do not disclose any other diagnostics to executor not approved in config repo
+            String diagnosis = unknownExecutor(executorUrl, configEndpoint);
             new DiscoverResponse(configEndpoint, "N/A", diagnosis, Collections.<NodeDefinition>emptyList()).toOutputStream(rsp.getOutputStream());
             return;
         }
@@ -254,7 +254,7 @@ public class Api implements RootAction {
             executor = config.getJenkinsByUrl(request.getExecutorUrl());
         } catch (NoSuchElementException ex) {
             rsp.setStatus(HttpServletResponse.SC_CONFLICT);
-            rsp.getWriter().println("Executor is not declared to be a member of the sharing pool in " + pool.getConfigRepoUrl());
+            rsp.getWriter().println(unknownExecutor(request.getExecutorUrl(), pool.getConfigRepoUrl()));
             return;
         }
 
@@ -286,6 +286,10 @@ public class Api implements RootAction {
 
         String version = this.version;
         new ReportWorkloadResponse(pool.getConfigRepoUrl(), version).toOutputStream(rsp.getOutputStream());
+    }
+
+    private String unknownExecutor(String executorUrl, String configRepoUrl) {
+        return "Executor '" + executorUrl + "' is not declared to be a member of the sharing pool in " + configRepoUrl;
     }
 
     /**

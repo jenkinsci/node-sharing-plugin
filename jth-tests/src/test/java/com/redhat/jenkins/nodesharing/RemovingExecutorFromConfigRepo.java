@@ -26,13 +26,11 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
-import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
-import hudson.ExtensionList;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Label;
@@ -48,7 +46,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.logging.Level;
 
 import static com.redhat.jenkins.nodesharingbackend.Pool.getInstance;
-import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -64,7 +61,7 @@ public class RemovingExecutorFromConfigRepo {
     @Test
     public void rejectDiscoverFromExecutorNotInConfigRepo() throws Exception {
         GitClient gitClient = j.singleJvmGrid(j.jenkins);
-        removeExecutor(gitClient);
+        j.disableLocalExecutor(gitClient);
 
         String configRepoUrl = getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
@@ -73,7 +70,7 @@ public class RemovingExecutorFromConfigRepo {
 
         DiscoverResponse discover = api.discover();
         assertThat(discover.getLabels(), Matchers.<String>emptyIterable());
-        assertThat(discover.getDiagnosis(), containsString("Jenkins '" + j.getURL() + "' is not declared as a member of the pool in " + configRepoUrl));
+        assertThat(discover.getDiagnosis(), containsString("Executor '" + j.getURL() + "' is not declared to be a member of the sharing pool in " + configRepoUrl));
     }
 
     @Test
@@ -87,10 +84,14 @@ public class RemovingExecutorFromConfigRepo {
         FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
         bb.start.block();
 
-        removeExecutor(gitClient);
+        assertEquals(1, j.getActiveReservations().size());
+
+        j.disableLocalExecutor(gitClient);
 
         Api api = cloud.getApi();
         api.returnNode(((SharedNode) b.getBuiltOn()));
+        Thread.sleep(100);
+        assertEquals(0, j.getActiveReservations().size());
 
         bb.end.signal();
         j.waitUntilNoActivity();
@@ -99,7 +100,7 @@ public class RemovingExecutorFromConfigRepo {
     @Test
     public void rejectWorkloadFromExecutorNotInConfigRepo() throws Exception {
         GitClient gitClient = j.singleJvmGrid(j.jenkins);
-        removeExecutor(gitClient);
+        j.disableLocalExecutor(gitClient);
 
         String configRepoUrl = getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
@@ -118,7 +119,7 @@ public class RemovingExecutorFromConfigRepo {
         GitClient gitClient = j.singleJvmGrid(j.jenkins);
         String configRepoUrl = getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
-        removeExecutor(gitClient);
+        j.disableLocalExecutor(gitClient);
 
         l.record(WorkloadReporter.class, Level.FINE);
         l.capture(5);
@@ -155,7 +156,7 @@ public class RemovingExecutorFromConfigRepo {
         assertEquals(1, j.getActiveReservations().size());
         assertEquals(1, j.getQueuedReservations().size());
 
-        removeExecutor(gitClient);
+        j.disableLocalExecutor(gitClient);
 
         assertEquals(1, j.getActiveReservations().size());
         assertEquals(0, j.getQueuedReservations().size());
@@ -163,12 +164,5 @@ public class RemovingExecutorFromConfigRepo {
         active.end.signal();
         j.assertBuildStatusSuccess(blocked.get());
         assertFalse(queued.getStartCondition().isDone());
-    }
-
-    private void removeExecutor(GitClient gitClient) throws Exception {
-        // Replace the inner Jenkins with one from different URL as removing the file would cause git to remove the empty
-        // directory breaking repo validation
-        j.writeJenkinses(gitClient, singletonMap("this-one", j.getURL() + "/defunc"));
-        Updater.getInstance().doRun();
     }
 }

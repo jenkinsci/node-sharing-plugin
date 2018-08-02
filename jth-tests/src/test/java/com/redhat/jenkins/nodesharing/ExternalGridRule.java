@@ -155,8 +155,8 @@ public final class ExternalGridRule implements TestRule {
         final int port = randomLocalPort();
         final URL url = new URL("http://localhost:" + port + "/");
         final ExecutorJenkins jenkins = new ExecutorJenkins(url.toExternalForm(), "executor-" + port);
-        // Commit new Jenkins before launching it so does not have to wait for repo update to be considered active
-        jenkinsRule.addJenkins(configRepo, jenkins);
+        // Commit new Jenkins before launching it. Otherwise it will not be in repo by the time it comes up considering itself inactive
+        jenkinsRule.addExecutor(configRepo, jenkins);
 
         FilePath jenkinsHome = new FilePath(File.createTempFile(role, getClass().getSimpleName()));
         jenkinsHome.delete();
@@ -307,7 +307,7 @@ public final class ExternalGridRule implements TestRule {
     }
 
     /**
-     * Populate config repo to declare JTH an Orchestrator expecting remote Execuors.
+     * Populate config repo to declare JTH an Orchestrator expecting remote Executors.
      *
      * Until executors are added, the config repo is practically invalid as `jenkinses` dir is not committed.
      */
@@ -316,7 +316,7 @@ public final class ExternalGridRule implements TestRule {
 
         jenkinsRule.makeJthAnOrchestrator(jenkins, git);
 
-        jenkinsRule.writeJenkinses(git, Collections.<String, String>emptyMap());
+        jenkinsRule.declareExecutors(git, Collections.<String, String>emptyMap());
         jenkinsRule.makeNodesLaunchable(git);
 
         return git;

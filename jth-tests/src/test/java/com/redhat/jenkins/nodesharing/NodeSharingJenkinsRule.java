@@ -39,9 +39,6 @@ import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Functions;
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.FreeStyleProject;
@@ -65,7 +62,6 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -80,6 +76,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 
@@ -161,7 +158,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
         makeJthAnOrchestrator(jenkins, git);
 
-        writeJenkinses(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
+        declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
         makeNodesLaunchable(git);
 
         Pool.Updater.getInstance().doRun();
@@ -228,7 +225,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     /**
      * Write local urls of Jenkinses
      */
-    public void writeJenkinses(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
+    public void declareExecutors(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
         FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
         for (FilePath filePath : jenkinsesDir.list()) {
             filePath.delete();
@@ -249,7 +246,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return sb.toString();
     }
 
-    public void addJenkins(GitClient git, ExecutorJenkins j) throws IOException, InterruptedException {
+    public void addExecutor(GitClient git, ExecutorJenkins j) throws IOException, InterruptedException {
         FilePath jenkinsFile = git.getWorkTree().child("jenkinses").child(j.getName());
         assert !jenkinsFile.exists();
 
@@ -257,6 +254,13 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
         git.add("jenkinses");
         git.commit("Add Jenkins");
+    }
+
+    void disableLocalExecutor(GitClient gitClient) throws Exception {
+        // Replace the inner Jenkins with one from different URL as removing the file would cause git to remove the empty
+        // directory breaking repo validation
+        declareExecutors(gitClient, singletonMap("this-one", getURL() + "/defunc"));
+        Pool.Updater.getInstance().doRun();
     }
 
     public UsernamePasswordCredentials getRestCredential() {
