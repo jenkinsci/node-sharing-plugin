@@ -24,13 +24,16 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.FilePath;
+import hudson.Platform;
 import hudson.console.AnnotatedLargeText;
 import hudson.util.StreamTaskListener;
 
 import javax.annotation.Nonnull;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
 
@@ -125,6 +128,30 @@ public class TaskLog extends StreamTaskListener implements AutoCloseable, Closea
          */
         public @Nonnull TaskLog getLog() {
             return log;
+        }
+
+        // The log can contain a lot of lines that are inconvenient to put into message yet interesting enough to have
+        // it reported somewhere. Overriding toString to contain the full log as that is what printStackTrace overloads
+        // delegate to.
+        @Override
+        public String toString() {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PrintWriter ps = new PrintWriter(baos);
+            ps.println(super.toString());
+            try {
+                ps.println(">>>>>>");
+                try {
+                    log.getAnnotatedText().writeLogTo(0, ps);
+                } catch (IOException e) {
+                    ps.println("(FAILED READING THE TASK LOG):");
+                    e.printStackTrace(ps);
+                }
+                ps.println("<<<<<<");
+            } finally {
+                ps.close();
+            }
+
+            return baos.toString();
         }
     }
 }

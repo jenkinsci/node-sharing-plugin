@@ -24,18 +24,24 @@
 package com.redhat.jenkins.nodesharing;
 
 import com.google.common.base.Joiner;
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
+import com.redhat.jenkins.nodesharingfrontend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.slaves.DumbSlave;
+import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
 import org.junit.Test;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -107,5 +113,35 @@ public class ReturnNodeTest {
         Thread.sleep(500);
 
         assertTrue(j.jenkins.getComputer(shareableNode.getNodeName()).isIdle());
+    }
+
+    @Test
+    public void doNotCompleteReservationNotOwnedByReportingExecutor() throws Exception {
+        GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        gitClient.getWorkTree().child("jenkinses").child("other").write("url=https://foo.com\n", "UTF-8");
+        gitClient.add("jenkinses");
+        gitClient.commit("Add other jenkins");
+
+        String configEndpoint = Pool.getInstance().getConfigRepoUrl();
+        SharedNodeCloud cloud = j.addSharedNodeCloud(configEndpoint);
+
+        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
+        FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
+        bb.start.block();
+
+        assertEquals(1, j.getActiveReservations().size());
+
+        Api differentJenkinsApi = new Api(cloud.getLatestConfig(), configEndpoint, cloud, "https://foo.com");
+        try {
+            differentJenkinsApi.returnNode(((SharedNode) b.getBuiltOn()));
+            fail();
+        } catch (com.redhat.jenkins.nodesharing.ActionFailed.RequestFailed ex) {
+            assertEquals(HttpServletResponse.SC_CONFLICT, ex.getStatusCode());
+        }
+
+        assertEquals(1, j.getActiveReservations().size());
+
+        bb.end.signal();
+        j.waitUntilNoActivity();
     }
 }

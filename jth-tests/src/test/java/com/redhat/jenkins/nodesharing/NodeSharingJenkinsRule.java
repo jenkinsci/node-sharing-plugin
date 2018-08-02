@@ -27,6 +27,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
@@ -38,11 +39,9 @@ import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Functions;
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
 import hudson.model.Computer;
 import hudson.model.Executor;
+import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -63,7 +62,6 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
-import org.jvnet.hudson.test.TestBuilder;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -78,6 +76,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 
@@ -157,13 +156,24 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     protected GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
+        makeJthAnOrchestrator(jenkins, git);
+
+        declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
+        makeNodesLaunchable(git);
+
+        Pool.Updater.getInstance().doRun();
+        assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
+        return configRepo;
+    }
+
+    public void makeJthAnOrchestrator(Jenkins jenkins, GitClient git) throws IOException, InterruptedException {
         git.getWorkTree().child("config").write("orchestrator.url=" + jenkins.getRootUrl() + System.lineSeparator() + "enforce_https=false", "UTF-8");
         git.add("config");
         git.commit("Writing config repo config");
+    }
 
-        writeJenkinses(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
-
-        // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
+    // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
+    public void makeNodesLaunchable(GitClient git) throws IOException, InterruptedException {
         final File slaveJar = Which.jarFile(hudson.remoting.Launcher.class).getAbsoluteFile();
         for (FilePath xmlNode : git.getWorkTree().child("nodes").list("*.xml")) {
             SharedNode node = SharedNodeFactory.transform(NodeDefinition.Xml.create(xmlNode));
@@ -176,12 +186,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         }
         git.add("nodes");
         git.commit("Making nodes in config repo launchable");
-        Pool.Updater.getInstance().doRun();
-        assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
-        return configRepo;
     }
 
-    private Map<String, String> printExceptions(Map<String, Throwable> values) throws IOException, InterruptedException {
+    // TODO should not be needed as TaskLog.TaskFailed was fixed to print itself
+    public Map<String, String> printExceptions(Map<String, Throwable> values) throws IOException, InterruptedException {
         Map<String, String> out = new HashMap<>(values.size());
         for (Map.Entry<String, Throwable> entry : values.entrySet()) {
             Throwable value = entry.getValue();
@@ -217,21 +225,42 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     /**
      * Write local urls of Jenkinses
      */
-    public void writeJenkinses(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
+    public void declareExecutors(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
         FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
         for (FilePath filePath : jenkinsesDir.list()) {
             filePath.delete();
         }
         for (Map.Entry<String, String> j : jenkinses.entrySet()) {
             String url = j.getValue();
-            String amendment = url.startsWith("http://")
-                    ? (System.lineSeparator() + "enforce_https=false")
-                    : ""
-            ;
-            jenkinsesDir.child(j.getKey()).write("url=" + url + amendment, "UTF-8");
+            jenkinsesDir.child(j.getKey()).write(getJenkinsfileContent(url), "UTF-8");
         }
         git.add("jenkinses");
         git.commit("Update Jenkinses");
+    }
+
+    @Nonnull private String getJenkinsfileContent(String url) {
+        StringBuilder sb = new StringBuilder("url=").append(url).append(System.lineSeparator());
+        if (url.startsWith("http://")) {
+            sb.append("enforce_https=false").append(System.lineSeparator());
+        }
+        return sb.toString();
+    }
+
+    public void addExecutor(GitClient git, ExecutorJenkins j) throws IOException, InterruptedException {
+        FilePath jenkinsFile = git.getWorkTree().child("jenkinses").child(j.getName());
+        assert !jenkinsFile.exists();
+
+        jenkinsFile.write(getJenkinsfileContent(j.getUrl().toExternalForm()), "UTF-8");
+
+        git.add("jenkinses");
+        git.commit("Add Jenkins");
+    }
+
+    void disableLocalExecutor(GitClient gitClient) throws Exception {
+        // Replace the inner Jenkins with one from different URL as removing the file would cause git to remove the empty
+        // directory breaking repo validation
+        declareExecutors(gitClient, singletonMap("this-one", getURL() + "/defunc"));
+        Pool.Updater.getInstance().doRun();
     }
 
     public UsernamePasswordCredentials getRestCredential() {
@@ -262,6 +291,25 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             }
         }
         return out;
+    }
+
+    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(String label) throws IOException {
+        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+        bb.getProject().setAssignedLabel(Label.get(label));
+        return bb;
+    }
+
+    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(Node node) throws IOException {
+        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+        bb.getProject().setAssignedNode(node);
+        return bb;
+    }
+
+    @Nonnull private BlockingBuilder<FreeStyleProject> getBlockingProject() throws IOException {
+        FreeStyleProject p = createFreeStyleProject();
+        BlockingBuilder<FreeStyleProject> bb = new BlockingBuilder<>(p);
+        p.getBuildersList().add(bb);
+        return bb;
     }
 
     protected static class BlockingTask extends MockTask {

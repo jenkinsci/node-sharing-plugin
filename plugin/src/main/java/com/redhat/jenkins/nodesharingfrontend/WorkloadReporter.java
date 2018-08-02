@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  * Report executor Queue workload to orchestrator periodically.
@@ -52,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 @Extension
 @Restricted(NoExternalUse.class)
 public class WorkloadReporter extends PeriodicWork {
+    private static final Logger LOGGER = Logger.getLogger(WorkloadReporter.class.getName());
 
     @Override
     public long getRecurrencePeriod() {
@@ -65,6 +67,12 @@ public class WorkloadReporter extends PeriodicWork {
 
         Map<SharedNodeCloud, ReportWorkloadRequest.Workload.WorkloadBuilder> workloadMapping = new HashMap<>();
         for (SharedNodeCloud cloud : SharedNodeCloud.getAll()) {
+
+            if (!cloud.isActive()) {
+                LOGGER.fine("Skipping cloud " + cloud.name + " as it is not declared in config repo: " + cloud.getConfigRepoUrl());
+                continue;
+            }
+
             // Create empty workload for every cloud to make sure clouds we have no workload for will receive empty workload
             ReportWorkloadRequest.Workload.WorkloadBuilder workload = ReportWorkloadRequest.Workload.builder();
             workloadMapping.put(cloud, workload);
@@ -80,7 +88,7 @@ public class WorkloadReporter extends PeriodicWork {
                     continue;
                 }
 
-                for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload.WorkloadBuilder> e: workloadMapping.entrySet()) {
+                for (Map.Entry<SharedNodeCloud, ReportWorkloadRequest.Workload.WorkloadBuilder> e : workloadMapping.entrySet()) {
                     SharedNodeCloud cloud = e.getKey();
                     ReportWorkloadRequest.Workload.WorkloadBuilder workload = e.getValue();
                     if (cloud.canProvision(item.getAssignedLabel())) {
