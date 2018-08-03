@@ -23,15 +23,26 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.gargoylesoftware.htmlunit.Page;
+import com.gargoylesoftware.htmlunit.html.DomElement;
+import com.gargoylesoftware.htmlunit.html.HtmlElement;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.javascript.host.html.HTMLElement;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool;
-import hudson.model.FreeStyleProject;
-import hudson.model.Label;
+import com.redhat.jenkins.nodesharingbackend.ReservationTask;
+import hudson.model.Item;
+import hudson.model.View;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+
+import java.net.URL;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class ReservationTaskTest {
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
@@ -41,14 +52,25 @@ public class ReservationTaskTest {
         j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
         j.singleJvmGrid(j.jenkins);
 
-        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
-        FreeStyleProject p = bb.getProject();
-        p.scheduleBuild2(0).getStartCondition().get();
-        p.scheduleBuild2(0);
+        BlockingBuilder running = j.getBlockingProject("solaris11");
+        running.schedule();
+        running.start.block();
+        BlockingBuilder queued = j.getBlockingProject("solaris11");
+        queued.schedule();
+        Thread.sleep(100); // Wait until build is queued before reporting workload
+        j.reportWorkloadToOrchestrator();
 
-//        assertThat(j.getActiveReservations().size(), equalTo(1));
-//        assertThat(j.getQueuedReservations().size(), equalTo(1));
+        assertThat(j.getActiveReservations().size(), equalTo(1));
+        assertThat(j.getQueuedReservations().size(), equalTo(1));
 
-        j.interactiveBreak();
+        ReservationTask.ReservationExecutable active = j.getActiveReservations().iterator().next();
+        ReservationTask waiting = j.getQueuedReservations().iterator().next();
+
+        // Locating the links in AJAX contributed panes is a mayor pain - gave up
+        JenkinsRule.WebClient wc = j.createWebClient().login("admin", "admin");
+        Page target = wc.getPage(j.getURL() + active.getParent().getUrl());
+        assertEquals(j.getURL(), target.getUrl());
+        target = wc.getPage(j.getURL() + waiting.getUrl());
+        assertEquals(j.getURL(), target.getUrl());
     }
 }

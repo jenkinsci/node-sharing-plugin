@@ -27,15 +27,18 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
+import hudson.model.FreeStyleBuild;
+import hudson.model.FreeStyleProject;
+import hudson.model.queue.QueueTaskFuture;
 import hudson.util.OneShotEvent;
 import org.jvnet.hudson.test.TestBuilder;
 
-public final class BlockingBuilder<T extends AbstractProject<?, ?>> extends TestBuilder {
+public final class BlockingBuilder extends TestBuilder {
     public final OneShotEvent start = new OneShotEvent();
     public final OneShotEvent end = new OneShotEvent();
-    private final T project;
+    private final FreeStyleProject project;
 
-    public BlockingBuilder(T project) {
+    public BlockingBuilder(FreeStyleProject project) {
         this.project = project;
     }
 
@@ -46,7 +49,11 @@ public final class BlockingBuilder<T extends AbstractProject<?, ?>> extends Test
         return true;
     }
 
-    public T getProject() {
+    public FreeStyleProject getProject() {
         return project;
+    }
+
+    public QueueTaskFuture<FreeStyleBuild> schedule() {
+        return project.scheduleBuild2(0);
     }
 }

@@ -225,7 +225,7 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isOnline());
         assertTrue(computer.isIdle());
 
-        BlockingBuilder<FreeStyleProject> builder = j.getBlockingProject(computer.getNode());
+        BlockingBuilder builder = j.getBlockingProject(computer.getNode());
         FreeStyleProject job = builder.getProject();
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();
@@ -250,7 +250,7 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isOnline());
         assertTrue(computer.isIdle());
 
-        BlockingBuilder<FreeStyleProject> builder = j.getBlockingProject(computer.getNode());
+        BlockingBuilder builder = j.getBlockingProject(computer.getNode());
         FreeStyleProject job = builder.getProject();
         job.scheduleBuild2(0).getStartCondition();
         builder.start.block();

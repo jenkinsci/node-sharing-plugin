@@ -63,7 +63,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     private final @Nonnull String taskName;
     private final long qid;
 
-    // Url to trampoline that redirects to relevant executor URL. Note this changes when particular node is assigned (task sv. executable)
+    // Url to trampoline that redirects to relevant executor URL. Note this changes when particular node is assigned (task vs. executable)
+    // TODO no item url to redirect to while waiting in queue - API change required
     private @Nonnull String url;
 
     /**
@@ -93,7 +94,8 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     private void setUrlToNode(String node) {
-        url = "redirectToExecutor/" + getOwner().getName() + "/" + node;
+        // TODO nodes have hard to predict names on Executor so pointing to Executor home for now
+        url = "/redirectToExecutor/" + getOwner().getName() + "/" /*+ node*/;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
@@ -128,7 +130,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         return Jenkins.getActiveInstance().getQueue().schedule2(this, 0).getItem();
     }
 
-    @Override public String getUrl() {
+    @Override public @Nonnull String getUrl() {
         return url;
     }
 

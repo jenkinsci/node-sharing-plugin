@@ -125,7 +125,7 @@ public class ReturnNodeTest {
         String configEndpoint = Pool.getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configEndpoint);
 
-        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
+        BlockingBuilder bb = j.getBlockingProject("solaris11");
         FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
         bb.start.block();
 

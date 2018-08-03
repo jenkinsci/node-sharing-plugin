@@ -309,21 +309,21 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return Pool.getInstance().getConfig().getJenkinses().iterator().next();
     }
 
-    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(String label) throws IOException {
-        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+    public @Nonnull BlockingBuilder getBlockingProject(String label) throws IOException {
+        BlockingBuilder bb = getBlockingProject();
         bb.getProject().setAssignedLabel(Label.get(label));
         return bb;
     }
 
-    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(Node node) throws IOException {
-        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+    public @Nonnull BlockingBuilder getBlockingProject(Node node) throws IOException {
+        BlockingBuilder bb = getBlockingProject();
         bb.getProject().setAssignedNode(node);
         return bb;
     }
 
-    @Nonnull private BlockingBuilder<FreeStyleProject> getBlockingProject() throws IOException {
+    @Nonnull private BlockingBuilder getBlockingProject() throws IOException {
         FreeStyleProject p = createFreeStyleProject();
-        BlockingBuilder<FreeStyleProject> bb = new BlockingBuilder<>(p);
+        BlockingBuilder bb = new BlockingBuilder(p);
         p.getBuildersList().add(bb);
         return bb;
     }

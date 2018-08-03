@@ -67,20 +67,23 @@ public class Dashboard extends View {
 
     // Reservation tasks URLs are limited to orchestrator local. This is here to redirect to Executor Jenkins
     public void doRedirectToExecutor(StaplerRequest req) {
-        // Cannot use multiple query parameters as output of `ReservationTask#getUrl()` gets escaped breaking `&`
-        // Expected `/<EXECUTOR>/<NODE>`
+        // Cannot use multiple query parameters as output of `ReservationTask#getUrl()` gets escaped including `&`
+        // Expected `/<EXECUTOR>/[<NODE>]`
         String[] split = req.getRestOfPath().split("/");
-        assert split.length == 3;
+        assert split.length == 3 || split.length == 2;
         assert split[0].isEmpty();
 
         String executorName = split[1];
-        String nodeName = split[2];
-
-        Jenkins.checkGoodName(nodeName);
         ConfigRepo.Snapshot snapshot = getConfigSnapshot();
         String executorUrl = snapshot.getJenkinsByName(executorName).getUrl().toExternalForm();
-        if (snapshot.getNodes().containsKey(nodeName)) {
-            throw HttpResponses.redirectTo(executorUrl + "/computer/" + nodeName + "/");
+        if (split.length == 2) {
+            throw HttpResponses.redirectTo(executorUrl);
+        } else {
+            String nodeName = split[2];
+            Jenkins.checkGoodName(nodeName);
+            if (snapshot.getNodes().containsKey(nodeName)) {
+                throw HttpResponses.redirectTo(executorUrl + "/computer/" + nodeName + "/");
+            }
         }
 
         throw HttpResponses.redirectToContextRoot();
