@@ -36,9 +36,8 @@ public class DashboardTest {
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    @Test @WithTimeout(0)
-    public void test() throws Exception {
+    @Test
+    public void test() {
         assertThat(j.jenkins.getPrimaryView(), instanceOf(Dashboard.class));
-        j.interactiveBreak();
     }
 }
