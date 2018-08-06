@@ -26,17 +26,23 @@ package com.redhat.jenkins.nodesharing;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.BlockingTask;
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
+import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
+import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
+import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.AbortException;
+import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.model.Computer;
+import hudson.model.FreeStyleBuild;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
+import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
 import hudson.slaves.DumbSlave;
 import jenkins.model.Jenkins;
@@ -209,6 +215,24 @@ public class PoolTest {
     }
 
     @Test
+    public void removeNodeFromPool() throws Exception {
+        GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
+        Label label = Label.get("solaris11");
+
+        assertEquals(4, ShareableComputer.getAllReservations().size());
+        j.jenkins.getExtensionList(SharedNodeCloud.ConfigRepoUpdater.class).iterator().next().doRun();
+        assertTrue(cloud.canProvision(label));
+
+        killNode(gitClient, "solaris1.acme.com.xml");
+        Pool.Updater.getInstance().doRun();
+
+        assertEquals(3, ShareableComputer.getAllReservations().size());
+        j.jenkins.getExtensionList(SharedNodeCloud.ConfigRepoUpdater.class).iterator().next().doRun();
+        assertFalse(cloud.canProvision(label));
+    }
+
+    @Test
     public void waitUntilComputerGetsIdleBeforeDeleting() throws Exception {
         final String DELETED_NODE = "solaris1.acme.com";
         GitClient git = j.getConfigRepo();
@@ -218,9 +242,7 @@ public class PoolTest {
         task.running.block();
         assertFalse("Computer occupied", j.getNode(DELETED_NODE).toComputer().isIdle());
 
-        assertTrue(git.getWorkTree().child("nodes").child(DELETED_NODE + ".xml").delete());
-        git.add("*");
-        git.commit("Remove running node from config repo");
+        killNode(git, DELETED_NODE + ".xml");
         Updater.getInstance().doRun();
 
         assertFalse("Node still exists and occupied", j.getNode(DELETED_NODE).toComputer().isIdle());
@@ -234,6 +256,12 @@ public class PoolTest {
         j.jenkins.getExtensionList(ShareableNode.DanglingNodeDeleter.class).iterator().next().doRun();
         assertNull("Node removed", j.jenkins.getNode(DELETED_NODE));
         assertNull("Computer removed", j.jenkins.getComputer(DELETED_NODE));
+    }
+
+    private void killNode(GitClient gitClient, String nodeName) throws IOException, InterruptedException {
+        assertTrue(gitClient.getWorkTree().child("nodes").child(nodeName).delete());
+        gitClient.add("*");
+        gitClient.commit("Kill node " + nodeName);
     }
 
     @Test

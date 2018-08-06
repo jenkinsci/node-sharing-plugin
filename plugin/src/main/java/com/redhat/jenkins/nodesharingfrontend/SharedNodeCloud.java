@@ -203,13 +203,10 @@ public class SharedNodeCloud extends Cloud {
         }
 
         @Override
-        protected void doRun() throws Exception {
+        public void doRun() throws Exception {
             ADMIN_MONITOR.clear();
             for (SharedNodeCloud cloud : getAll()) {
                 cloud.updateConfigSnapshot();
-
-                // TODO Check and fire cfg. was changed if necessary
-                // PJ: We don't need such a behavior
             }
         }
     }
