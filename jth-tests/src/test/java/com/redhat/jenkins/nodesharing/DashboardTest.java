@@ -21,39 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing.utils;
+package com.redhat.jenkins.nodesharing;
 
-import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
-import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
-import hudson.model.queue.QueueTaskFuture;
-import hudson.util.OneShotEvent;
-import org.jvnet.hudson.test.TestBuilder;
+import com.redhat.jenkins.nodesharingbackend.Dashboard;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
-public final class BlockingBuilder extends TestBuilder {
-    public final OneShotEvent start = new OneShotEvent();
-    public final OneShotEvent end = new OneShotEvent();
-    private final FreeStyleProject project;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 
-    public BlockingBuilder(FreeStyleProject project) {
-        this.project = project;
-    }
+public class DashboardTest {
 
-    @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException {
-        start.signal();
-        end.block();
-        return true;
-    }
+    @Rule
+    public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
 
-    public FreeStyleProject getProject() {
-        return project;
-    }
-
-    public QueueTaskFuture<FreeStyleBuild> schedule() {
-        return project.scheduleBuild2(0);
+    @Test @WithTimeout(0)
+    public void test() throws Exception {
+        assertThat(j.jenkins.getPrimaryView(), instanceOf(Dashboard.class));
+        j.interactiveBreak();
     }
 }

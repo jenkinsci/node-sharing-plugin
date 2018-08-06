@@ -85,14 +85,14 @@ public class ReservationTest {
 
         // When I schedule a bunch of tasks on executor
         Label winLabel = Label.get("w2k12");
-        BlockingBuilder<FreeStyleProject> winBuilder = j.getBlockingProject(winLabel.getExpression());
+        BlockingBuilder winBuilder = j.getBlockingProject(winLabel.getExpression());
         FreeStyleProject winJob = winBuilder.getProject();
 
         Label solarisLabel = Label.get("solaris11&&!(x86||x86_64)");
-        BlockingBuilder<FreeStyleProject> solarisBuilder = j.getBlockingProject(solarisLabel.getExpression());
+        BlockingBuilder solarisBuilder = j.getBlockingProject(solarisLabel.getExpression());
         FreeStyleProject solarisJob = solarisBuilder.getProject();
 
-        BlockingBuilder<FreeStyleProject> solaris2Builder = j.getBlockingProject(solarisLabel.getExpression());
+        BlockingBuilder solaris2Builder = j.getBlockingProject(solarisLabel.getExpression());
         FreeStyleProject solaris2Job = solaris2Builder.getProject();
 
         QueueTaskFuture<FreeStyleBuild> winBuildFuture = winJob.scheduleBuild2(0);
@@ -160,7 +160,7 @@ public class ReservationTest {
         Label label = Label.get("w2k12");
 
         // Create and run a blocking job so the state of Queue isn't changed anymore
-        BlockingBuilder<FreeStyleProject> blockingBuilder = j.getBlockingProject(label.getExpression());
+        BlockingBuilder blockingBuilder = j.getBlockingProject(label.getExpression());
         FreeStyleProject blocking = blockingBuilder.getProject();
         blocking.scheduleBuild2(0);
         j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it

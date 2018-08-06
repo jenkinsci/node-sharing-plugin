@@ -133,10 +133,10 @@ public class ReservationVerifierTest {
 
     @Test // Case: NC1
     public void completeReservationWhenNotUsedOnExecutor() throws Exception {
-        ExecutorJenkins executor = getSomeExecutor(pool);
-        ShareableNode node = getSomeShareableNode();
+        ExecutorJenkins executor = j.getSomeExecutor();
+        ShareableNode node = j.getSomeShareableNode();
 
-        startDanglingReservation(executor, node);
+        j.startDanglingReservation(executor, node);
 
         // Executor will report no node usage
         Api api = mock(Api.class);
@@ -156,11 +156,11 @@ public class ReservationVerifierTest {
 
     @Test // Case: NC2
     public void createBackfillWhenReservationNotTrackedOnOrchestrator() throws Exception {
-        ShareableNode shareableNode = getSomeShareableNode();
+        ShareableNode shareableNode = j.getSomeShareableNode();
         assertNotNull(cloud.getLatestConfig());
         SharedNode sharedNode = cloud.createNode(shareableNode.getNodeDefinition());
 
-        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject(sharedNode);
+        BlockingBuilder bb = j.getBlockingProject(sharedNode);
         QueueTaskFuture<FreeStyleBuild> fb = bb.getProject().scheduleBuild2(0);
 
         Jenkins.getActiveInstance().addNode(sharedNode);
@@ -204,8 +204,8 @@ public class ReservationVerifierTest {
         ExecutorEntity.Fingerprint Bfingerprint = new ExecutorEntity.Fingerprint("git://config.com/repo.git", "4.2", B.getUrl().toExternalForm());
         when(api.reportUsage(eq(B))).thenReturn(new ReportUsageResponse(Bfingerprint, Collections.singletonList(a.getNodeName())));
 
-        startDanglingReservation(A, a);
-        startDanglingReservation(B, b);
+        j.startDanglingReservation(A, a);
+        j.startDanglingReservation(B, b);
 
         Map<ShareableComputer, ReservationTask.ReservationExecutable> actual = ShareableComputer.getAllReservations();
         assertEquals(A, actual.get(a.toComputer()).getParent().getOwner());
@@ -234,21 +234,6 @@ public class ReservationVerifierTest {
             ar.complete();
         }
         j.waitUntilNoActivity();
-    }
-
-    private void startDanglingReservation(ExecutorJenkins executor, ShareableNode node) throws InterruptedException, java.util.concurrent.ExecutionException {
-        assertNull(node.getComputer().getReservation());
-        // Using backfill tasks to prevent utilizeNode calls to fail as the Executor might not be real
-        new ReservationTask(executor, node.getNodeName(), true).schedule().getFuture().getStartCondition().get();
-        assertNotNull(node.getComputer().getReservation());
-    }
-
-    private ShareableNode getSomeShareableNode() {
-        return ShareableNode.getAll().values().iterator().next();
-    }
-
-    private ExecutorJenkins getSomeExecutor(Pool pool) {
-        return pool.getConfig().getJenkinses().iterator().next();
     }
 
     private static TypeSafeDiagnosingMatcher<LoggerRule> logged(final Level level, final String pattern) {

@@ -79,6 +79,7 @@ import java.util.Map;
 import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class NodeSharingJenkinsRule extends JenkinsRule {
 
@@ -293,21 +294,36 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
-    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(String label) throws IOException {
-        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+    public void startDanglingReservation(ExecutorJenkins executor, ShareableNode node) throws InterruptedException, java.util.concurrent.ExecutionException {
+        assertNull(node.getComputer().getReservation());
+        // Using backfill tasks to prevent utilizeNode calls to fail as the Executor might not be real
+        new ReservationTask(executor, node.getNodeName(), true).schedule().getFuture().getStartCondition().get();
+        assertNotNull(node.getComputer().getReservation());
+    }
+
+    public ShareableNode getSomeShareableNode() {
+        return ShareableNode.getAll().values().iterator().next();
+    }
+
+    public ExecutorJenkins getSomeExecutor() {
+        return Pool.getInstance().getConfig().getJenkinses().iterator().next();
+    }
+
+    public @Nonnull BlockingBuilder getBlockingProject(String label) throws IOException {
+        BlockingBuilder bb = getBlockingProject();
         bb.getProject().setAssignedLabel(Label.get(label));
         return bb;
     }
 
-    public @Nonnull BlockingBuilder<FreeStyleProject> getBlockingProject(Node node) throws IOException {
-        BlockingBuilder<FreeStyleProject> bb = getBlockingProject();
+    public @Nonnull BlockingBuilder getBlockingProject(Node node) throws IOException {
+        BlockingBuilder bb = getBlockingProject();
         bb.getProject().setAssignedNode(node);
         return bb;
     }
 
-    @Nonnull private BlockingBuilder<FreeStyleProject> getBlockingProject() throws IOException {
+    @Nonnull private BlockingBuilder getBlockingProject() throws IOException {
         FreeStyleProject p = createFreeStyleProject();
-        BlockingBuilder<FreeStyleProject> bb = new BlockingBuilder<>(p);
+        BlockingBuilder bb = new BlockingBuilder(p);
         p.getBuildersList().add(bb);
         return bb;
     }

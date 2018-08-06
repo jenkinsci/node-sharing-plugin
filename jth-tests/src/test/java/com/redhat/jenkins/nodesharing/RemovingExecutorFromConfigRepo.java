@@ -80,7 +80,7 @@ public class RemovingExecutorFromConfigRepo {
         String configRepoUrl = getInstance().getConfigRepoUrl();
         SharedNodeCloud cloud = j.addSharedNodeCloud(configRepoUrl);
 
-        BlockingBuilder<FreeStyleProject> bb = j.getBlockingProject("solaris11");
+        BlockingBuilder bb = j.getBlockingProject("solaris11");
         FreeStyleBuild b = bb.getProject().scheduleBuild2(0).getStartCondition().get();
         bb.start.block();
 
@@ -143,7 +143,7 @@ public class RemovingExecutorFromConfigRepo {
         String configRepoUrl = getInstance().getConfigRepoUrl();
         j.addSharedNodeCloud(configRepoUrl);
 
-        BlockingBuilder<FreeStyleProject> active = j.getBlockingProject("solaris11");
+        BlockingBuilder active = j.getBlockingProject("solaris11");
         QueueTaskFuture<FreeStyleBuild> blocked = active.getProject().scheduleBuild2(0);
         active.start.block();
         FreeStyleProject pending = j.createFreeStyleProject();
