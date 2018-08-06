@@ -1,0 +1,12 @@
+# Mandatory: URL to Executor Jenkins
+#
+# Every Executor needs to have a file with URL in config repository in order to
+# be allowed to use use the grid. Also, the URL needs to match Jenkins URL
+# configured on Executor.
+url=https://jenkins1.acme.com
+
+# Optional: Permit http to be used in url field (Default: false)
+#
+# Node sharing is using Basic HTTP authentication scheme so use of http effectively
+# discloses the password. Do not set to true unless you know what you are doing!
+# enforce_https=false

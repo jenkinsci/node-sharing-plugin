@@ -1,0 +1,5 @@
+# Mandatory: URL pointing to Orchestrator deployment.
+#
+# Executors will use this to discover the change of an Orchestrator destination.
+# Note the Orchestrator needs this to match its URL, otherwise it will be inactive.
+orchestrator.url=https://dummy.test

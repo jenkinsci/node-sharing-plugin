@@ -58,7 +58,11 @@ import java.util.logging.Logger;
  * from multiple threads.
  */
 public class ConfigRepo {
-    private final static String ORCHESTRATOR_URL = "orchestrator.url";
+    private final static String KEY_CONFIG_ORCHESTRATOR_URL = "orchestrator.url";
+
+    private static final String KEY_JENKINS_URL = "url";
+    private static final String KEY_JENKINS_ENFORCE_HTTPS = "enforce_https";
+
     private static final Logger LOGGER = Logger.getLogger(ConfigRepo.class.getName());
 
     // Ensure content of repository is no manipulated while being read
@@ -149,9 +153,9 @@ public class ConfigRepo {
                 taskLog.error("No file named 'config' found in Config Repository");
             } else {
                 config = getProperties(configFile);
-                orchestratorUrl = config.get(ORCHESTRATOR_URL);
+                orchestratorUrl = config.get(KEY_CONFIG_ORCHESTRATOR_URL);
                 if (orchestratorUrl == null) {
-                    taskLog.error("No " + ORCHESTRATOR_URL + " specified by Config Repository");
+                    taskLog.error("No " + KEY_CONFIG_ORCHESTRATOR_URL + " specified by Config Repository");
                 } else {
                     try {
                         URL url = new URL(orchestratorUrl);
@@ -190,7 +194,7 @@ public class ConfigRepo {
             HashMap<String, String> config = getProperties(jenkinsfile);
 
             String name = jenkinsfile.getName();
-            String url = config.get("url");
+            String url = config.get(KEY_JENKINS_URL);
             if (url == null) {
                 taskLog.error("Jenkins config file " + name + " has no url property");
                 continue;
@@ -213,7 +217,7 @@ public class ConfigRepo {
     }
 
     private boolean isSafeUrl(URL u, Map<String, String> config) {
-        if ("false".equals(config.get("enforce_https"))) return true;
+        if ("false".equals(config.get(KEY_JENKINS_ENFORCE_HTTPS))) return true;
 
         return "https".equals(u.getProtocol());
     }
@@ -320,7 +324,7 @@ public class ConfigRepo {
         }
 
         public @Nonnull String getOrchestratorUrl() {
-            String url = config.get(ORCHESTRATOR_URL);
+            String url = config.get(KEY_CONFIG_ORCHESTRATOR_URL);
             if (url == null) throw new AssertionError(); // Should not be instantiated by ConfigRepo
             return url;
         }
