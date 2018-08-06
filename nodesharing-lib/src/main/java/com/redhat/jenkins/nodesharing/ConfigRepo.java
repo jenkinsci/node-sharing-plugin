@@ -61,7 +61,7 @@ public class ConfigRepo {
     private final static String KEY_CONFIG_ORCHESTRATOR_URL = "orchestrator.url";
 
     private static final String KEY_JENKINS_URL = "url";
-    private static final String KEY_JENKINS_ENFORCE_HTTPS = "enforce_https";
+    private static final String KEY_ENFORCE_HTTPS = "enforce_https";
 
     private static final Logger LOGGER = Logger.getLogger(ConfigRepo.class.getName());
 
@@ -217,7 +217,7 @@ public class ConfigRepo {
     }
 
     private boolean isSafeUrl(URL u, Map<String, String> config) {
-        if ("false".equals(config.get(KEY_JENKINS_ENFORCE_HTTPS))) return true;
+        if ("false".equals(config.get(KEY_ENFORCE_HTTPS))) return true;
 
         return "https".equals(u.getProtocol());
     }

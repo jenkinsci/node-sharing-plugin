@@ -3,3 +3,9 @@
 # Executors will use this to discover the change of an Orchestrator destination.
 # Note the Orchestrator needs this to match its URL, otherwise it will be inactive.
 orchestrator.url=https://dummy.test
+
+# Optional: Permit http to be used in url field (Default: false)
+#
+# Node sharing is using Basic HTTP authentication scheme so use of http effectively
+# discloses the password. Do not set to true unless you know what you are doing!
+# enforce_https=false
