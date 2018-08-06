@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import com.google.common.annotations.VisibleForTesting;
 import hudson.AbortException;
+import hudson.ExtensionList;
 import hudson.Functions;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
@@ -49,6 +50,10 @@ import java.util.logging.Level;
 public class ConfigRepoAdminMonitor extends AdministrativeMonitor {
 
     private final @Nonnull Map<String, Throwable> errors = new CopyOnWriteMap.Hash<>();
+
+    public static ConfigRepoAdminMonitor getInstance() {
+        return ExtensionList.lookup(ConfigRepoAdminMonitor.class).get(0);
+    }
 
     public ConfigRepoAdminMonitor() {
         // Configure UI logger for ease of maintenance

@@ -124,7 +124,7 @@ public class Pool {
 
     public Pool() {}
 
-    public @Nonnull ConfigRepo.Snapshot getConfig() {
+    public @Nonnull ConfigRepo.Snapshot getConfig() throws PoolMisconfigured {
         synchronized (configLock) {
             if (config != null) return config;
             String configRepoUrl = getConfigRepoUrl(); // Rise more specific exception if the problem is missing config property

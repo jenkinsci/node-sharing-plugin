@@ -36,7 +36,7 @@ import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
-import javax.annotation.Nonnull;
+import javax.annotation.CheckForNull;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,8 +61,12 @@ public class Dashboard extends View {
         super("Node Sharing Pool Orchestrator");
     }
 
-    public @Nonnull ConfigRepo.Snapshot getConfigSnapshot() {
-        return Pool.getInstance().getConfig();
+    public @CheckForNull String getConfigRepoUrl() {
+        try {
+            return Pool.getInstance().getConfigRepoUrl();
+        } catch (Pool.PoolMisconfigured e) {
+            return null;
+        }
     }
 
     // Reservation tasks URLs are limited to orchestrator local. This is here to redirect to Executor Jenkins
@@ -74,7 +78,7 @@ public class Dashboard extends View {
         assert split[0].isEmpty();
 
         String executorName = split[1];
-        ConfigRepo.Snapshot snapshot = getConfigSnapshot();
+        ConfigRepo.Snapshot snapshot = Pool.getInstance().getConfig();
         String executorUrl = snapshot.getJenkinsByName(executorName).getUrl().toExternalForm();
         if (split.length == 2) {
             throw HttpResponses.redirectTo(executorUrl);
