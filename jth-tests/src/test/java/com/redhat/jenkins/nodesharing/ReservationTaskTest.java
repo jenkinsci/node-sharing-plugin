@@ -24,25 +24,18 @@
 package com.redhat.jenkins.nodesharing;
 
 import com.gargoylesoftware.htmlunit.Page;
-import com.gargoylesoftware.htmlunit.html.DomElement;
-import com.gargoylesoftware.htmlunit.html.HtmlElement;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.javascript.host.html.HTMLElement;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
-import hudson.model.Item;
-import hudson.model.View;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
-import java.net.URL;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 public class ReservationTaskTest {
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
@@ -68,9 +61,13 @@ public class ReservationTaskTest {
 
         // Locating the links in AJAX contributed panes is a mayor pain - gave up
         JenkinsRule.WebClient wc = j.createWebClient().login("admin", "admin");
-        Page target = wc.getPage(j.getURL() + active.getParent().getUrl());
+        String activeUrl = active.getParent().getUrl();
+        assertThat(activeUrl, not(startsWith("/")));
+        Page target = wc.getPage(j.getURL() + activeUrl);
         assertEquals(j.getURL(), target.getUrl());
-        target = wc.getPage(j.getURL() + waiting.getUrl());
+        String waitingUrl = waiting.getUrl();
+        assertThat(waitingUrl, not(startsWith("/")));
+        target = wc.getPage(j.getURL() + waitingUrl);
         assertEquals(j.getURL(), target.getUrl());
     }
 }

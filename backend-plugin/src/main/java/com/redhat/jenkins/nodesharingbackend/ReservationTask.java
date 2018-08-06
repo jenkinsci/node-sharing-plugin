@@ -95,7 +95,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
     private void setUrlToNode(String node) {
         // TODO nodes have hard to predict names on Executor so pointing to Executor home for now
-        url = "/redirectToExecutor/" + getOwner().getName() + "/" /*+ node*/;
+        url = "redirectToExecutor/" + getOwner().getName() + "/" /*+ node*/;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
