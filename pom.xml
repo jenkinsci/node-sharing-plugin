@@ -39,11 +39,6 @@
       <name>Oliver Gondža</name>
       <email>ogondza@gmail.com</email>
     </developer>
-    <developer>
-     <id>scoheb</id>
-     <name>Scott Hebert</name>
-     <email>shebert@redhat.com</email>
-    </developer>
   </developers>
 
   <dependencyManagement>
