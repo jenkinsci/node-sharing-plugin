@@ -1,9 +1,7 @@
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
   <name>solaris2.acme.com</name>
-  <description/>
   <remoteFS>./tmp/remoteFSRoot</remoteFS>
   <numExecutors>1</numExecutors>
-  <mode>EXCLUSIVE</mode>
   <launcher class="hudson.slaves.CommandLauncher">
     <agentCommand />
     <env serialization="custom">
@@ -17,5 +15,4 @@
     </env>
   </launcher>
   <label>solaris solaris10 sparc</label>
-  <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

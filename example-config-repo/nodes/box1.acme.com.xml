@@ -1,13 +1,10 @@
 <com.redhat.jenkins.nodesharingfrontend.SharedNode>
   <!-- Name of the box for description purposes -->
   <name>box1.acme.com</name>
-  <description/>
   <!-- Jenkins home dir -->
   <remoteFS>/var/jenkins-workspace</remoteFS>
-  <!-- Must be one to speeud the node return time -->
+  <!-- Must be one -->
   <numExecutors>1</numExecutors>
-  <!-- Must be EXCLUSIVE to prevent builds that does not need it to run on the node -->
-  <mode>EXCLUSIVE</mode>
   <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.21">
     <host></host>
     <port>22</port>
@@ -20,5 +17,4 @@
   </launcher>
   <!-- Labels the shared not will provide to builds. -->
   <label>solaris sparc</label>
-  <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

@@ -27,6 +27,7 @@ import com.redhat.jenkins.nodesharing.NodeDefinition;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
+import hudson.model.Node;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -51,22 +52,33 @@ public abstract class SharedNodeFactory implements ExtensionPoint {
     }
 
     @Nonnull
-    private static SharedNode decorate(@Nonnull SharedNode node) {
-        node.setRetentionStrategy(new SharedOnceRetentionStrategy(2));
+    private static SharedNode decorate(@Nonnull SharedNode node) throws IllegalArgumentException {
+        node.setRetentionStrategy(new SharedOnceRetentionStrategy(1));
+        node.setMode(Node.Mode.EXCLUSIVE);
+        if (node.getNumExecutors() != 1) {
+            throw new IllegalArgumentException("Shared Nodes must have exactly 1 executor");
+        }
         return node;
     }
 
+    /**
+     * Instantiate the Node.
+     *
+     * @param def Node definition.
+     * @return Node or null in case the definition is not handled by this implementation.
+     * @throws IllegalArgumentException If the definition is invalid.
+     */
     @CheckForNull
-    public abstract SharedNode create(@Nonnull NodeDefinition def);
+    public abstract SharedNode create(@Nonnull NodeDefinition def) throws IllegalArgumentException;
 
     @Extension
     public static final class XStreamFactory extends SharedNodeFactory {
 
         @Override
         @CheckForNull
-        public SharedNode create(@Nonnull NodeDefinition def) {
+        public SharedNode create(@Nonnull NodeDefinition def) throws IllegalArgumentException {
             if (def instanceof NodeDefinition.Xml) {
-                SharedNode node = null;
+                SharedNode node;
                 try {
                     node = (SharedNode) Jenkins.XSTREAM2.fromXML(def.getDefinition());
                 } catch (Exception e) {
