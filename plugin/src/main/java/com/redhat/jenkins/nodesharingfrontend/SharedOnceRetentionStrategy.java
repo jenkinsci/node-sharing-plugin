@@ -24,7 +24,7 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
 
     private boolean terminating;
 
-    private boolean tempOffline;
+    private volatile boolean tempOffline;
 
     private int idleMinutes;
 
