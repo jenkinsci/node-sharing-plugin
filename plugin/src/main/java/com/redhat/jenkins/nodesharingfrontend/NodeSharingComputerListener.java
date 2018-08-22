@@ -73,6 +73,7 @@ public class NodeSharingComputerListener extends ComputerListener {
         }
     }
 
+/*
     @Override
     public void onTemporarilyOnline(Computer c) {
         try {
@@ -94,4 +95,5 @@ public class NodeSharingComputerListener extends ComputerListener {
             }
         }
     }
+*/
 }

@@ -236,16 +236,16 @@ public class ReservationVerifierTest {
         j.waitUntilNoActivity();
     }
 
-    private static TypeSafeDiagnosingMatcher<LoggerRule> logged(final Level level, final String pattern) {
+    public static TypeSafeDiagnosingMatcher<LoggerRule> logged(final Level level, final String pattern) {
         return new HasLogged(level, pattern, true);
     }
 
     // Negating TypeSafeDiagnosingMatcher does not seem to print diagnosis making it quite useless
-    private static TypeSafeDiagnosingMatcher<LoggerRule> notLogged(final Level level, final String pattern) {
+    public static TypeSafeDiagnosingMatcher<LoggerRule> notLogged(final Level level, final String pattern) {
         return new HasLogged(level, pattern, false);
     }
 
-    private static class HasLogged extends TypeSafeDiagnosingMatcher<LoggerRule> {
+    public static class HasLogged extends TypeSafeDiagnosingMatcher<LoggerRule> {
         private final Level level;
         private final String pattern;
         private final boolean positiveMatch;

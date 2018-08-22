@@ -33,30 +33,36 @@ import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
+import com.redhat.jenkins.nodesharingfrontend.SharedOnceRetentionStrategy;
 import hudson.FilePath;
 import hudson.model.Computer;
+import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
-import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import hudson.model.queue.QueueTaskFuture;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.LegacySecurityRealm;
 import hudson.security.csrf.DefaultCrumbIssuer;
+import hudson.slaves.AbstractCloudComputer;
 import hudson.util.FormValidation;
-import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.SimpleCommandLauncher;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import static com.redhat.jenkins.nodesharing.ReservationVerifierTest.logged;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
@@ -72,6 +78,9 @@ public class SharedNodeCloudTest {
 
     @Rule
     public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
+
+    @Rule
+    public LoggerRule l = new LoggerRule();
 
     @Test
     public void doTestConnection() throws Exception {
@@ -217,10 +226,6 @@ public class SharedNodeCloudTest {
         j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
 
-//        for (Node n : Jenkins.getInstance().getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
-
         computer.waitUntilOnline();
         assertTrue(computer.isOnline());
         assertTrue(computer.isIdle());
@@ -233,6 +238,7 @@ public class SharedNodeCloudTest {
         assertFalse(computer.isIdle());
         checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.BUSY);
         builder.end.signal();
+        j.waitUntilNoActivity();
     }
 
     @Test
@@ -241,10 +247,6 @@ public class SharedNodeCloudTest {
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
         j.jenkins.addNode(cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com")));
         Computer computer = j.jenkins.getComputer(cloud.getNodeName("solaris2.acme.com"));
-
-//        for (Node n : Jenkins.getInstance().getNodes()) {
-//            System.out.println(n.getNodeName());
-//        }
 
         computer.waitUntilOnline();
         assertTrue(computer.isOnline());
@@ -438,62 +440,45 @@ public class SharedNodeCloudTest {
         }
     }
 
-    @Ignore
     @Test
-    public void myTest() throws Exception {
-        String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
-                "  <name>solaris1.executor.com</name>\n" +
-                "  <description/>\n" +
-                "  <remoteFS>/var/jenkins-workspace</remoteFS>\n" +
-                "  <numExecutors>1</numExecutors>\n" +
-                "  <mode>EXCLUSIVE</mode>\n" +
-                "  <launcher class=\"hudson.plugins.sshslaves.SSHLauncher\" plugin=\"ssh-slaves@1.21\">\n" +
-                "    <host></host>\n" +
-                "    <port>22</port>\n" +
-                "    <credentialsId></credentialsId>\n" +
-                "    <javaPath>/path/to/launcher</javaPath>\n" +
-                "    <launchTimeoutSeconds>600</launchTimeoutSeconds>\n" +
-                "    <maxNumRetries>0</maxNumRetries>\n" +
-                "    <retryWaitTime>0</retryWaitTime>\n" +
-                "  </launcher>\n" +
-                "  <label>foo</label>\n" +
-                "  <nodeProperties/>\n" +
-                "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
-        source = source.replace("<name>solaris1.executor.com", "<name>solaris1.redhat.com");
-        Node result = (Node) Jenkins.XSTREAM2.fromXML(source);
-        if (result== null) {
-            System.out.println("Result is NULL!");
-        } else {
-            System.out.println("Name result: " + result.getNodeName());
-        }
-
+    public void testTemporaryOffline() throws Exception {
         final GitClient gitClient = j.singleJvmGrid(j.jenkins);
-        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        l.record(Logger.getLogger(SharedOnceRetentionStrategy.class.getName()), Level.INFO);
+        l.capture(10);
 
-        for (Node n : Jenkins.getInstance().getNodes()) {
-            System.out.println(n.getNodeName());
+        BlockingBuilder builder = j.getBlockingProject("solaris10");
+        FreeStyleProject job = builder.getProject();
+        QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
+        builder.start.block();
+        assertTrue(job.isBuilding());
+        Computer computer = jobFuture.getStartCondition().get().getBuiltOn().toComputer();
+        assertFalse(computer.isIdle());
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.BUSY);
+        assertTrue(computer.isOnline());
+
+        computer.cliOffline("Temp offline");
+        while (computer.isOnline()) {
+            Thread.sleep(50);
         }
-
-        FreeStyleProject job = j.createFreeStyleProject();
-        job.setAssignedLabel(new LabelAtom("foo"));
-        job.scheduleBuild2(0).getStartCondition();
+        assertTrue(computer.isOffline());
+        builder.end.signal();
+        while (!computer.isIdle()) {
+            Thread.sleep(50);
+        }
+        assertTrue(computer.isIdle());
         assertFalse(job.isBuilding());
-
-        String xmlDef = source.replace("SharedNode", "SharedNodeFoo");
-        System.out.println(xmlDef);
-//        SharedNode node = cloud.createNode(new NodeDefinition.Xml("failed-node", xmlDef));
-//        System.out.println(node);
-
-        try {
-            RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
-            rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
-                    Pool.getInstance().getConfigRepoUrl(),
-                    "4.2",
-                    new NodeDefinition.Xml("failed-node.xml", xmlDef)
-            ), UtilizeNodeResponse.class);
-        } catch (Exception e) {
-            System.out.println(e);
+        assertTrue(computer.isTemporarilyOffline());
+        assertThat(computer.getOfflineCauseReason(), is("Temp offline"));
+        computer.cliOnline();
+        while (computer.isOffline()) {
+            Thread.sleep(50);
         }
+        assertTrue(computer.isOnline());
+        ((SharedOnceRetentionStrategy) computer.getRetentionStrategy()).done((AbstractCloudComputer) computer);
+        j.waitUntilNoActivity();
+        assertThat(l, logged(Level.INFO, "termination of " + computer.getName() + " is postponed due to temporary offline state.*"));
+        assertThat(l, logged(Level.INFO, "Terminating computer " + computer.getName() + ".*"));
     }
 }
 

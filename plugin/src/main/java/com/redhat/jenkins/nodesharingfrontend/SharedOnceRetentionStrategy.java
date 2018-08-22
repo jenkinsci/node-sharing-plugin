@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -10,11 +11,11 @@ import hudson.security.ACL;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.CloudRetentionStrategy;
+import hudson.slaves.OfflineCause;
 import hudson.util.TimeUnit2;
 import org.acegisecurity.context.SecurityContext;
 import org.acegisecurity.context.SecurityContextHolder;
 
-import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,6 +24,8 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
     private static final Logger LOGGER = Logger.getLogger(SharedOnceRetentionStrategy.class.getName());
 
     private boolean terminating;
+
+    private volatile boolean tempOffline;
 
     private int idleMinutes;
 
@@ -46,7 +49,6 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                 done(c);
             }
         }
-
         // Return one because we want to check every minute if idle.
         return 1;
     }
@@ -81,8 +83,16 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
     }
 
     @SuppressFBWarnings(value="SE_BAD_FIELD", justification="not a real Callable")
-    private void done(final AbstractCloudComputer<?> c) {
+    @VisibleForTesting
+    public void done(final AbstractCloudComputer<?> c) {
         c.setAcceptingTasks(false); // just in case
+        if (c.isOffline() && c.getOfflineCause() instanceof OfflineCause.UserCause) {
+            if (!tempOffline) {
+                LOGGER.log(Level.INFO, "termination of " + c.getName() + " is postponed due to temporary offline state");
+                tempOffline = true;
+            }
+            return;
+        }
         synchronized (this) {
             if (terminating) {
                 return;
@@ -92,30 +102,24 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
         Computer.threadPoolForRemoting.submit(new Runnable() {
             @Override
             public void run() {
-                // https://github.com/jenkinsci/durable-task-plugin/commit/0bf67ad1c37cf390e62049c8229bf0d536f6221a#r19531777
-                //Queue.withLock(new NotReallyRoleSensitiveCallable<Void,RuntimeException>() {
-                //    @Override public Void call() {
+                try {
+                    AbstractCloudSlave node = c.getNode();
+                    if (node != null) {
+                        SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
                         try {
-                            AbstractCloudSlave node = c.getNode();
-                            if (node != null) {
-                                SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
-                                try {
-                                    node.terminate();
-                                } finally {
-                                    SecurityContextHolder.setContext(oldContext);
-                                }                                
-                            }
-                            LOGGER.log(Level.INFO, "Terminating computer " + c.getName());
-                        } catch (Exception e) {
-                            LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                            node.terminate();
                         } finally {
-                            synchronized (SharedOnceRetentionStrategy.this) {
-                                terminating = false;
-                            }
+                            SecurityContextHolder.setContext(oldContext);
                         }
-                //        return null;
-                //    }
-                //});
+                    }
+                    LOGGER.log(Level.INFO, "Terminating computer " + c.getName());
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Failed to terminate " + c.getName(), e);
+                } finally {
+                    synchronized (SharedOnceRetentionStrategy.this) {
+                        terminating = false;
+                    }
+                }
             }
         });
     }
