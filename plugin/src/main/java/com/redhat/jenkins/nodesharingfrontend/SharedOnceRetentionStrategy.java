@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -48,7 +49,6 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                 done(c);
             }
         }
-
         // Return one because we want to check every minute if idle.
         return 1;
     }
@@ -83,7 +83,8 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
     }
 
     @SuppressFBWarnings(value="SE_BAD_FIELD", justification="not a real Callable")
-    private void done(final AbstractCloudComputer<?> c) {
+    @VisibleForTesting
+    public void done(final AbstractCloudComputer<?> c) {
         c.setAcceptingTasks(false); // just in case
         if (c.isOffline() && c.getOfflineCause() instanceof OfflineCause.UserCause) {
             if (!tempOffline) {
