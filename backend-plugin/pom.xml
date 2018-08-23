@@ -5,13 +5,13 @@
     <parent>
         <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
         <artifactId>node-sharing-parent</artifactId>
-        <version>2.0.1</version>
+        <version>2.0.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>node-sharing-orchestrator</artifactId>
     <packaging>hpi</packaging>
     <name>Node sharing orchestrator</name>
-    <version>2.0.1</version>
+    <version>2.0.2-SNAPSHOT</version>
     <description>Coordinate exclusive sharing of predefined set of machines.</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/Node+Sharing+Plugin</url>
 
