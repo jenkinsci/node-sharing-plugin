@@ -23,6 +23,9 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import groovy.util.Node;
+import groovy.util.NodeList;
+import groovy.util.XmlParser;
 import hudson.FilePath;
 import hudson.model.labels.LabelAtom;
 
@@ -111,12 +114,21 @@ public abstract class NodeDefinition implements Serializable {
         public Xml(@Nonnull String fileName, @Nonnull String xml) {
             super(fileName, xml);
             this.name = fileName.replaceAll(".xml$", "");
-            Matcher matcher = Pattern.compile("<label>(.*?)</label>").matcher(xml);
-            if (!matcher.find()) {
+
+            Node xmlNode;
+            try {
+                xmlNode = new XmlParser().parseText(xml);
+            } catch (Exception e) {
+                throw new IllegalStateException("Cannot parse xml: " + xml, e);
+            }
+
+            if (((NodeList) xmlNode.get("label")).isEmpty()) {
                 throw new IllegalStateException("No labels found in " + xml);
             }
-            label = matcher.group(1).trim();
-            if (label.isEmpty()) throw new IllegalArgumentException("No labels specified for node " + name);
+            label = ((Node) ((NodeList) xmlNode.get("label")).get(0)).text().trim();
+            if (label.isEmpty()) {
+                throw new IllegalArgumentException("No labels specified for node " + name);
+            }
         }
 
         @Override
