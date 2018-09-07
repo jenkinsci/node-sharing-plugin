@@ -119,7 +119,7 @@ public abstract class NodeDefinition implements Serializable {
             try {
                 xmlNode = new XmlParser().parseText(xml);
             } catch (Exception e) {
-                throw new IllegalStateException("Cannot parse xml: " + xml);
+                throw new IllegalStateException("Cannot parse xml: " + xml, e);
             }
 
             if (((NodeList) xmlNode.get("label")).isEmpty()) {
