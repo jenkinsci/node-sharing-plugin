@@ -480,5 +480,24 @@ public class SharedNodeCloudTest {
         assertThat(l, logged(Level.INFO, "termination of " + computer.getName() + " is postponed due to temporary offline state.*"));
         assertThat(l, logged(Level.INFO, "Terminating computer " + computer.getName() + ".*"));
     }
+
+    @Test
+    public void testNodeWipeout() throws Exception {
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        l.record(Logger.getLogger(SharedNode.class.getName()), Level.INFO);
+        l.capture(10);
+
+        BlockingBuilder builder = j.getBlockingProject("wipeout");
+        FreeStyleProject job = builder.getProject();
+        QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
+        job.scheduleBuild2(0).getStartCondition();
+        builder.start.block();
+        Computer computer = jobFuture.getStartCondition().get().getBuiltOn().toComputer();
+        builder.end.signal();
+        j.waitUntilNoActivity();
+        assertThat(l, logged(Level.INFO, computer.getName() + ": wipeout activated"));
+        // TODO Check if the workspace is really deleted
+    }
 }
 
