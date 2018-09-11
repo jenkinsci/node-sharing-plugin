@@ -47,7 +47,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
     };
 
-    private boolean wipeout = true;
+    private boolean skipWipeout;
 
     @Nonnull
     private ProvisioningActivity.Id id;
@@ -106,7 +106,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
         if (cloud != null) { // Might be deleted or using different config repo
             // Wipeout the workspace content if necessary but left untouched workspace itself
-            if (wipeout) {
+            if (!skipWipeout) {
                 LOGGER.info(getNodeName() + ": wipeout activated");
                 if (listener != null) {
                     listener.getLogger().println("Wipeout: Is activated");
