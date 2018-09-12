@@ -141,7 +141,7 @@ public class PoolTest {
         assertEquals("windows w2k12", win1.getLabelString());
         assertTrue(win1.toComputer().isOnline());
 
-        MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(5));
+        MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(7));
 
         // Same changes re-applied with no inventory change
         GitClient git = j.getConfigRepo();
@@ -152,7 +152,7 @@ public class PoolTest {
         for (int i = 0; i < 2; i++) { // Update with no changes preserves state
             Updater.getInstance().doRun();
 
-            MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(5));
+            MatcherAssert.assertThat(j.jenkins.getComputers(), arrayWithSize(7));
             assertSame(win1, j.getNode("win1.acme.com"));
             assertSame(win1.toComputer(), j.getNode("win1.acme.com").toComputer());
         }
@@ -220,14 +220,14 @@ public class PoolTest {
         SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
         Label label = Label.get("solaris11");
 
-        assertEquals(4, ShareableComputer.getAllReservations().size());
+        assertEquals(6, ShareableComputer.getAllReservations().size());
         j.jenkins.getExtensionList(SharedNodeCloud.ConfigRepoUpdater.class).iterator().next().doRun();
         assertTrue(cloud.canProvision(label));
 
         killNode(gitClient, "solaris1.acme.com.xml");
         Pool.Updater.getInstance().doRun();
 
-        assertEquals(3, ShareableComputer.getAllReservations().size());
+        assertEquals(5, ShareableComputer.getAllReservations().size());
         j.jenkins.getExtensionList(SharedNodeCloud.ConfigRepoUpdater.class).iterator().next().doRun();
         assertFalse(cloud.canProvision(label));
     }
