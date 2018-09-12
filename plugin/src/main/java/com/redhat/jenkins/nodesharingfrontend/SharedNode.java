@@ -1,6 +1,7 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor.FormException;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.util.List;
 
 import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.jenkinsci.plugins.cloudstats.ProvisioningActivity.Phase.COMPLETED;
@@ -44,6 +46,8 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     private static final CauseOfBlockage COB_NO_RESERVATIONS = new CauseOfBlockage() {
         @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
     };
+
+    private boolean skipWipeout;
 
     @Nonnull
     private ProvisioningActivity.Id id;
@@ -98,9 +102,40 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     }
 
     @Override
-    protected void _terminate(TaskListener listener) {
+    protected void _terminate(TaskListener listener) throws InterruptedException {
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
         if (cloud != null) { // Might be deleted or using different config repo
+            // Wipeout the workspace content if necessary but left untouched workspace itself
+            if (!skipWipeout) {
+                LOGGER.info(getNodeName() + ": wipeout activated");
+                if (listener != null) {
+                    listener.getLogger().println("Wipeout: Is activated");
+                }
+                try {
+                    final FilePath workspace = getWorkspaceRoot();
+                    if (listener != null) {
+                        listener.getLogger().println("Wipeout: Starting");
+                    }
+                    workspace.deleteContents();
+                    if (listener != null) {
+                        listener.getLogger().println("Wipeout: Finished");
+                    }
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING,
+                            getNodeName() + ": Unexpected IOException occurred during wipeout workspace content: ", e);
+                    if (listener != null) {
+                        listener.getLogger().println("Wipeout: Unexpected IOException occurred during wipeout workspace content:");
+                        listener.getLogger().println(e.toString());
+                    }
+                } catch (InterruptedException e) {
+                    LOGGER.log(Level.WARNING,
+                            getNodeName() + ": Wipeout interrupted!");
+                    if (listener != null) {
+                        listener.getLogger().println("Wipeout: interrupted during wipeouting the workspace content:");
+                    }
+                    Thread.currentThread().interrupt();
+                }
+            }
             cloud.getApi().returnNode(this);
         }
     }
