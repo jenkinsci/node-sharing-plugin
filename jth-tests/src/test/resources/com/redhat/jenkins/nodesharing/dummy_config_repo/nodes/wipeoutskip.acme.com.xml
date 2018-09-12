@@ -1,0 +1,10 @@
+<com.redhat.jenkins.nodesharingfrontend.SharedNode>
+  <name>wipeoutskip.acme.com</name>
+  <remoteFS>./tmp/remoteFSRoot</remoteFS>
+  <numExecutors>1</numExecutors>
+  <launcher class="hudson.slaves.CommandLauncher">
+    <agentCommand />
+  </launcher>
+  <label>wipeoutskip</label>
+  <skipWipeout>true</skipWipeout>
+</com.redhat.jenkins.nodesharingfrontend.SharedNode>
