@@ -14,10 +14,12 @@ import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
+import org.jenkinsci.plugins.resourcedisposer.AsyncResourceDisposer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 
@@ -136,6 +138,17 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                     Thread.currentThread().interrupt();
                 }
             }
+            // If AsyncResourceDisposer is available, process all Disposables first
+            AsyncResourceDisposer disposer =
+                    (AsyncResourceDisposer) Jenkins.getActiveInstance().getAdministrativeMonitor("AsyncResourceDisposer");
+            if (disposer != null) {
+                // If there is a tracked work to be done yet reschedule all items and wait for 30s
+                if (!disposer.getBacklog().isEmpty())  {
+                    disposer.reschedule();
+                    Thread.sleep(30000);
+                }
+            }
+
             cloud.getApi().returnNode(this);
         }
     }
