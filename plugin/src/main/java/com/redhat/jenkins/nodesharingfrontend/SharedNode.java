@@ -2,6 +2,7 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.model.AdministrativeMonitor;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor.FormException;
@@ -139,13 +140,17 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                 }
             }
             // If AsyncResourceDisposer is available, process all Disposables first
-            AsyncResourceDisposer disposer =
-                    (AsyncResourceDisposer) Jenkins.getActiveInstance().getAdministrativeMonitor("AsyncResourceDisposer");
-            if (disposer != null) {
-                // If there is a tracked work to be done yet reschedule all items and wait for 30s
-                if (!disposer.getBacklog().isEmpty())  {
-                    disposer.reschedule();
-                    Thread.sleep(30000);
+            AdministrativeMonitor monitor =  Jenkins.getActiveInstance().getAdministrativeMonitor("AsyncResourceDisposer");
+            if (monitor != null) {
+                try {
+                    AsyncResourceDisposer disposer = (AsyncResourceDisposer) monitor;
+                    // If there is a tracked work to be done yet reschedule all items and wait for 30s
+                    if (!disposer.getBacklog().isEmpty())  {
+                        disposer.reschedule();
+                        Thread.sleep(30000);
+                    }
+                } catch (Throwable e) {
+                    ;   // No-op as we don't get AsyncResourceDisposed
                 }
             }
 
