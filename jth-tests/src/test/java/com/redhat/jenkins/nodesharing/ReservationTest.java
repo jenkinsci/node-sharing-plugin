@@ -123,6 +123,10 @@ public class ReservationTest {
         assertNull(j.jenkins.getComputer("win2.acme.com-" + cloud.name));
         assertNull(j.jenkins.getComputer("solaris2.acme.com-" + cloud.name));
 
+        // Synchronize with Orchestrator
+        j.reportWorkloadToOrchestrator();
+        Thread.sleep(1000);
+
         // Completing the executor build will remove the executor node and complete the reservation
         winBuilder.end.signal();
         winBuildFuture.get();
@@ -142,12 +146,18 @@ public class ReservationTest {
         // Queued solaris build gets unblocked
         scheduledSolBuildFuture.getStartCondition().get();
         assertFalse(scheduledSolBuildFuture.isDone());
+        Thread.sleep(1000);
+
+        // Synchronize with Orchestrator
+        j.reportWorkloadToOrchestrator();
+        Thread.sleep(1000);
+
         assertEquals(1, j.getActiveReservations().size());
         assertEquals(0, j.getQueuedReservations().size());
 
         solaris2Builder.end.signal();
         j.assertBuildStatusSuccess(scheduledSolBuildFuture);
-        Thread.sleep(1000);
+        j.waitUntilNoActivity();
         assertEquals(0, j.getActiveReservations().size());
         assertEquals(0, j.getQueuedReservations().size());
     }
