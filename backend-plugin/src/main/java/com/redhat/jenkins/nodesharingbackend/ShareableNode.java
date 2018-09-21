@@ -103,8 +103,13 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         return ((ShareableComputer) toComputer());
     }
 
-    @Override public CauseOfBlockage canTake(Queue.BuildableItem item) {
-        return item.task instanceof ReservationTask ? null : RESERVATION_TASKS_ONLY;
+    @Override
+    public CauseOfBlockage canTake(Queue.BuildableItem item) {
+        if (item.task instanceof ReservationTask) {
+            return super.canTake(item);
+        } else {
+            return RESERVATION_TASKS_ONLY;
+        }
     }
 
     private static final CauseOfBlockage RESERVATION_TASKS_ONLY = new CauseOfBlockage() {
