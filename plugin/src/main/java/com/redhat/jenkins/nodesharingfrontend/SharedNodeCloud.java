@@ -13,7 +13,9 @@ import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.PeriodicWork;
+import hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
@@ -254,6 +256,11 @@ public class SharedNodeCloud extends Cloud {
         final String nodeName = definition.getName();
         node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
         assert CloudStatistics.get().getActivityFor(node.getId()) != null;
+        try {
+            node.getNodeProperties().add(new DisableDeferredWipeoutNodeProperty());
+        } catch (Throwable e) {
+            ;   // NO-OP when WS Cleanup plugin 0.35+ isn't available
+        }
         return node;
     }
 
