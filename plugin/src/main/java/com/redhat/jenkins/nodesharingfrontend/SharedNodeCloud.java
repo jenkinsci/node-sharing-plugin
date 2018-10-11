@@ -256,10 +256,12 @@ public class SharedNodeCloud extends Cloud {
         final String nodeName = definition.getName();
         node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
         assert CloudStatistics.get().getActivityFor(node.getId()) != null;
-        try {
-            node.getNodeProperties().add(new DisableDeferredWipeoutNodeProperty());
-        } catch (Throwable e) {
-            ;   // NO-OP when WS Cleanup plugin 0.35+ isn't available
+        if (Jenkins.getActiveInstance().getPlugin("ws-cleanup") != null) {
+            try {
+                node.getNodeProperties().add(new DisableDeferredWipeoutNodeProperty());
+            } catch (Throwable e) {
+                ;   // NO-OP when WS Cleanup plugin 0.35+ isn't available
+            }
         }
         return node;
     }

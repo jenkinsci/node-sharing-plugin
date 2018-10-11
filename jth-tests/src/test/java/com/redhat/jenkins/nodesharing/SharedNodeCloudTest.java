@@ -40,6 +40,7 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.labels.LabelAtom;
 import hudson.model.queue.QueueTaskFuture;
+import hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.LegacySecurityRealm;
 import hudson.security.csrf.DefaultCrumbIssuer;
@@ -50,6 +51,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.SimpleCommandLauncher;
+import org.jvnet.hudson.test.recipes.WithPlugin;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -63,7 +65,10 @@ import static com.redhat.jenkins.nodesharing.ReservationVerifierTest.notLogged;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
@@ -538,5 +543,40 @@ public class SharedNodeCloudTest {
         assertThat(l, notLogged(Level.INFO, computer.getName() + ": wipeout activated"));
         // TODO Check if the workspace isn't deleted
     }
-}
 
+    @Test
+    @WithPlugin({"bouncycastle-api-2.17.hpi", "command-launcher-1.2.hpi", "durable-task-1.26.hpi",
+            "jdk-tool-1.1.hpi", "resource-disposer-0.12.hpi", "scm-api-2.2.8.hpi",
+            "structs-1.17.hpi", "workflow-api-2.30.hpi", "workflow-durable-task-step-2.22.hpi",
+            "workflow-step-api-2.16.hpi", "workflow-support-2.21.hpi", "ws-cleanup-0.35.hpi"})
+    public void testNodeHasAttachedDisableDeferredWipeoutNodeProperty() throws Exception {
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        BlockingBuilder builder = j.getBlockingProject("solaris11");
+        FreeStyleProject job = builder.getProject();
+        QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
+        job.scheduleBuild2(0).getStartCondition();
+        builder.start.block();
+        assertThat(
+                jobFuture.getStartCondition().get().getBuiltOn().getNodeProperties(),
+                hasItem(isA(DisableDeferredWipeoutNodeProperty.class)));
+        builder.end.signal();
+        j.waitUntilNoActivity();
+    }
+
+    @Test
+    public void testNodeHasNotAttachedDisableDeferredWipeoutNodeProperty() throws Exception {
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        BlockingBuilder builder = j.getBlockingProject("solaris11");
+        FreeStyleProject job = builder.getProject();
+        QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
+        job.scheduleBuild2(0).getStartCondition();
+        builder.start.block();
+        assertThat(
+                jobFuture.getStartCondition().get().getBuiltOn().getNodeProperties(),
+                not(hasItem(isA(DisableDeferredWipeoutNodeProperty.class))));
+        builder.end.signal();
+        j.waitUntilNoActivity();
+    }
+}
