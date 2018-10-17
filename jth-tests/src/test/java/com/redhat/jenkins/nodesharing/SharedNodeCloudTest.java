@@ -51,7 +51,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.SimpleCommandLauncher;
-import org.jvnet.hudson.test.recipes.WithPlugin;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
