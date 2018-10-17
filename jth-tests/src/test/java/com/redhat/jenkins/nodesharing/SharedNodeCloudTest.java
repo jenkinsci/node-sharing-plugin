@@ -545,10 +545,6 @@ public class SharedNodeCloudTest {
     }
 
     @Test
-    @WithPlugin({"bouncycastle-api-2.17.hpi", "command-launcher-1.2.hpi", "durable-task-1.26.hpi",
-            "jdk-tool-1.1.hpi", "resource-disposer-0.12.hpi", "scm-api-2.2.8.hpi",
-            "structs-1.17.hpi", "workflow-api-2.30.hpi", "workflow-durable-task-step-2.22.hpi",
-            "workflow-step-api-2.16.hpi", "workflow-support-2.21.hpi", "ws-cleanup-0.35.hpi"})
     public void testNodeHasAttachedDisableDeferredWipeoutNodeProperty() throws Exception {
         final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
@@ -568,6 +564,7 @@ public class SharedNodeCloudTest {
     public void testNodeHasNotAttachedDisableDeferredWipeoutNodeProperty() throws Exception {
         final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        cloud.isWsCleanupAvailable = false;
         BlockingBuilder builder = j.getBlockingProject("solaris11");
         FreeStyleProject job = builder.getProject();
         QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
