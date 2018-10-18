@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
@@ -14,6 +15,7 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.PeriodicWork;
+import hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
@@ -48,6 +50,7 @@ import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -82,6 +85,18 @@ public class SharedNodeCloud extends Cloud {
     private transient ConfigRepo configRepo; // Null after deserialization until getConfigRepo is called
     @CheckForNull
     private transient ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
+
+    @VisibleForTesting
+    @Restricted(NoExternalUse.class)
+    public static boolean isWsCleanupAvailable;
+    {
+        try {
+            Class.forName("hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty");
+            isWsCleanupAvailable = true;
+        } catch (ClassNotFoundException e) {
+            isWsCleanupAvailable = false;
+        }
+    }
 
     /**
      * Constructor for Config Page.
@@ -254,6 +269,9 @@ public class SharedNodeCloud extends Cloud {
         final String nodeName = definition.getName();
         node.init(new ProvisioningActivity.Id(name, null, getNodeName(nodeName)));
         assert CloudStatistics.get().getActivityFor(node.getId()) != null;
+        if (isWsCleanupAvailable) {
+            node.getNodeProperties().add(new DisableDeferredWipeoutNodeProperty());
+        }
         return node;
     }
 

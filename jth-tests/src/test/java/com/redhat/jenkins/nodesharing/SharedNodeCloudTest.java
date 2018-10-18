@@ -40,6 +40,7 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.labels.LabelAtom;
 import hudson.model.queue.QueueTaskFuture;
+import hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.LegacySecurityRealm;
 import hudson.security.csrf.DefaultCrumbIssuer;
@@ -63,7 +64,10 @@ import static com.redhat.jenkins.nodesharing.ReservationVerifierTest.notLogged;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
@@ -538,5 +542,37 @@ public class SharedNodeCloudTest {
         assertThat(l, notLogged(Level.INFO, computer.getName() + ": wipeout activated"));
         // TODO Check if the workspace isn't deleted
     }
-}
 
+    @Test
+    public void testNodeHasAttachedDisableDeferredWipeoutNodeProperty() throws Exception {
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        BlockingBuilder builder = j.getBlockingProject("solaris11");
+        FreeStyleProject job = builder.getProject();
+        QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
+        job.scheduleBuild2(0).getStartCondition();
+        builder.start.block();
+        assertThat(
+                jobFuture.getStartCondition().get().getBuiltOn().getNodeProperties(),
+                hasItem(isA(DisableDeferredWipeoutNodeProperty.class)));
+        builder.end.signal();
+        j.waitUntilNoActivity();
+    }
+
+    @Test
+    public void testNodeHasNotAttachedDisableDeferredWipeoutNodeProperty() throws Exception {
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+        cloud.isWsCleanupAvailable = false;
+        BlockingBuilder builder = j.getBlockingProject("solaris11");
+        FreeStyleProject job = builder.getProject();
+        QueueTaskFuture<FreeStyleBuild> jobFuture = job.scheduleBuild2(0);
+        job.scheduleBuild2(0).getStartCondition();
+        builder.start.block();
+        assertThat(
+                jobFuture.getStartCondition().get().getBuiltOn().getNodeProperties(),
+                not(hasItem(isA(DisableDeferredWipeoutNodeProperty.class))));
+        builder.end.signal();
+        j.waitUntilNoActivity();
+    }
+}
