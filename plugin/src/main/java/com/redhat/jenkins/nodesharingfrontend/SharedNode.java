@@ -2,18 +2,21 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.Util;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Queue.BuildableItem;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.model.Queue;
+import hudson.remoting.Channel;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
+import hudson.slaves.SlaveComputer;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -24,6 +27,8 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.List;
 
 import java.util.Objects;
@@ -107,7 +112,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         if (cloud != null) { // Might be deleted or using different config repo
             // Wipeout the workspace content if necessary but left untouched workspace itself
             if (!skipWipeout) {
-                LOGGER.info(getNodeName() + ": wipeout activated");
+                LOGGER.info(getNodeName() + ": Wipeout activated");
                 if (listener != null) {
                     listener.getLogger().println("Wipeout: Is activated");
                 }
@@ -116,7 +121,14 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                     if (listener != null) {
                         listener.getLogger().println("Wipeout: Starting");
                     }
-                    workspace.deleteContents();
+                    if (workspace == null || workspace.exists()) {
+                        LOGGER.info(getNodeName() + ": Wipeout skipping - workspace is null or doesn't exist");
+                        if (listener != null) {
+                            listener.getLogger().println("Wipeout: skipping - workspace is null or doesn't exist");
+                        }
+                    } else {
+                        workspace.deleteContents();
+                    }
                     if (listener != null) {
                         listener.getLogger().println("Wipeout: Finished");
                     }
@@ -134,6 +146,13 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                         listener.getLogger().println("Wipeout: interrupted during wipeouting the workspace content:");
                     }
                     Thread.currentThread().interrupt();
+                } catch (Throwable e) {
+                    LOGGER.log(Level.WARNING,
+                            getNodeName() + ": Unexpected Throwable occurred during wipeout workspace content: ", e);
+                    if (listener != null) {
+                        listener.getLogger().println("Wipeout: Unexpected Throwable occurred during wipeout workspace content:");
+                        listener.getLogger().println(e.toString());
+                    }
                 }
             }
             cloud.getApi().returnNode(this);
