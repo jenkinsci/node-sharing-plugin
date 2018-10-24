@@ -9,7 +9,6 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Queue.BuildableItem;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.model.Queue;
-import hudson.remoting.Channel;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.EphemeralNode;
@@ -27,8 +26,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.lang.reflect.Field;
 import java.util.List;
 
 import java.util.Objects;
@@ -113,49 +111,54 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
             // Wipeout the workspace content if necessary but left untouched workspace itself
             if (!skipWipeout) {
                 LOGGER.info(getNodeName() + ": Wipeout activated");
-                if (listener != null) {
-                    listener.getLogger().println("Wipeout: Is activated");
-                }
+                logSlave("Wipeout procedure is activated...");
                 try {
                     final FilePath workspace = getWorkspaceRoot();
-                    if (listener != null) {
-                        listener.getLogger().println("Wipeout: Starting");
-                    }
                     if (workspace == null || !workspace.exists()) {
                         LOGGER.info(getNodeName() + ": Wipeout skipping - workspace is null or doesn't exist");
-                        if (listener != null) {
-                            listener.getLogger().println("Wipeout: skipping - workspace is null or doesn't exist");
-                        }
+                        logSlave("Wipeout procedure is skipped - workspace is null or doesn't exist!");
                     } else {
+                        logSlave("Wipeout procedure started...");
                         workspace.deleteContents();
-                    }
-                    if (listener != null) {
-                        listener.getLogger().println("Wipeout: Finished");
+                        logSlave("Wipeout procedure is finished");
                     }
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING,
                             getNodeName() + ": Unexpected IOException occurred during wipeout workspace content: ", e);
-                    if (listener != null) {
-                        listener.getLogger().println("Wipeout: Unexpected IOException occurred during wipeout workspace content:");
-                        listener.getLogger().println(e.toString());
-                    }
+                    logSlave("Wipeout procedure failed - Unexpected IOException occurred during wipeout workspace content!\n" + e);
                 } catch (InterruptedException e) {
                     LOGGER.log(Level.WARNING,
                             getNodeName() + ": Wipeout interrupted!");
-                    if (listener != null) {
-                        listener.getLogger().println("Wipeout: interrupted during wipeouting the workspace content:");
-                    }
+                    logSlave("Wipeout procedure failed - Interrupted!");
                     Thread.currentThread().interrupt();
-                } catch (Throwable e) {
+                } catch (Throwable t) {
                     LOGGER.log(Level.WARNING,
-                            getNodeName() + ": Unexpected Throwable occurred during wipeout workspace content: ", e);
-                    if (listener != null) {
-                        listener.getLogger().println("Wipeout: Unexpected Throwable occurred during wipeout workspace content:");
-                        listener.getLogger().println(e.toString());
-                    }
+                            getNodeName() + ": Unexpected Throwable occurred during wipeout workspace content: ", t);
+                    logSlave("Wipeout procedure failed - Unexpected Throwable occurred during wipeout workspace content!\n" + t);
                 }
-            }
+            } // skipWipeout
             cloud.getApi().returnNode(this);
+        }
+    }
+
+    private final void logSlave(@Nonnull final String msg) {
+        TaskListener tl = null;
+
+        // Jenkins master 2.9+ can use public method SlaveComputer.getListener() which return TaskLister directly
+        try {
+            Field field = SlaveComputer.class.getDeclaredField("taskListener");
+            field.setAccessible(true);
+            if(toComputer() instanceof SlaveComputer) {
+                tl = (TaskListener) field.get(toComputer());
+            }
+        } catch (NoSuchFieldException e) {
+            // No-op
+        } catch (IllegalAccessException e) {
+            // No-op
+        }
+
+        if (tl != null && Util.fixEmpty(msg) != null) {
+            tl.getLogger().println(msg);
         }
     }
 
