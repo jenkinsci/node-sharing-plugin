@@ -121,7 +121,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
                     if (listener != null) {
                         listener.getLogger().println("Wipeout: Starting");
                     }
-                    if (workspace == null || workspace.exists()) {
+                    if (workspace == null || !workspace.exists()) {
                         LOGGER.info(getNodeName() + ": Wipeout skipping - workspace is null or doesn't exist");
                         if (listener != null) {
                             listener.getLogger().println("Wipeout: skipping - workspace is null or doesn't exist");
