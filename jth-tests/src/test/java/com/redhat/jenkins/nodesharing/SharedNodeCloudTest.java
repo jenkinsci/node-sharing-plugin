@@ -501,7 +501,7 @@ public class SharedNodeCloudTest {
         Computer computer = jobFuture.getStartCondition().get().getBuiltOn().toComputer();
         builder.end.signal();
         j.waitUntilNoActivity();
-        assertThat(l, logged(Level.INFO, computer.getName() + ": wipeout activated"));
+        assertThat(l, logged(Level.INFO, computer.getName() + ": Wipeout activated"));
         // TODO Check if the workspace is really deleted
     }
 
@@ -520,7 +520,7 @@ public class SharedNodeCloudTest {
         Computer computer = jobFuture.getStartCondition().get().getBuiltOn().toComputer();
         builder.end.signal();
         j.waitUntilNoActivity();
-        assertThat(l, logged(Level.INFO, computer.getName() + ": wipeout activated"));
+        assertThat(l, logged(Level.INFO, computer.getName() + ": Wipeout activated"));
         // TODO Check if the workspace is really deleted
     }
 
@@ -539,7 +539,7 @@ public class SharedNodeCloudTest {
         Computer computer = jobFuture.getStartCondition().get().getBuiltOn().toComputer();
         builder.end.signal();
         j.waitUntilNoActivity();
-        assertThat(l, notLogged(Level.INFO, computer.getName() + ": wipeout activated"));
+        assertThat(l, notLogged(Level.INFO, computer.getName() + ": Wipeout activated"));
         // TODO Check if the workspace isn't deleted
     }
 
