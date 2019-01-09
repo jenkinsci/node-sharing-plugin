@@ -203,10 +203,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
-    private GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
-        File orig = new File(getClass().getResource("dummy_config_repo").toURI());
+    public static GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
+        File orig = new File(NodeSharingJenkinsRule.class.getResource("dummy_config_repo").toURI());
         Assert.assertTrue(orig.isDirectory());
-        File repo = File.createTempFile("jenkins.nodesharing", getClass().getSimpleName());
+        File repo = File.createTempFile("jenkins.nodesharing", NodeSharingJenkinsRule.class.getSimpleName());
         assert repo.delete();
         assert repo.mkdir();
         FileUtils.copyDirectory(orig, repo);

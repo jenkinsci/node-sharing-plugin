@@ -1,0 +1,4 @@
+jenkins:
+  numExecutors: 0
+  quietPeriod: 0
+  slaveAgentPort: -1

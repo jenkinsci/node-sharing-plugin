@@ -70,7 +70,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ExternalGridRule implements TestRule {
     private final NodeSharingJenkinsRule jenkinsRule;
-    private final AtomicInteger nextLocalPort = new AtomicInteger(49152); // Browse ephemeral range
+    private static final AtomicInteger nextLocalPort = new AtomicInteger(49152); // Browse ephemeral range
     private final Map<Process, FilePath> executors = new HashMap<>();
     private final CopyOnWriteList<String> executorUrls = new CopyOnWriteList<>();
 
@@ -78,77 +78,86 @@ public final class ExternalGridRule implements TestRule {
         jenkinsRule = j;
     }
 
+    public ScheduledFuture<URL> executor(final GitClient configRepo) throws Exception {
+        return launchSut(configRepo, "node-sharing-executor");
+    }
+
     @Override
     public Statement apply(final Statement base, Description description) {
-        return new Statement() {
-            @Override public void evaluate() throws Throwable {
-                forceCredentialKeysToBeWritten();
-                Throwable fail = null;
-                try {
-                    // Replace JTH-only AuthorizationStrategy and SecurityRealm that work elsewhere as it would not load on detached executor.
-                    Jenkins jenkins = Jenkins.getActiveInstance();
-                    jenkins.setNumExecutors(0);
+        return new TheStatement(base);
+    }
 
-                    GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
-                    jenkins.setAuthorizationStrategy(gmas);
-                    gmas.add(Jenkins.READ, "jerry");
-                    gmas.add(RestEndpoint.RESERVE, "jerry");
-                    gmas.add(Jenkins.READ, ACL.ANONYMOUS_USERNAME);
-                    gmas.add(Jenkins.ADMINISTER, "admin");
+    private class TheStatement extends Statement {
+        private final Statement base;
 
-                    HudsonPrivateSecurityRealm securityRealm = new HudsonPrivateSecurityRealm(true, false, null);
-                    jenkins.setSecurityRealm(securityRealm);
-                    securityRealm.createAccount("jerry", "jerry").save();
-                    securityRealm.createAccount("admin", "admin").save();
-                    jenkins.save();
+        public TheStatement(Statement base) {
+            this.base = base;
+        }
 
-                    base.evaluate();
-                } catch (Throwable ex) {
-                    fail = ex;
-                    throw fail;
-                } finally {
-                    // Kill all launched executors and delete directories
-                    List<Future<Void>> deleteInProgress = new ArrayList<>();
-                    for (Map.Entry<Process, FilePath> p : executors.entrySet()) {
-                        try {
-                            p.getKey().destroy();
-                        } catch (Throwable ex) {
-                            if (fail == null) {
-                                fail = ex;
-                            } else {
-                                fail.addSuppressed(ex);
-                            }
+        @Override
+        public void evaluate() throws Throwable {
+            forceCredentialKeysToBeWritten();
+            Throwable fail = null;
+            try {
+                // Replace JTH-only AuthorizationStrategy and SecurityRealm that work elsewhere as it would not load on detached executor.
+                Jenkins jenkins = Jenkins.getActiveInstance();
+                jenkins.setNumExecutors(0);
+
+                GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
+                jenkins.setAuthorizationStrategy(gmas);
+                gmas.add(Jenkins.READ, "jerry");
+                gmas.add(RestEndpoint.RESERVE, "jerry");
+                gmas.add(Jenkins.READ, ACL.ANONYMOUS_USERNAME);
+                gmas.add(Jenkins.ADMINISTER, "admin");
+
+                HudsonPrivateSecurityRealm securityRealm = new HudsonPrivateSecurityRealm(true, false, null);
+                jenkins.setSecurityRealm(securityRealm);
+                securityRealm.createAccount("jerry", "jerry").save();
+                securityRealm.createAccount("admin", "admin").save();
+                jenkins.save();
+
+                base.evaluate();
+            } catch (Throwable ex) {
+                fail = ex;
+                throw fail;
+            } finally {
+                // Kill all launched executors and delete directories
+                List<Future<Void>> deleteInProgress = new ArrayList<>();
+                for (Map.Entry<Process, FilePath> p : executors.entrySet()) {
+                    try {
+                        p.getKey().destroy();
+                    } catch (Throwable ex) {
+                        if (fail == null) {
+                            fail = ex;
+                        } else {
+                            fail.addSuppressed(ex);
                         }
-                        final FilePath path = p.getValue();
-                        deleteInProgress.add(Computer.threadPoolForRemoting.submit(new Callable<Void>() {
-                            @Override public Void call() throws Exception {
-                                path.deleteRecursive();
-                                return null;
-                            }
-                        }));
                     }
-                    // Parallelize the deletion
-                    for (Future<Void> delete : deleteInProgress) {
-                        try {
-                            delete.get();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        } catch (ExecutionException e) {
-                            Throwable ex = e.getCause();
-                            if (fail == null) {
-                                fail = ex;
-                            } else {
-                                fail.addSuppressed(ex);
-                            }
+                    final FilePath path = p.getValue();
+                    deleteInProgress.add(Computer.threadPoolForRemoting.submit(new Callable<Void>() {
+                        @Override public Void call() throws Exception {
+                            path.deleteRecursive();
+                            return null;
+                        }
+                    }));
+                }
+                // Parallelize the deletion
+                for (Future<Void> delete : deleteInProgress) {
+                    try {
+                        delete.get();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } catch (ExecutionException e) {
+                        Throwable ex = e.getCause();
+                        if (fail == null) {
+                            fail = ex;
+                        } else {
+                            fail.addSuppressed(ex);
                         }
                     }
                 }
             }
-        };
-    }
-
-    public ScheduledFuture<URL> executor(final GitClient configRepo) throws Exception {
-        return launchSut(configRepo, "node-sharing-executor");
+        }
     }
 
     private @Nonnull ScheduledFuture<URL> launchSut(final GitClient configRepo, String role) throws IOException, InterruptedException {
@@ -242,7 +251,7 @@ public final class ExternalGridRule implements TestRule {
         }, 0, TimeUnit.SECONDS);
     }
 
-    private int randomLocalPort() throws IOException {
+    public static int randomLocalPort() throws IOException {
         for (;;) {
             int port = nextLocalPort.getAndIncrement();
             if (port >= 65536) throw new IOException("No free ports in whole range?");
@@ -257,7 +266,7 @@ public final class ExternalGridRule implements TestRule {
     }
 
     // From WarExploder#explode()
-    private File getJenkinsWar() throws IOException {
+    public static File getJenkinsWar() throws IOException {
         File war;
         File core = Which.jarFile(Jenkins.class); // will fail with IllegalArgumentException if have neither jenkins-war.war nor jenkins-core.jar in ${java.class.path}
         String version = core.getParentFile().getName();
