@@ -32,6 +32,7 @@ import com.redhat.jenkins.nodesharing.transport.Entity;
 import hudson.Util;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
+import hudson.model.ModelObject;
 import hudson.security.Permission;
 import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
@@ -77,7 +78,7 @@ import java.util.logging.Logger;
  *
  * @author ogondza.
  */
-public class RestEndpoint {
+public class RestEndpoint implements ModelObject {
     private static final Logger LOGGER = Logger.getLogger(RestEndpoint.class.getName());
 
     // Timeout for REST network communication in ms
@@ -258,6 +259,11 @@ public class RestEndpoint {
         }
 
         return new BasicHeader(crumbResponse.getCrumbRequestField(), crumbResponse.getCrumb());
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Rest endpoint";
     }
 
     public static class AbstractResponseHandler<T> implements ResponseHandler<T> {

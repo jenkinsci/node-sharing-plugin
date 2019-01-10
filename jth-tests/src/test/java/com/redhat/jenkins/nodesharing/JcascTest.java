@@ -49,13 +49,14 @@ public class JcascTest {
         configRepo.getWorkTree().deleteRecursive();
     }
 
-    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml")
-    @ExternalFixture(name = "e1", resource = "executor.yaml")
     @Test
+    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = "../backend-plugin/target/node-sharing-orchestrator.hpi")
+    @ExternalFixture(name = "executor",     resource = "executor.yaml",     injectPlugins = "../plugin/target/node-sharing-executor.hpi")
     public void test() throws Exception {
         ExternalJenkinsRule.Fixture orchestrator = jcr.fixture("orchestrator");
-        ExternalJenkinsRule.Fixture executor = jcr.fixture("e1");
+        ExternalJenkinsRule.Fixture executor = jcr.fixture("executor");
         System.out.println(orchestrator.getUrl());
         System.out.println(executor.getUrl());
+        jcr.interactiveBreak();
     }
 }
