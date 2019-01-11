@@ -14,6 +14,6 @@ jenkins:
     globalMatrix:
       grantedPermissions:
       - "Overall/Read:anonymous"
-      - "Jenkins/Administer: admin"
-      - "Jenkins/Read:jerry"
-      - "RestEndpoint/Reserve:jerry"
+      - "Overall/Administer:admin"
+      - "Overall/Read:jerry"
+      - "NodeSharing/Reserve:jerry"

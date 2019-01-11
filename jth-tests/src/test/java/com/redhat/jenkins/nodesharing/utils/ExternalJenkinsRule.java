@@ -26,7 +26,6 @@ package com.redhat.jenkins.nodesharing.utils;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.redhat.jenkins.nodesharing.ExternalGridRule;
 import hudson.FilePath;
-import hudson.remoting.Callable;
 import jenkins.util.Timer;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
@@ -34,6 +33,7 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import javax.annotation.Nonnull;
+import javax.annotation.OverridingMethodsMustInvokeSuper;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -86,8 +86,8 @@ public class ExternalJenkinsRule implements TestRule {
 
         Fixture fixture = fixtures.get(name).get();
         try {
-            fixture.waitUntilReady(30);
-        } catch (TimeoutException e) {
+            fixture.waitUntilReady(15);
+        } catch (Exception e) {
             System.err.println(fixture.log.readToString());
             throw new AssertionError(e.getMessage());
         }
@@ -115,8 +115,18 @@ public class ExternalJenkinsRule implements TestRule {
      * @param declaredFixtures Fixtures harvested from annotations.
      * @return Set of fixtures to provision.
      */
-    private Map<String, ExternalFixture> acceptFixtures(Map<String, ExternalFixture> declaredFixtures) {
+    protected Map<String, ExternalFixture> acceptFixtures(Map<String, ExternalFixture> declaredFixtures) {
         return declaredFixtures;
+    }
+
+    /**
+     * List of plugins to be installed for all fixtures.
+     *
+     * @return Amended set of plugin artifactIds to install for every fixture. Removing from the default set is discouraged.
+     */
+    @OverridingMethodsMustInvokeSuper
+    protected Set<String> initialPlugins() {
+        return new HashSet<>(Arrays.asList("configuration-as-code", "configuration-as-code-support"));
     }
 
     // Internals
@@ -238,8 +248,9 @@ public class ExternalJenkinsRule implements TestRule {
 
         private void installPlugins(ExternalFixture declaredFixture, FilePath jenkinsHome) throws IOException, InterruptedException {
             Set<String> injectPlugins = new HashSet<>();
-            injectPlugins.add("configuration-as-code");
+            injectPlugins.addAll(initialPlugins());
             injectPlugins.addAll(Arrays.asList(declaredFixture.injectPlugins()));
+
             for (String injectPlugin : injectPlugins) {
                 injectPlugin(jenkinsHome, injectPlugin);
             }
@@ -257,6 +268,7 @@ public class ExternalJenkinsRule implements TestRule {
                 FilePath pluginFile = new FilePath(new File(pluginName)).absolutize();
                 if (!pluginFile.exists()) throw new IllegalArgumentException(pluginName + " does not exist in build directory");
 
+                destination = plugins.child(pluginFile.getName()); // Recalculate to be correct for local plugin
                 pluginFile.copyTo(destination);
                 injectDependencies(jenkinsHome, destination);
                 return;
@@ -344,11 +356,14 @@ public class ExternalJenkinsRule implements TestRule {
 
             JenkinsServer client = getClient();
             for (int i = 0; i < seconds; i++) {
+                if (!process.isAlive()) {
+                    throw new AssertionError("Jenkins " + annotation.name() + " has failed with " + process.exitValue());
+                }
                 if (client.isRunning()) {
                     ready = true;
                     return;
                 }
-                Thread.sleep(500);
+                Thread.sleep(1000);
             }
             throw new TimeoutException("Fixture " + uri + " not ready in " + seconds + " seconds");
         }
