@@ -43,6 +43,7 @@ import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
 import hudson.model.FreeStyleProject;
+import hudson.model.Item;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
@@ -108,7 +109,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             @Override public void evaluate() throws Throwable {
                 jenkins.setSecurityRealm(createDummySecurityRealm());
 
-                mas.grant(Jenkins.READ, RestEndpoint.RESERVE).everywhere().to("jerry");
+                mas.grant(Jenkins.READ, Item.READ, RestEndpoint.RESERVE).everywhere().to("jerry");
                 mas.grant(Jenkins.ADMINISTER, RestEndpoint.RESERVE).everywhere().to("admin");
                 jenkins.setAuthorizationStrategy(mas);
 

@@ -28,6 +28,7 @@ import com.redhat.jenkins.nodesharing.utils.TestUtils;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import hudson.FilePath;
 import hudson.model.Computer;
+import hudson.model.Item;
 import hudson.security.ACL;
 import hudson.security.GlobalMatrixAuthorizationStrategy;
 import hudson.security.HudsonPrivateSecurityRealm;
@@ -104,6 +105,7 @@ public final class ExternalGridRule implements TestRule {
                 GlobalMatrixAuthorizationStrategy gmas = new GlobalMatrixAuthorizationStrategy();
                 jenkins.setAuthorizationStrategy(gmas);
                 gmas.add(Jenkins.READ, "jerry");
+                gmas.add(Item.READ, "jerry");
                 gmas.add(RestEndpoint.RESERVE, "jerry");
                 gmas.add(Jenkins.READ, ACL.ANONYMOUS_USERNAME);
                 gmas.add(Jenkins.ADMINISTER, "admin");
