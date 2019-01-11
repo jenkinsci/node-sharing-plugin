@@ -23,8 +23,11 @@
  */
 package com.redhat.jenkins.nodesharing.utils;
 
+import com.offbytwo.jenkins.JenkinsServer;
 import com.redhat.jenkins.nodesharing.ExternalGridRule;
 import hudson.FilePath;
+import hudson.remoting.Callable;
+import jenkins.util.Timer;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -37,6 +40,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.annotation.Annotation;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,16 +50,28 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.jar.JarInputStream;
 import java.util.regex.Pattern;
 
 /**
- * @author ogondza.
+ * Deploy fixtures described by {@link ExternalFixture}.
+ *
+ * The rule can be subclassed to add custom methods or override callback methods to customize fixture deployment.
  */
 public class ExternalJenkinsRule implements TestRule {
     protected final TemporaryFolder tmp;
-    private Map<String, Fixture> fixtures = Collections.emptyMap();
+    private Map<String, Future<Fixture>> fixtures = Collections.emptyMap();
 
+    /**
+     * Create the rule based on {@link TemporaryFolder} that needs to be a {@link org.junit.Rule} on the same tet class.
+     *
+     * public @Rule TemporaryFolder tmp = new TemporaryFolder();
+     * public @Rule ExternalJenkinsRule jcr = new ExternalJenkinsRule(tmp);
+     */
     public ExternalJenkinsRule(TemporaryFolder tmp) {
         this.tmp = tmp;
     }
@@ -64,14 +81,26 @@ public class ExternalJenkinsRule implements TestRule {
      * @return The object representing the external jenkins insatnce
      * @throws IllegalArgumentException When the name was not declared as fixture by annotations.
      */
-    public @Nonnull Fixture fixture(@Nonnull String name) throws IllegalArgumentException {
+    public @Nonnull Fixture fixture(@Nonnull String name) throws IllegalArgumentException, ExecutionException, InterruptedException, IOException {
         if (!fixtures.containsKey(name)) throw new IllegalArgumentException();
-        return fixtures.get(name);
+
+        Fixture fixture = fixtures.get(name).get();
+        try {
+            fixture.waitUntilReady(10);
+        } catch (TimeoutException e) {
+            System.err.println(fixture.log.readToString());
+            throw new AssertionError(e.getMessage());
+        }
+        return fixture;
     }
 
+    /**
+     * Pause the execution leaving the fixtures running.
+     */
     public void interactiveBreak() throws Exception {
-        for (Fixture f : fixtures.values()) {
-            System.out.println(f.getAnnotation().name() + " is running at " + f.getUrl() + " logging to " + f.getLog().getRemote());
+        for (Future<Fixture> future : fixtures.values()) {
+            Fixture f = future.get();
+            System.out.println(f.getAnnotation().name() + " is running at " + f.getUri() + " logging to " + f.getLog().getRemote());
         }
         new BufferedReader(new InputStreamReader(System.in)).readLine();
     }
@@ -114,8 +143,15 @@ public class ExternalJenkinsRule implements TestRule {
             try {
                 base.evaluate();
             } finally {
-                // TODO cleanup();
+                for (Future<Fixture> fixture : ExternalJenkinsRule.this.fixtures.values()) {
+                    terminate(fixture.get());
+                }
             }
+        }
+
+        private void terminate(Fixture fixture) {
+            Process p = fixture.process;
+            p.destroy();
         }
 
         private @Nonnull Map<String, ExternalFixture> getDeclaredFixtures() {
@@ -146,20 +182,21 @@ public class ExternalJenkinsRule implements TestRule {
             fixtures.put(jef.name(), jef);
         }
 
-        private Map<String, Fixture> scheduleFixtures(Map<String, ExternalFixture> fixtures) throws IOException, InterruptedException {
-            Map<String, Fixture> runningFixtures = new HashMap<>();
+        private Map<String, Future<Fixture>> scheduleFixtures(Map<String, ExternalFixture> fixtures) {
+            Map<String, Future<Fixture>> runningFixtures = new HashMap<>();
             for (ExternalFixture declaredFixture : fixtures.values()) {
 
-                // TODO parallelize
-
-                FilePath jenkinsHome = new FilePath(tmp.newFolder());
-
-                installPlugins(declaredFixture, jenkinsHome);
-
-                injectJcascDefinition(declaredFixture, jenkinsHome);
-
-                Fixture fixture = startFixture(declaredFixture, jenkinsHome);
-                runningFixtures.put(declaredFixture.name(), fixture);
+                Future<Fixture> ff = Timer.get().schedule(() -> {
+                    try {
+                        FilePath jenkinsHome = new FilePath(tmp.newFolder());
+                        installPlugins(declaredFixture, jenkinsHome);
+                        injectJcascDefinition(declaredFixture, jenkinsHome);
+                        return startFixture(declaredFixture, jenkinsHome);
+                    } catch (IOException|InterruptedException ex) {
+                        throw new Error(ex);
+                    }
+                }, 0, TimeUnit.SECONDS);
+                runningFixtures.put(declaredFixture.name(), ff);
             }
             return runningFixtures;
         }
@@ -179,33 +216,12 @@ public class ExternalJenkinsRule implements TestRule {
             pb.redirectOutput(sutLog);
             pb.redirectErrorStream(true);
             final Process process = pb.start();
-//                return Timer.get().schedule(new Callable<URL>() {
-//                    @Override public URL call() throws Exception {
-//                        for (;;) {
-//                            try {
-//                                Thread.sleep(5000);
-//                                try {
-//                                    int i = process.exitValue();
-//                                    throw new RuntimeException(String.format("SUT failed with %s, see log in %s%n", i, sutLog));
-//                                } catch (IllegalThreadStateException ex) {
-//                                    // Alive as expected
-//                                }
-//                                Api.getInstance().reportUsage(jenkins);
-//                                break;
-//                            } catch (ActionFailed.RequestFailed ex) {
-//                                if (ex.getStatusCode() == 503) continue; // retry
-//
-//                                throw ex;
-//                            } catch (ActionFailed ex) {
-//                                // retry
-//                            }
-//                        }
-//                        executorUrls.add(url.toExternalForm());
-//                        return url;
-//                    }
-//                }, 0, TimeUnit.SECONDS);
 
-            return new Fixture(declaredFixture, process, jenkinsHome, new FilePath(sutLog), "http://localhost:" + port + "/");
+            try {
+                return new Fixture(declaredFixture, process, jenkinsHome, new FilePath(sutLog), new URI("http://localhost:" + port + "/"));
+            } catch (URISyntaxException e) {
+                throw new Error(e);
+            }
         }
 
         private void injectJcascDefinition(ExternalFixture declaredFixture, FilePath jenkinsHome) throws IOException, InterruptedException {
@@ -238,7 +254,6 @@ public class ExternalJenkinsRule implements TestRule {
 
             // Load from build directory - plugin from the same maven buildroot (multimodule or single)
             if (pluginName.startsWith(".") && pluginName.endsWith(".hpi")) {
-System.out.println(new File(".").getAbsolutePath());
                 FilePath pluginFile = new FilePath(new File(pluginName)).absolutize();
                 if (!pluginFile.exists()) throw new IllegalArgumentException(pluginName + " does not exist in build directory");
 
@@ -254,7 +269,7 @@ System.out.println(new File(".").getAbsolutePath());
                 FilePath dependency = new FilePath(new File(path.replaceAll("[.]jar$", ".hpi")));
                 if (dependency.exists()){
                     String baseName = dependency.getBaseName();
-                    // Dependencies of sibling modules have the name ${ARTIFACTID}.hpi, dependencies in maven repo have the name ${ARTIFACTID}-${VERSION}.hpi
+                    // Dependencies in build root have the name ${ARTIFACTID}.hpi, dependencies in maven repo have the name ${ARTIFACTID}-${VERSION}.hpi
                     if (baseName.equals(pluginName) || baseName.matches(Pattern.quote(pluginName) + "-\\d.*")) {
                         dependency.copyTo(destination);
                         injectDependencies(jenkinsHome, destination);
@@ -289,22 +304,23 @@ System.out.println(new File(".").getAbsolutePath());
         private final @Nonnull Process process;
         private final @Nonnull FilePath home;
         private final @Nonnull FilePath log;
-        private final @Nonnull String url;
+        private final @Nonnull URI uri;
+        private volatile boolean ready = false;
 
-        public Fixture(@Nonnull ExternalFixture annotation, @Nonnull Process process, @Nonnull FilePath home, @Nonnull FilePath log, @Nonnull String url) {
+        public Fixture(@Nonnull ExternalFixture annotation, @Nonnull Process process, @Nonnull FilePath home, @Nonnull FilePath log, @Nonnull URI url) {
             this.annotation = annotation;
             this.process = process;
             this.home = home;
             this.log = log;
-            this.url = url;
+            this.uri = url;
         }
 
         public @Nonnull FilePath getHome() {
             return home;
         }
 
-        public @Nonnull String getUrl() {
-            return url;
+        public @Nonnull URI getUri() {
+            return uri;
         }
 
         public @Nonnull ExternalFixture getAnnotation() {
@@ -313,6 +329,28 @@ System.out.println(new File(".").getAbsolutePath());
 
         public @Nonnull FilePath getLog() {
             return log;
+        }
+
+        public @Nonnull JenkinsServer getClient(String username, String password) {
+            return new JenkinsServer(uri, username, password);
+        }
+
+        public @Nonnull JenkinsServer getClient() {
+            return new JenkinsServer(uri);
+        }
+
+        private void waitUntilReady(int seconds) throws InterruptedException, TimeoutException {
+            if (ready) return;
+
+            JenkinsServer client = getClient();
+            for (int i = 0; i < seconds; i++) {
+                if (client.isRunning()) {
+                    ready = true;
+                    return;
+                }
+                Thread.sleep(500);
+            }
+            throw new TimeoutException("Fixture " + uri + " not ready in " + seconds + " seconds");
         }
     }
 }

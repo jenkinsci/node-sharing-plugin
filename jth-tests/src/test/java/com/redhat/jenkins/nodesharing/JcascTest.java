@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.offbytwo.jenkins.JenkinsServer;
 import com.redhat.jenkins.nodesharing.utils.ExternalFixture;
 import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
 import com.redhat.jenkins.nodesharing.utils.GridRule;
@@ -50,13 +51,18 @@ public class JcascTest {
     }
 
     @Test
-    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = "../backend-plugin/target/node-sharing-orchestrator.hpi")
+    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"../backend-plugin/target/node-sharing-orchestrator.hpi"})
     @ExternalFixture(name = "executor",     resource = "executor.yaml",     injectPlugins = "../plugin/target/node-sharing-executor.hpi")
-    public void test() throws Exception {
-        ExternalJenkinsRule.Fixture orchestrator = jcr.fixture("orchestrator");
-        ExternalJenkinsRule.Fixture executor = jcr.fixture("executor");
-        System.out.println(orchestrator.getUrl());
-        System.out.println(executor.getUrl());
+    public void delegateBuildsToMultipleExecutors() throws Exception {
+        ExternalJenkinsRule.Fixture o = jcr.fixture("orchestrator");
+        ExternalJenkinsRule.Fixture e = jcr.fixture("executor");
+        JenkinsServer orchestrator = o.getClient("admin", "admin");
+        JenkinsServer executor = e.getClient("admin", "admin");
+        System.out.println(orchestrator.isRunning());
+        System.out.println(executor.isRunning());
+
+        System.out.println(o.getLog().readToString());
+        //System.out.println(e.getLog().readToString());
         jcr.interactiveBreak();
     }
 }
