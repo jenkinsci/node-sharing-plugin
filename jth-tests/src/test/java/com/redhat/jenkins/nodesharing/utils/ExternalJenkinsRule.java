@@ -86,7 +86,7 @@ public class ExternalJenkinsRule implements TestRule {
 
         Fixture fixture = fixtures.get(name).get();
         try {
-            fixture.waitUntilReady(10);
+            fixture.waitUntilReady(30);
         } catch (TimeoutException e) {
             System.err.println(fixture.log.readToString());
             throw new AssertionError(e.getMessage());
@@ -262,7 +262,7 @@ public class ExternalJenkinsRule implements TestRule {
                 return;
             }
 
-            // Load from classpath as declared maven depndency
+            // Load from classpath as declared maven dependency. Resolved by maven-hpi-plugin:resolve-test-dependencies
             String[] classpath = System.getProperty("java.class.path").split(File.pathSeparator);
             for (String path : classpath) {
                 if (!path.endsWith(".jar")) continue;
@@ -279,7 +279,7 @@ public class ExternalJenkinsRule implements TestRule {
             }
 
             throw new IllegalArgumentException(
-                    "Plugin " + pluginName + " does not appear to be declared as a maven dependency: " + Arrays.toString(classpath)
+                    "Plugin " + pluginName + " does not appear to be declared as a maven dependency or maven-hpi-plugin:resolve-test-dependencies was not called on this module."
             );
         }
 

@@ -51,7 +51,7 @@ public class JcascTest {
     }
 
     @Test
-    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"../backend-plugin/target/node-sharing-orchestrator.hpi"})
+    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"matrix-auth", "../backend-plugin/target/node-sharing-orchestrator.hpi"})
     @ExternalFixture(name = "executor",     resource = "executor.yaml",     injectPlugins = "../plugin/target/node-sharing-executor.hpi")
     public void delegateBuildsToMultipleExecutors() throws Exception {
         ExternalJenkinsRule.Fixture o = jcr.fixture("orchestrator");

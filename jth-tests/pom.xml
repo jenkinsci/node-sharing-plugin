@@ -20,7 +20,7 @@
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-orchestrator</artifactId>
         </dependency>
-        <dependency><!-- Transient but required by JaCoCo to add to code coverage report -->
+        <dependency><!-- Transitive but required by JaCoCo to add to code coverage report -->
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-lib</artifactId>
         </dependency>
@@ -70,13 +70,6 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>matrix-auth</artifactId>
             <version>1.7</version>
-            <!-- This injects newer icon-shim on test class path than required by plugins tested by @ExternalFixture -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jenkins-ci.plugins.icon-shim</groupId>
-                    <artifactId>icon-shim</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -99,6 +92,20 @@
                 <configuration>
                     <skip>true</skip>
                 </configuration>
+            </plugin>
+            <!-- Since this is not an hpi packaged module, it needs to be told explicitly to resolve the .hpi of depending plugins for ExternalJenkinsRule -->
+            <plugin>
+                <groupId>org.jenkins-ci.tools</groupId>
+                <artifactId>maven-hpi-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-resolve-test-dependencies</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>resolve-test-dependencies</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Do not run tests during test phase -->
             <!--<plugin>-->
