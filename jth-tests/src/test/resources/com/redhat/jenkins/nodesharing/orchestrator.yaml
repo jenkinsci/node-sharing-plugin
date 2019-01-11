@@ -2,3 +2,18 @@ jenkins:
   numExecutors: 0
   quietPeriod: 0
   slaveAgentPort: -1
+
+  securityRealm:
+    local:
+      users:
+        - id: "admin"
+          password: "admin"
+        - id: "jerry"
+          password: "jerry"
+  authorizationStrategy:
+    globalMatrix:
+      grantedPermissions:
+      - "Overall/Read:anonymous"
+      - "Jenkins/Administer: admin"
+      - "Jenkins/Read:jerry"
+      - "RestEndpoint/Reserve:jerry"
