@@ -28,6 +28,7 @@ import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
+import com.redhat.jenkins.nodesharing.utils.TestUtils;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
@@ -92,7 +93,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
 
     public Statement apply(final Statement base, final Description description) {
         try { // Needs to be done before Jenkins is up
-            configRepo = createConfigRepo();
+            configRepo = TestUtils.createConfigRepo();
             System.setProperty(Pool.CONFIG_REPO_PROPERTY_NAME, configRepo.getWorkTree().getRemote());
             System.setProperty(Pool.USERNAME_PROPERTY_NAME, USER);
             System.setProperty(Pool.PASSWORD_PROPERTY_NAME, USER);
@@ -201,26 +202,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
             out.put(entry.getKey(), throwable);
         }
         return out;
-    }
-
-    public static GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
-        File orig = new File(NodeSharingJenkinsRule.class.getResource("dummy_config_repo").toURI());
-        Assert.assertTrue(orig.isDirectory());
-        File repo = File.createTempFile("jenkins.nodesharing", NodeSharingJenkinsRule.class.getSimpleName());
-        assert repo.delete();
-        assert repo.mkdir();
-        FileUtils.copyDirectory(orig, repo);
-
-        StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
-        // To make it work with no gitconfig
-        String name = "Pool Maintainer";
-        String mail = "pool.maintainer@acme.com";
-        EnvVars env = new EnvVars("GIT_AUTHOR_NAME", name, "GIT_AUTHOR_EMAIL", mail, "GIT_COMMITTER_NAME", name, "GIT_COMMITTER_EMAIL", mail);
-        GitClient git = Git.with(listener, env).in(repo).using("git").getClient();
-        git.init();
-        git.add("*");
-        git.commit("Init");
-        return git;
     }
 
     /**

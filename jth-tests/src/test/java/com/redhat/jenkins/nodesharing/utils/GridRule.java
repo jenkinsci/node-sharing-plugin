@@ -23,14 +23,61 @@
  */
 package com.redhat.jenkins.nodesharing.utils;
 
+import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
+
+import java.util.List;
 
 /**
- * @author ogondza.
+ * Decorate ExternalJenkinsRule with node sharing specific extensions.
  */
 public class GridRule extends ExternalJenkinsRule {
 
+    private GitClient configRepo;
+
     public GridRule(TemporaryFolder tmp) {
         super(tmp);
+    }
+
+    public GitClient configRepo() {
+        return configRepo;
+    }
+
+    @Override
+    public Statement apply(Statement base, Description d) {
+        // It is needed to intercept the rule chain both from it inside and outside. ConfigRepo needs to be setup before
+        // fixture runs but it can be populate only once it is already running. Structure looks like this:
+        // outer ( fixtureRule ( inner ( base() ) ) )
+        Statement inner = new Statement() {
+            @Override public void evaluate() throws Throwable {
+                try {
+                    base.evaluate();
+                } finally {
+
+                }
+            }
+        };
+        Statement fixtureRule = super.apply(inner, d);
+        Statement outer = new Statement() {
+            @Override public void evaluate() throws Throwable {
+                try {
+                    configRepo = TestUtils.createConfigRepo();
+                    fixtureRule.evaluate();
+                } finally {
+                    configRepo.getWorkTree().deleteRecursive();
+                }
+            }
+        };
+        return outer;
+    }
+
+    @Override
+    protected List<String> startWithJvmOptions(List<String> defaults, ExternalFixture fixture) {
+        defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT=" + configRepo.getWorkTree().getRemote());
+        defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.USERNAME=jerry");
+        defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.PASSWORD=jerry");
+        return defaults;
     }
 }

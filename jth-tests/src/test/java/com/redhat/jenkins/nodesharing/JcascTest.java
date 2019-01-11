@@ -38,17 +38,6 @@ public class JcascTest {
 
     public @Rule TemporaryFolder tmp = new TemporaryFolder();
     public @Rule GridRule jcr = new GridRule(tmp);
-    private GitClient configRepo;
-
-    @Before
-    public void before() throws Exception {
-        configRepo = NodeSharingJenkinsRule.createConfigRepo();
-    }
-
-    @After
-    public void after() throws Exception {
-        configRepo.getWorkTree().deleteRecursive();
-    }
 
     @Test
     @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"matrix-auth", "../backend-plugin/target/node-sharing-orchestrator.hpi"})
@@ -58,11 +47,9 @@ public class JcascTest {
         ExternalJenkinsRule.Fixture e = jcr.fixture("executor");
         JenkinsServer orchestrator = o.getClient("admin", "admin");
         JenkinsServer executor = e.getClient("admin", "admin");
-        System.out.println(orchestrator.isRunning());
-        System.out.println(executor.isRunning());
 
         System.out.println(o.getLog().readToString());
         //System.out.println(e.getLog().readToString());
-        jcr.interactiveBreak();
+        //jcr.interactiveBreak();
     }
 }

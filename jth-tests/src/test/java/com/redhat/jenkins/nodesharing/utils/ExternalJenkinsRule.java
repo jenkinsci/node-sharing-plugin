@@ -23,9 +23,12 @@
  */
 package com.redhat.jenkins.nodesharing.utils;
 
+import com.google.common.collect.Lists;
 import com.offbytwo.jenkins.JenkinsServer;
-import com.redhat.jenkins.nodesharing.ExternalGridRule;
+import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.remoting.Which;
+import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
@@ -33,13 +36,13 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import javax.annotation.Nonnull;
-import javax.annotation.OverridingMethodsMustInvokeSuper;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.annotation.Annotation;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -48,12 +51,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarInputStream;
 import java.util.regex.Pattern;
 
@@ -115,38 +120,69 @@ public class ExternalJenkinsRule implements TestRule {
      * @param declaredFixtures Fixtures harvested from annotations.
      * @return Set of fixtures to provision.
      */
-    protected Map<String, ExternalFixture> acceptFixtures(Map<String, ExternalFixture> declaredFixtures) {
+    protected Map<String, ExternalFixture> acceptFixtures(Map<String, ExternalFixture> declaredFixtures, Description description) {
         return declaredFixtures;
     }
 
     /**
      * List of plugins to be installed for all fixtures.
      *
+     * @param defaults Rule default plugins to install. Better not remove anything,
+     * @param fixture The fixture being installed.
      * @return Amended set of plugin artifactIds to install for every fixture. Removing from the default set is discouraged.
      */
-    @OverridingMethodsMustInvokeSuper
-    protected Set<String> initialPlugins() {
-        return new HashSet<>(Arrays.asList("configuration-as-code", "configuration-as-code-support"));
+    protected Set<String> initialPlugins(Set<String> defaults, ExternalFixture fixture) {
+        return defaults;
+    }
+
+    /**
+     * Environment variables to pass to Jenkins process.
+     *
+     * @param defaults Rule default environment variables. Better not remove anything,
+     * @return Environment variables to use.
+     */
+    protected EnvVars startWithEnvVars(EnvVars defaults, ExternalFixture fixture) {
+        return defaults;
+    }
+
+    /**
+     * Properties to pass to JVM.
+     *
+     * @param defaults Rule default JVM properties. Better not remove anything,
+     * @return Properties to use.
+     */
+    protected List<String> startWithJvmOptions(List<String> defaults, ExternalFixture fixture) {
+        return defaults;
+    }
+
+    /**
+     * Jenkins application arguments.
+     *
+     * @param defaults Rule default Jenkins arguments. Better not remove anything,
+     * @return Arguments to use.
+     */
+    protected List<String> startWithJenkinsArguments(List<String> defaults, ExternalFixture fixture) {
+        return defaults;
     }
 
     // Internals
 
     @Override
     public Statement apply(Statement base, final Description d) {
-        return new TheStatement(d, base);
+        return new TheStatement(base, d);
     }
 
     private class TheStatement extends Statement {
-        private final Description d;
         private final Statement base;
+        private final Description d;
 
-        public TheStatement(Description d, Statement base) {
-            this.d = d;
+        private TheStatement(Statement base, Description d) {
             this.base = base;
+            this.d = d;
         }
 
         @Override public void evaluate() throws Throwable {
-            Map<String, ExternalFixture> fixtures = acceptFixtures(getDeclaredFixtures());
+            Map<String, ExternalFixture> fixtures = acceptFixtures(getDeclaredFixtures(), d);
             if (!fixtures.isEmpty()) {
                 ExternalJenkinsRule.this.fixtures = scheduleFixtures(fixtures);
             }
@@ -211,45 +247,60 @@ public class ExternalJenkinsRule implements TestRule {
             return runningFixtures;
         }
 
-        private @Nonnull Fixture startFixture(ExternalFixture declaredFixture, FilePath jenkinsHome) throws IOException {
-            File jenkinsWar = ExternalGridRule.getJenkinsWar();
-            int port = ExternalGridRule.randomLocalPort();
-            ProcessBuilder pb = new ProcessBuilder("java", "-jar", jenkinsWar.getAbsolutePath(), "--httpPort=" + port, "--ajp13Port=-1");
-            pb.environment().put("jenkins.install.state", "TEST");
-            pb.environment().put("JENKINS_HOME", jenkinsHome.getRemote());
+        private @Nonnull Fixture startFixture(ExternalFixture fixture, FilePath jenkinsHome) throws IOException {
+            File jenkinsWar = getJenkinsWar();
+            int port = randomLocalPort();
 
-            final File sutLog = new File(String.format(
-                    "target/surefire-reports/%s.%s-ExternalFixture-%s.log",
-                    d.getClassName(), d.getMethodName(), declaredFixture.name()
-            ));
-            Files.createDirectories(sutLog.getParentFile().toPath());
+            ArrayList<String> procArgs = new ArrayList<String>();
+            procArgs.add("java");
+            procArgs.addAll(startWithJvmOptions(new ArrayList<>(), fixture));
+            procArgs.add("-jar");
+            procArgs.add(jenkinsWar.getAbsolutePath());
+            procArgs.addAll(startWithJenkinsArguments(Lists.newArrayList("--httpPort=" + port, "--ajp13Port=-1"), fixture));
+
+            EnvVars envVars = new EnvVars("jenkins.install.state", "TEST", "JENKINS_HOME", jenkinsHome.getRemote());
+
+            ProcessBuilder pb = new ProcessBuilder(procArgs);
+            pb.environment().putAll(startWithEnvVars(envVars, fixture));
+
+            final File sutLog = allocateLogFile(fixture);
             pb.redirectOutput(sutLog);
             pb.redirectErrorStream(true);
             final Process process = pb.start();
 
             try {
-                return new Fixture(declaredFixture, process, jenkinsHome, new FilePath(sutLog), new URI("http://localhost:" + port + "/"));
+                return new Fixture(fixture, process, jenkinsHome, new FilePath(sutLog), new URI("http://localhost:" + port + "/"));
             } catch (URISyntaxException e) {
                 throw new Error(e);
             }
         }
 
-        private void injectJcascDefinition(ExternalFixture declaredFixture, FilePath jenkinsHome) throws IOException, InterruptedException {
-            try (InputStream yaml = d.getTestClass().getResourceAsStream(declaredFixture.resource())) {
+        private File allocateLogFile(ExternalFixture fixture) throws IOException {
+            final File sutLog = new File(String.format(
+                    "target/surefire-reports/%s.%s-ExternalFixture-%s.log",
+                    d.getClassName(), d.getMethodName(), fixture.name()
+            ));
+            Files.createDirectories(sutLog.getParentFile().toPath());
+            return sutLog;
+        }
+
+        private void injectJcascDefinition(ExternalFixture fixture, FilePath jenkinsHome) throws IOException, InterruptedException {
+            try (InputStream yaml = d.getTestClass().getResourceAsStream(fixture.resource())) {
                 if (yaml == null) {
                     throw new IllegalArgumentException(String.format(
                             "Resource not found for fixture '%s': '%s'",
-                            declaredFixture.name(), declaredFixture.resource()
+                            fixture.name(), fixture.resource()
                     ));
                 }
                 jenkinsHome.child("jenkins.yaml").copyFrom(yaml);
             }
         }
 
-        private void installPlugins(ExternalFixture declaredFixture, FilePath jenkinsHome) throws IOException, InterruptedException {
+        private void installPlugins(ExternalFixture fixture, FilePath jenkinsHome) throws IOException, InterruptedException {
             Set<String> injectPlugins = new HashSet<>();
-            injectPlugins.addAll(initialPlugins());
-            injectPlugins.addAll(Arrays.asList(declaredFixture.injectPlugins()));
+            injectPlugins.addAll(Arrays.asList("configuration-as-code", "configuration-as-code-support"));
+            injectPlugins = initialPlugins(injectPlugins, fixture);
+            injectPlugins.addAll(Arrays.asList(fixture.injectPlugins()));
 
             for (String injectPlugin : injectPlugins) {
                 injectPlugin(jenkinsHome, injectPlugin);
@@ -367,5 +418,36 @@ public class ExternalJenkinsRule implements TestRule {
             }
             throw new TimeoutException("Fixture " + uri + " not ready in " + seconds + " seconds");
         }
+    }
+
+    private static final AtomicInteger nextLocalPort = new AtomicInteger(49152); // Browse ephemeral range
+    public static int randomLocalPort() throws IOException {
+        for (;;) {
+            int port = nextLocalPort.getAndIncrement();
+            if (port >= 65536) throw new IOException("No free ports in whole range?");
+            try {
+                ServerSocket ss = new ServerSocket(port);
+                ss.close();
+                return port;
+            } catch (IOException ex) {
+                // Try another
+            }
+        }
+    }
+
+    // From WarExploder#explode()
+    public static File getJenkinsWar() throws IOException {
+        File war;
+        File core = Which.jarFile(Jenkins.class); // will fail with IllegalArgumentException if have neither jenkins-war.war nor jenkins-core.jar in ${java.class.path}
+        String version = core.getParentFile().getName();
+        if (core.getName().equals("jenkins-core-" + version + ".jar") && core.getParentFile().getParentFile().getName().equals("jenkins-core")) {
+            war = new File(new File(new File(core.getParentFile().getParentFile().getParentFile(), "jenkins-war"), version), "jenkins-war-" + version + ".war");
+            if (!war.isFile()) {
+                throw new AssertionError(war + " does not yet exist. Prime your development environment by running `mvn validate`.");
+            }
+        } else {
+            throw new AssertionError(core + " is not in the expected location, and jenkins-war-*.war was not in " + System.getProperty("java.class.path"));
+        }
+        return war;
     }
 }

@@ -23,10 +23,11 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
+import com.redhat.jenkins.nodesharing.utils.TestUtils;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import hudson.FilePath;
 import hudson.model.Computer;
-import hudson.remoting.Which;
 import hudson.security.ACL;
 import hudson.security.GlobalMatrixAuthorizationStrategy;
 import hudson.security.HudsonPrivateSecurityRealm;
@@ -47,7 +48,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,7 +59,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Launch Executors and Orchestrators externally to JTH JVM.
@@ -70,7 +69,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ExternalGridRule implements TestRule {
     private final NodeSharingJenkinsRule jenkinsRule;
-    private static final AtomicInteger nextLocalPort = new AtomicInteger(49152); // Browse ephemeral range
     private final Map<Process, FilePath> executors = new HashMap<>();
     private final CopyOnWriteList<String> executorUrls = new CopyOnWriteList<>();
 
@@ -161,7 +159,7 @@ public final class ExternalGridRule implements TestRule {
     }
 
     private @Nonnull ScheduledFuture<URL> launchSut(final GitClient configRepo, String role) throws IOException, InterruptedException {
-        final int port = randomLocalPort();
+        final int port = ExternalJenkinsRule.randomLocalPort();
         final URL url = new URL("http://localhost:" + port + "/");
         final ExecutorJenkins jenkins = new ExecutorJenkins(url.toExternalForm(), "executor-" + port);
         // Commit new Jenkins before launching it. Otherwise it will not be in repo by the time it comes up considering itself inactive
@@ -211,7 +209,7 @@ public final class ExternalGridRule implements TestRule {
             }
         }
 
-        File jar = getJenkinsWar();
+        File jar = ExternalJenkinsRule.getJenkinsWar();
 
         System.out.println("Launching Executor from " + jenkinsHome.getRemote() + " at " + url);
 
@@ -249,36 +247,6 @@ public final class ExternalGridRule implements TestRule {
                 return url;
             }
         }, 0, TimeUnit.SECONDS);
-    }
-
-    public static int randomLocalPort() throws IOException {
-        for (;;) {
-            int port = nextLocalPort.getAndIncrement();
-            if (port >= 65536) throw new IOException("No free ports in whole range?");
-            try {
-                ServerSocket ss = new ServerSocket(port);
-                ss.close();
-                return port;
-            } catch (IOException ex) {
-                // Try another
-            }
-        }
-    }
-
-    // From WarExploder#explode()
-    public static File getJenkinsWar() throws IOException {
-        File war;
-        File core = Which.jarFile(Jenkins.class); // will fail with IllegalArgumentException if have neither jenkins-war.war nor jenkins-core.jar in ${java.class.path}
-        String version = core.getParentFile().getName();
-        if (core.getName().equals("jenkins-core-" + version + ".jar") && core.getParentFile().getParentFile().getName().equals("jenkins-core")) {
-            war = new File(new File(new File(core.getParentFile().getParentFile().getParentFile(), "jenkins-war"), version), "jenkins-war-" + version + ".war");
-            if (!war.isFile()) {
-                throw new AssertionError(war + " does not yet exist. Prime your development environment by running `mvn validate`.");
-            }
-        } else {
-            throw new AssertionError(core + " is not in the expected location, and jenkins-war-*.war was not in " + System.getProperty("java.class.path"));
-        }
-        return war;
     }
 
     public void interactiveBreak() throws Exception {
