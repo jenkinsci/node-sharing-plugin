@@ -100,6 +100,20 @@ public class ExternalJenkinsRule implements TestRule {
     }
 
     /**
+     * All fixtures running.
+     *
+     * Note there are not guaranteed to be ready or not failed.
+     */
+    public @Nonnull Map<String, Fixture> getFixtures() throws ExecutionException, InterruptedException {
+        Map<String, Fixture> out = new HashMap<>();
+        for (Future<Fixture> value : fixtures.values()) {
+            Fixture fixture = value.get();
+            out.put(fixture.annotation.name(), fixture);
+        }
+        return out;
+    }
+
+    /**
      * Pause the execution leaving the fixtures running.
      */
     public void interactiveBreak() throws Exception {

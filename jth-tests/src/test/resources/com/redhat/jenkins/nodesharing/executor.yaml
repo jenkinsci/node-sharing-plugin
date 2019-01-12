@@ -2,3 +2,35 @@ jenkins:
   numExecutors: 0
   quietPeriod: 0
   slaveAgentPort: -1
+
+  securityRealm:
+    local:
+      users:
+        - id: "admin"
+          password: "admin"
+        - id: "jerry"
+          password: "jerry"
+  authorizationStrategy:
+    globalMatrix:
+      grantedPermissions:
+      - "Overall/Read:anonymous"
+      - "Overall/Administer:admin"
+      #      - "Item/Read:jerry"
+      - "Overall/Read:jerry"
+      - "NodeSharing/Reserve:jerry"
+
+  clouds:
+    - nodeSharing:
+        configRepoUrl: ${JCASC_CONFIG_REPO_URL}
+        orchestratorCredentialsId: "node-sharing-rest"
+
+credentials:
+  system:
+    domainCredentials:
+    - credentials:
+      - usernamePassword:
+          scope: SYSTEM
+          id: "node-sharing-rest"
+          username: "jerry"
+          password: "jerry"
+          description: "Rest credential for node sharing"

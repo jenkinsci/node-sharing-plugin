@@ -23,33 +23,34 @@
  */
 package com.redhat.jenkins.nodesharing;
 
-import com.offbytwo.jenkins.JenkinsServer;
 import com.redhat.jenkins.nodesharing.utils.ExternalFixture;
 import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
 import com.redhat.jenkins.nodesharing.utils.GridRule;
-import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 public class JcascTest {
 
+    public static final String ORCHESTRATOR = "../backend-plugin/target/node-sharing-orchestrator.hpi";
+    public static final String EXECUTOR = "../plugin/target/node-sharing-executor.hpi";
+
     public @Rule TemporaryFolder tmp = new TemporaryFolder();
     public @Rule GridRule jcr = new GridRule(tmp);
 
     @Test
-    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"matrix-auth", "../backend-plugin/target/node-sharing-orchestrator.hpi"})
-    @ExternalFixture(name = "executor",     resource = "executor.yaml",     injectPlugins = "../plugin/target/node-sharing-executor.hpi")
+    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"matrix-auth", ORCHESTRATOR})
+    @ExternalFixture(name = "executor0",    resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project", "job-dsl", EXECUTOR})
+    @ExternalFixture(name = "executor1",    resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project", "job-dsl", "../plugin/target/node-sharing-executor.hpi"})
+    @ExternalFixture(name = "executor2",    resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project", "job-dsl", "../plugin/target/node-sharing-executor.hpi"})
     public void delegateBuildsToMultipleExecutors() throws Exception {
         ExternalJenkinsRule.Fixture o = jcr.fixture("orchestrator");
-        ExternalJenkinsRule.Fixture e = jcr.fixture("executor");
-        JenkinsServer orchestrator = o.getClient("admin", "admin");
-        JenkinsServer executor = e.getClient("admin", "admin");
+        ExternalJenkinsRule.Fixture e1 = jcr.fixture("executor1");
+        ExternalJenkinsRule.Fixture e2 = jcr.fixture("executor1");
+        ExternalJenkinsRule.Fixture e3 = jcr.fixture("executor1");
 
         System.out.println(o.getLog().readToString());
         //System.out.println(e.getLog().readToString());
-        //jcr.interactiveBreak();
+        jcr.interactiveBreak();
     }
 }

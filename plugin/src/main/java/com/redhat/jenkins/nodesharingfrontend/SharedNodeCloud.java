@@ -46,6 +46,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jenkins.model.JenkinsLocationConfiguration;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
@@ -336,6 +337,7 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Extension
+    @Symbol("nodeSharing")
     public static class DescriptorImpl extends Descriptor<Cloud> {
 
         @Override

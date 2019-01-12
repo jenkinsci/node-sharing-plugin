@@ -37,7 +37,6 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
-import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Functions;
 import hudson.model.Computer;
@@ -52,14 +51,10 @@ import hudson.remoting.Which;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.SlaveComputer;
 import hudson.util.OneShotEvent;
-import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.queue.AsynchronousExecution;
-import org.apache.commons.io.FileUtils;
 import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
-import org.junit.Assert;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -71,7 +66,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -159,20 +153,14 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     protected GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
-        makeJthAnOrchestrator(jenkins, git);
+        TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
 
-        declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
+        TestUtils.declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
         makeNodesLaunchable(git);
 
         Pool.Updater.getInstance().doRun();
         assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
         return configRepo;
-    }
-
-    public void makeJthAnOrchestrator(Jenkins jenkins, GitClient git) throws IOException, InterruptedException {
-        git.getWorkTree().child("config").write("orchestrator.url=" + jenkins.getRootUrl() + System.lineSeparator() + "enforce_https=false", "UTF-8");
-        git.add("config");
-        git.commit("Writing config repo config");
     }
 
     // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
@@ -205,44 +193,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
-    /**
-     * Write local urls of Jenkinses
-     */
-    public void declareExecutors(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
-        FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
-        for (FilePath filePath : jenkinsesDir.list()) {
-            filePath.delete();
-        }
-        for (Map.Entry<String, String> j : jenkinses.entrySet()) {
-            String url = j.getValue();
-            jenkinsesDir.child(j.getKey()).write(getJenkinsfileContent(url), "UTF-8");
-        }
-        git.add("jenkinses");
-        git.commit("Update Jenkinses");
-    }
-
-    @Nonnull private String getJenkinsfileContent(String url) {
-        StringBuilder sb = new StringBuilder("url=").append(url).append(System.lineSeparator());
-        if (url.startsWith("http://")) {
-            sb.append("enforce_https=false").append(System.lineSeparator());
-        }
-        return sb.toString();
-    }
-
-    public void addExecutor(GitClient git, ExecutorJenkins j) throws IOException, InterruptedException {
-        FilePath jenkinsFile = git.getWorkTree().child("jenkinses").child(j.getName());
-        assert !jenkinsFile.exists();
-
-        jenkinsFile.write(getJenkinsfileContent(j.getUrl().toExternalForm()), "UTF-8");
-
-        git.add("jenkinses");
-        git.commit("Add Jenkins");
-    }
-
     void disableLocalExecutor(GitClient gitClient) throws Exception {
         // Replace the inner Jenkins with one from different URL as removing the file would cause git to remove the empty
         // directory breaking repo validation
-        declareExecutors(gitClient, singletonMap("this-one", getURL() + "/defunc"));
+        TestUtils.declareExecutors(gitClient, singletonMap("this-one", getURL() + "/defunc"));
         Pool.Updater.getInstance().doRun();
     }
 

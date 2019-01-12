@@ -4,6 +4,7 @@ import com.redhat.jenkins.nodesharing.transport.ExecutorEntity;
 import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharing.utils.DoNotSquashQueueAction;
+import com.redhat.jenkins.nodesharing.utils.TestUtils;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
@@ -189,7 +190,7 @@ public class ReservationVerifierTest {
         Map<String, String> jenkinses = new HashMap<>();
         jenkinses.put("A", "https://A.com/");
         jenkinses.put("B", "http://B.com");
-        j.declareExecutors(gitClient, jenkinses);
+        TestUtils.declareExecutors(gitClient, jenkinses);
         ConfigRepo.Snapshot config = cloud.getLatestConfig();
 
         ExecutorJenkins A = config.getJenkinsByName("A");

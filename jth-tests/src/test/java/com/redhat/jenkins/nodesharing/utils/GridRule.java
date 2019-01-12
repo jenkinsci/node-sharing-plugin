@@ -23,12 +23,16 @@
  */
 package com.redhat.jenkins.nodesharing.utils;
 
+import hudson.EnvVars;
 import org.jenkinsci.plugins.gitclient.GitClient;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Decorate ExternalJenkinsRule with node sharing specific extensions.
@@ -53,6 +57,18 @@ public class GridRule extends ExternalJenkinsRule {
         Statement inner = new Statement() {
             @Override public void evaluate() throws Throwable {
                 try {
+                    TestUtils.declareExecutors(configRepo, Collections.emptyMap()); // Erase executors from dummy fixture
+                    // Add provisioned fixtures to config repo
+                    for (Fixture fixture : getFixtures().values()) {
+                        String name = fixture.getAnnotation().name();
+                        if (name.startsWith("orchestrator")) {
+                            TestUtils.declareOrchestrator(configRepo, fixture.getUri().toString());
+                        } else if (name.startsWith("executor")) {
+                            TestUtils.declareExecutor(configRepo, name, fixture.getUri().toString());
+                        } else {
+                            throw new IllegalArgumentException("Fixture name is expected to start with 'orchestrator' or 'executor'. Got " + name);
+                        }
+                    }
                     base.evaluate();
                 } finally {
 
@@ -75,9 +91,19 @@ public class GridRule extends ExternalJenkinsRule {
 
     @Override
     protected List<String> startWithJvmOptions(List<String> defaults, ExternalFixture fixture) {
-        defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT=" + configRepo.getWorkTree().getRemote());
-        defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.USERNAME=jerry");
-        defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.PASSWORD=jerry");
+        if (fixture.name().startsWith("orchestrator")) {
+            defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT=" + configRepo.getWorkTree().getRemote());
+            defaults.add("-Dcom.redhat.jenExecukins.nodesharingbackend.Pool.USERNAME=jerry");
+            defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.PASSWORD=jerry");
+        }
+        return defaults;
+    }
+
+    @Override
+    protected EnvVars startWithEnvVars(EnvVars defaults, ExternalFixture fixture) {
+        if (fixture.name().startsWith("executor")) {
+            defaults.put("JCASC_CONFIG_REPO_URL", configRepo.getWorkTree().getRemote());
+        }
         return defaults;
     }
 }

@@ -165,7 +165,7 @@ public final class ExternalGridRule implements TestRule {
         final URL url = new URL("http://localhost:" + port + "/");
         final ExecutorJenkins jenkins = new ExecutorJenkins(url.toExternalForm(), "executor-" + port);
         // Commit new Jenkins before launching it. Otherwise it will not be in repo by the time it comes up considering itself inactive
-        jenkinsRule.addExecutor(configRepo, jenkins);
+        TestUtils.declareExecutor(configRepo, jenkins.getName(), jenkins.getUrl().toExternalForm());
 
         FilePath jenkinsHome = new FilePath(File.createTempFile(role, getClass().getSimpleName()));
         jenkinsHome.delete();
@@ -293,9 +293,9 @@ public final class ExternalGridRule implements TestRule {
     public GitClient masterGrid(Jenkins jenkins) throws Exception {
         GitClient git = jenkinsRule.getConfigRepo();
 
-        jenkinsRule.makeJthAnOrchestrator(jenkins, git);
+        TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
 
-        jenkinsRule.declareExecutors(git, Collections.<String, String>emptyMap());
+        TestUtils.declareExecutors(git, Collections.<String, String>emptyMap());
         jenkinsRule.makeNodesLaunchable(git);
 
         return git;

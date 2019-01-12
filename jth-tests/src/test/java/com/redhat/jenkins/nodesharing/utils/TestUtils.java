@@ -25,16 +25,19 @@ package com.redhat.jenkins.nodesharing.utils;
 
 import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule;
 import hudson.EnvVars;
+import hudson.FilePath;
 import hudson.util.StreamTaskListener;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Assert;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.util.Map;
 
 public class TestUtils {
 
@@ -58,5 +61,45 @@ public class TestUtils {
         git.add("*");
         git.commit("Init");
         return git;
+    }
+
+    public static void declareOrchestrator(GitClient git, String jenkinsUrl) throws IOException, InterruptedException {
+        git.getWorkTree().child("config").write("orchestrator.url=" + jenkinsUrl + System.lineSeparator() + "enforce_https=false", "UTF-8");
+        git.add("config");
+        git.commit("Writing config repo orchestrator");
+    }
+
+    /**
+     * Write local urls of Jenkinses
+     */
+    public static void declareExecutors(GitClient git, Map<String, String> jenkinses) throws InterruptedException, IOException {
+        FilePath jenkinsesDir = git.getWorkTree().child("jenkinses");
+        for (FilePath filePath : jenkinsesDir.list()) {
+            filePath.delete();
+        }
+        for (Map.Entry<String, String> j : jenkinses.entrySet()) {
+            String url = j.getValue();
+            jenkinsesDir.child(j.getKey()).write(getDummyExecutorFile(url), "UTF-8");
+        }
+        git.add("jenkinses");
+        git.commit("Update Jenkinses");
+    }
+
+    private static @Nonnull String getDummyExecutorFile(String url) {
+        StringBuilder sb = new StringBuilder("url=").append(url).append(System.lineSeparator());
+        if (url.startsWith("http://")) {
+            sb.append("enforce_https=false").append(System.lineSeparator());
+        }
+        return sb.toString();
+    }
+
+    public static void declareExecutor(GitClient git, String name, String url) throws IOException, InterruptedException {
+        FilePath jenkinsFile = git.getWorkTree().child("jenkinses").child(name);
+        assert !jenkinsFile.exists();
+
+        jenkinsFile.write(getDummyExecutorFile(url), "UTF-8");
+
+        git.add("jenkinses");
+        git.commit("Add Jenkins");
     }
 }
