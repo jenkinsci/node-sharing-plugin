@@ -69,64 +69,8 @@ import static org.junit.Assert.fail;
 
 public class GridTest {
 
-    private static final String[] MATRIX_AXIS =  new String[] { "0", "1", "2" };
-
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
     @Rule public ExternalGridRule grid = new ExternalGridRule(j);
-
-    @Test
-    public void delegateBuildsToMultipleExecutors() throws Exception {
-        GitClient repo = grid.masterGrid(j.jenkins);
-
-        MatrixProject win = j.jenkins.createProject(MatrixProject.class, "win");
-        win.addTrigger(new TimerTrigger("* * * * *"));
-        win.setAxes(new AxisList(
-                new LabelExpAxis("label", "windows"),
-                new TextAxis("x", MATRIX_AXIS)
-        ));
-        win.getBuildersList().add(new Shell("sleep 2"));
-        win.getPublishersList().add(new BuildTrigger("win", true));
-
-        MatrixProject sol = j.jenkins.createProject(MatrixProject.class, "sol");
-        sol.addTrigger(new TimerTrigger("* * * * *"));
-        sol.setAxes(new AxisList(
-                new LabelExpAxis("label", "solaris10||solaris11"),
-                new TextAxis("x", MATRIX_AXIS)
-        ));
-        sol.getBuildersList().add(new Shell("sleep 0"));
-        sol.getPublishersList().add(new BuildTrigger("sol", true));
-
-        Set<ScheduledFuture<URL>> launchingExecutors = new HashSet<>();
-        for (int i = 0; i < 3; i++) {
-            launchingExecutors.add(grid.executor(repo));
-        }
-        win.delete();sol.delete();
-
-//        grid.interactiveBreak();
-
-        for (ScheduledFuture<URL> launchingExecutor : launchingExecutors) {
-            launchingExecutor.get();
-        }
-
-        Pool.Updater.getInstance().doRun();
-        assertEquals(3, Pool.getInstance().getConfig().getJenkinses().size());
-
-        for (int i = 0; i < 5; i++) {
-            try {
-                Thread.sleep(10000);
-                verifyBuildWasRun();
-                break;
-            } catch (AssertionError ex) {
-                if (i == 4) throw ex;
-                // Retry
-            }
-        }
-
-        // TODO verify in orchestrator stats once implemented
-
-        // Prevent interrupting running builds causing phony exceptions
-        j.jenkins.doQuietDown();
-    }
 
     @Test
     public void restartOrchestrator() throws Exception {
@@ -208,21 +152,6 @@ public class GridTest {
                 return build;
             }
             Thread.sleep(500);
-        }
-    }
-
-    private void verifyBuildWasRun(String... jobNames) throws URISyntaxException, IOException {
-        for (ExecutorJenkins ej : Pool.getInstance().getConfig().getJenkinses()) {
-            JenkinsServer jenkinsServer = new JenkinsServer(ej.getUrl().toURI());
-            Map<String, Job> jobs = jenkinsServer.getJobs();
-            for (String jobName : jobNames) {
-                JobWithDetails job = jobs.get(jobName).details();
-                assertThat(job.getNextBuildNumber(), greaterThanOrEqualTo(2));
-                Build solBuild = job.getLastFailedBuild();
-                if (solBuild != Build.BUILD_HAS_NEVER_RUN) {
-                    fail("All builds of " + jobName + " succeeded on " + ej.getUrl() + ":\n" + solBuild.details().getConsoleOutputText());
-                }
-            }
         }
     }
 

@@ -23,6 +23,10 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.offbytwo.jenkins.JenkinsServer;
+import com.offbytwo.jenkins.model.Build;
+import com.offbytwo.jenkins.model.Job;
+import com.offbytwo.jenkins.model.JobWithDetails;
 import com.redhat.jenkins.nodesharing.utils.ExternalFixture;
 import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
 import com.redhat.jenkins.nodesharing.utils.GridRule;
@@ -32,24 +36,54 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Map;
+
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+
 public class JcascTest {
 
     public @Rule TemporaryFolder tmp = new TemporaryFolder();
     public @Rule GridRule jcr = new GridRule(tmp);
 
     @Test
-    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml", injectPlugins = {"matrix-auth"})
-    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project"})
-    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project"})
-    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project"})
-    public void delegateBuildsToMultipleExecutors() throws Exception {
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",   injectPlugins = {"matrix-auth"})
+    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
+    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
+    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
+    public void smoke() throws Exception {
         ExternalJenkinsRule.Fixture o = jcr.fixture("o");
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
         ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
         ExternalJenkinsRule.Fixture e2 = jcr.fixture("e2");
 
-        System.out.println(o.getLog().readToString());
-        //System.out.println(e.getLog().readToString());
-        jcr.interactiveBreak();
+        for (ExternalJenkinsRule.Fixture fixture : Arrays.asList(e0, e1, e2)) {
+            for (int i = 0; i < 5; i++) {
+                try {
+                    Thread.sleep(10000);
+                    System.out.println('.');
+                    verifyBuildHasRun(fixture, "sol", "win");
+                } catch (AssertionError ex) {
+                    if (i == 4) throw ex;
+                    // Retry
+                }
+            }
+        }
+    }
+
+    private void verifyBuildHasRun(ExternalJenkinsRule.Fixture executor, String... jobNames) throws IOException {
+        JenkinsServer jenkinsServer = executor.getClient();
+        Map<String, Job> jobs = jenkinsServer.getJobs();
+        for (String jobName : jobNames) {
+            JobWithDetails job = jobs.get(jobName).details();
+            assertThat(job.getNextBuildNumber(), greaterThanOrEqualTo(2));
+            Build solBuild = job.getLastFailedBuild();
+            if (solBuild != Build.BUILD_HAS_NEVER_RUN) {
+                fail("All builds of " + jobName + " succeeded on " + executor.getUri() + ":\n" + solBuild.details().getConsoleOutputText());
+            }
+        }
     }
 }

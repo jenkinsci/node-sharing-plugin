@@ -42,30 +42,30 @@ credentials:
 
 jobs:
   - script: >
-      matrixJob("win") {
-          axes {
-              labelExpression("l", "windows")
-              text("a", "0", "1", "2")
-          }
-          triggers {
-              cron("* * * * *")
-              upstream("win")
-          }
-          steps {
-              shell("sleep 2")
-          }
-      }
+     matrixJob("win") {
+         axes {
+             labelExpression("l", "windows")
+             text("a", "0", "1", "2")
+         }
+         triggers {
+             cron("* * * * *")
+             upstream("win")
+         }
+         steps {
+             shell("sleep 2")
+         }
+     }
 
-      matrixJob("sol") {
-          axes {
-              labelExpression("l", "solaris10||solaris11")
-              text("a", "0", "1", "2")
-          }
-          triggers {
-              cron("* * * * *")
-              upstream("sol")
-          }
-          steps {
-              shell("sleep 2")
-          }
-      }
+     matrixJob("sol") {
+         axes {
+             labelExpression("l", "solaris10||solaris11")
+             text("a", "0", "1", "2")
+         }
+         triggers {
+             cron("* * * * *")
+             upstream("sol")
+         }
+         steps {
+             shell("sleep 2")
+         }
+     }
