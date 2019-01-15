@@ -26,6 +26,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.lang.reflect.Field;
 import java.util.List;
 
@@ -84,6 +85,10 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
             }
         }
         CloudStatistics.ProvisioningListener.get().onStarted(id);
+    }
+
+    protected Object readResolve() {
+        return this;
     }
 
     @Override

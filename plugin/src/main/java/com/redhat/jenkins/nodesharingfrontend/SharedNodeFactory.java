@@ -82,10 +82,10 @@ public abstract class SharedNodeFactory implements ExtensionPoint {
                 try {
                     node = (SharedNode) Jenkins.XSTREAM2.fromXML(def.getDefinition());
                 } catch (Exception e) {
-                    throw new IllegalArgumentException("Misunderstand definition", e);
+                    throw new IllegalArgumentException("Invalid node definition", e);
                 }
                 if (node == null) {
-                    throw new IllegalArgumentException("Misunderstand definition");
+                    throw new IllegalArgumentException("Invalid node definition");
                 }
                 return node;
             }

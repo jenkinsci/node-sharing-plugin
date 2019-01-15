@@ -296,7 +296,7 @@ public final class ExternalGridRule implements TestRule {
         TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
 
         TestUtils.declareExecutors(git, Collections.<String, String>emptyMap());
-        jenkinsRule.makeNodesLaunchable(git);
+        TestUtils.makeNodesLaunchable(git);
 
         return git;
     }

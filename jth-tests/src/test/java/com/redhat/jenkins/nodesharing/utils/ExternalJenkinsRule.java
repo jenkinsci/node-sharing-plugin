@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -84,10 +85,10 @@ public class ExternalJenkinsRule implements TestRule {
     /**
      * @param name Name of the fixture.
      * @return The object representing the external jenkins insatnce
-     * @throws IllegalArgumentException When the name was not declared as fixture by annotations.
+     * @throws NoSuchElementException When the name was not declared as fixture by annotations.
      */
-    public @Nonnull Fixture fixture(@Nonnull String name) throws IllegalArgumentException, ExecutionException, InterruptedException, IOException {
-        if (!fixtures.containsKey(name)) throw new IllegalArgumentException();
+    public @Nonnull Fixture fixture(@Nonnull String name) throws NoSuchElementException, ExecutionException, InterruptedException, IOException {
+        if (!fixtures.containsKey(name)) throw new NoSuchElementException();
 
         Fixture fixture = fixtures.get(name).get();
         try {
@@ -111,6 +112,21 @@ public class ExternalJenkinsRule implements TestRule {
             out.put(fixture.annotation.name(), fixture);
         }
         return out;
+    }
+
+    /**
+     * Determine whether the fixture has been decorated with a role.
+     *
+     * @param fixture The fixture to examine.
+     * @param needle Desired role.
+     */
+    public boolean hasRole(ExternalFixture fixture, Class<? extends ExternalFixture.Role> needle) {
+        for (Class<? extends ExternalFixture.Role> role: fixture.roles()) {
+            if (needle.isAssignableFrom(role)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -221,18 +237,18 @@ public class ExternalJenkinsRule implements TestRule {
             for (Annotation a : annotations) {
                 if (a instanceof ExternalFixture.Container) {
                     for (ExternalFixture jef : ((ExternalFixture.Container) a).value()) {
-                        acceptFixture(fixtures, jef);
+                        addDeclaredFixture(fixtures, jef);
                     }
                 }
                 if (a instanceof ExternalFixture) {
                     ExternalFixture jef = (ExternalFixture) a;
-                    acceptFixture(fixtures, jef);
+                    addDeclaredFixture(fixtures, jef);
                 }
             }
             return fixtures;
         }
 
-        private void acceptFixture(Map<String, ExternalFixture> fixtures, ExternalFixture jef) {
+        private void addDeclaredFixture(Map<String, ExternalFixture> fixtures, ExternalFixture jef) {
             if (fixtures.containsKey(jef.name())) {
                 throw new IllegalArgumentException(String.format(
                         "%s name collision for name '%s' and test '%s'",
@@ -264,15 +280,20 @@ public class ExternalJenkinsRule implements TestRule {
         private @Nonnull Fixture startFixture(ExternalFixture fixture, FilePath jenkinsHome) throws IOException {
             File jenkinsWar = getJenkinsWar();
             int port = randomLocalPort();
+            String url = "http://localhost:" + port + "/";
 
-            ArrayList<String> procArgs = new ArrayList<String>();
+            ArrayList<String> procArgs = new ArrayList<>();
             procArgs.add("java");
             procArgs.addAll(startWithJvmOptions(new ArrayList<>(), fixture));
             procArgs.add("-jar");
             procArgs.add(jenkinsWar.getAbsolutePath());
             procArgs.addAll(startWithJenkinsArguments(Lists.newArrayList("--httpPort=" + port, "--ajp13Port=-1"), fixture));
 
-            EnvVars envVars = new EnvVars("jenkins.install.state", "TEST", "JENKINS_HOME", jenkinsHome.getRemote());
+            EnvVars envVars = new EnvVars(
+                    "jenkins.install.state", "TEST",
+                    "JENKINS_HOME", jenkinsHome.getRemote(),
+                    "JCASC_SELF_URL", url
+            );
 
             ProcessBuilder pb = new ProcessBuilder(procArgs);
             pb.environment().putAll(startWithEnvVars(envVars, fixture));
@@ -283,7 +304,7 @@ public class ExternalJenkinsRule implements TestRule {
             final Process process = pb.start();
 
             try {
-                return new Fixture(fixture, process, jenkinsHome, new FilePath(sutLog), new URI("http://localhost:" + port + "/"));
+                return new Fixture(fixture, process, jenkinsHome, new FilePath(sutLog), new URI(url));
             } catch (URISyntaxException e) {
                 throw new Error(e);
             }
@@ -307,6 +328,10 @@ public class ExternalJenkinsRule implements TestRule {
                     ));
                 }
                 jenkinsHome.child("jenkins.yaml").copyFrom(yaml);
+
+                // TODO remove once the bug is fixed
+                // Retrigger JCasC from groovy init script to get the jobs created
+                jenkinsHome.child("init.groovy").write("io.jenkins.plugins.casc.ConfigurationAsCode.get().configure()", "UTF-8");
             }
         }
 
@@ -430,7 +455,7 @@ public class ExternalJenkinsRule implements TestRule {
                 }
                 Thread.sleep(1000);
             }
-            throw new TimeoutException("Fixture " + uri + " not ready in " + seconds + " seconds");
+            throw new TimeoutException("Fixture " + annotation.name() + " not ready in " + seconds + " seconds");
         }
     }
 

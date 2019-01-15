@@ -33,11 +33,8 @@ import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
-import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
-import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import com.redhat.jenkins.nodesharingfrontend.WorkloadReporter;
-import hudson.FilePath;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -47,7 +44,6 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.TaskListener;
-import hudson.remoting.Which;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.SlaveComputer;
 import hudson.util.OneShotEvent;
@@ -62,9 +58,7 @@ import org.jvnet.hudson.test.MockAuthorizationStrategy;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -156,27 +150,11 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
 
         TestUtils.declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
-        makeNodesLaunchable(git);
+        TestUtils.makeNodesLaunchable(git);
 
         Pool.Updater.getInstance().doRun();
         assertThat(printExceptions(Pool.ADMIN_MONITOR.getErrors()).values(), Matchers.emptyIterable());
         return configRepo;
-    }
-
-    // Make the nodes launchable by turning the xml to node, decorating it and turning it back to xml again
-    public void makeNodesLaunchable(GitClient git) throws IOException, InterruptedException {
-        final File slaveJar = Which.jarFile(hudson.remoting.Launcher.class).getAbsoluteFile();
-        for (FilePath xmlNode : git.getWorkTree().child("nodes").list("*.xml")) {
-            SharedNode node = SharedNodeFactory.transform(NodeDefinition.Xml.create(xmlNode));
-            node.setLauncher(new CommandLauncher(
-                    System.getProperty("java.home") + "/bin/java -jar " + slaveJar
-            ));
-            try (OutputStream out = xmlNode.write()) {
-                Jenkins.XSTREAM2.toXMLUTF8(node, out);
-            }
-        }
-        git.add("nodes");
-        git.commit("Making nodes in config repo launchable");
     }
 
     // TODO should not be needed as TaskLog.TaskFailed was fixed to print itself

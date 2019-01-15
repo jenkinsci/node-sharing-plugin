@@ -1,3 +1,7 @@
+unclassified:
+  location:
+    url: ${JCASC_SELF_URL}
+
 jenkins:
   numExecutors: 0
   quietPeriod: 0
@@ -13,10 +17,11 @@ jenkins:
   authorizationStrategy:
     globalMatrix:
       grantedPermissions:
-      - "Overall/Read:anonymous"
       - "Overall/Administer:admin"
-      #      - "Item/Read:jerry"
+      - "Overall/Read:anonymous"
+      - "Job/Read:anonymous"
       - "Overall/Read:jerry"
+      - "Job/Read:jerry"
       - "NodeSharing/Reserve:jerry"
 
   clouds:
@@ -34,3 +39,33 @@ credentials:
           username: "jerry"
           password: "jerry"
           description: "Rest credential for node sharing"
+
+jobs:
+  - script: >
+      matrixJob("win") {
+          axes {
+              labelExpression("l", "windows")
+              text("a", "0", "1", "2")
+          }
+          triggers {
+              cron("* * * * *")
+              upstream("win")
+          }
+          steps {
+              shell("sleep 2")
+          }
+      }
+
+      matrixJob("sol") {
+          axes {
+              labelExpression("l", "solaris10||solaris11")
+              text("a", "0", "1", "2")
+          }
+          triggers {
+              cron("* * * * *")
+              upstream("sol")
+          }
+          steps {
+              shell("sleep 2")
+          }
+      }

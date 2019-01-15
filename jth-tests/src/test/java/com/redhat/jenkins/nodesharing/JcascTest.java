@@ -26,28 +26,27 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.utils.ExternalFixture;
 import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
 import com.redhat.jenkins.nodesharing.utils.GridRule;
+import com.redhat.jenkins.nodesharing.utils.GridRule.Orchestrator;
+import com.redhat.jenkins.nodesharing.utils.GridRule.Executor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 public class JcascTest {
 
-    public static final String ORCHESTRATOR = "../backend-plugin/target/node-sharing-orchestrator.hpi";
-    public static final String EXECUTOR = "../plugin/target/node-sharing-executor.hpi";
-
     public @Rule TemporaryFolder tmp = new TemporaryFolder();
     public @Rule GridRule jcr = new GridRule(tmp);
 
     @Test
-    @ExternalFixture(name = "orchestrator", resource = "orchestrator.yaml", injectPlugins = {"matrix-auth", ORCHESTRATOR})
-    @ExternalFixture(name = "executor0",    resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project", "job-dsl", EXECUTOR})
-    @ExternalFixture(name = "executor1",    resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project", "job-dsl", "../plugin/target/node-sharing-executor.hpi"})
-    @ExternalFixture(name = "executor2",    resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project", "job-dsl", "../plugin/target/node-sharing-executor.hpi"})
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml", injectPlugins = {"matrix-auth"})
+    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project"})
+    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project"})
+    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor.yaml",     injectPlugins = {"matrix-auth", "matrix-project"})
     public void delegateBuildsToMultipleExecutors() throws Exception {
-        ExternalJenkinsRule.Fixture o = jcr.fixture("orchestrator");
-        ExternalJenkinsRule.Fixture e1 = jcr.fixture("executor1");
-        ExternalJenkinsRule.Fixture e2 = jcr.fixture("executor1");
-        ExternalJenkinsRule.Fixture e3 = jcr.fixture("executor1");
+        ExternalJenkinsRule.Fixture o = jcr.fixture("o");
+        ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
+        ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
+        ExternalJenkinsRule.Fixture e2 = jcr.fixture("e2");
 
         System.out.println(o.getLog().readToString());
         //System.out.println(e.getLog().readToString());
