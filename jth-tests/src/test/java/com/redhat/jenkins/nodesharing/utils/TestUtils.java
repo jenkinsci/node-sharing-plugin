@@ -50,7 +50,7 @@ public class TestUtils {
     private TestUtils() {}
 
     public static GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
-        File orig = new File(NodeSharingJenkinsRule.class.getResource("dummy_config_repo").toURI());
+        File orig = new File(NodeSharingJenkinsRule.class.getResource("../dummy_config_repo").toURI());
         Assert.assertTrue(orig.isDirectory());
         File repo = File.createTempFile("jenkins.nodesharing", NodeSharingJenkinsRule.class.getSimpleName());
         assert repo.delete();

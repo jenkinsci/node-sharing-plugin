@@ -388,7 +388,7 @@ public class SharedNodeCloudTest {
             cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
             fail();
         } catch (IllegalArgumentException e) {
-            assertEquals("java.lang.IllegalArgumentException: Misunderstand definition", e.toString());
+            assertEquals("java.lang.IllegalArgumentException: Invalid node definition", e.toString());
         }
     }
 
@@ -442,7 +442,7 @@ public class SharedNodeCloudTest {
             fail();
         } catch (ActionFailed.RequestFailed e) {
             assertThat(e.toString(), containsString("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST"));
-            assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Misunderstand definition"));
+            assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Invalid node definition"));
         }
     }
 
