@@ -130,6 +130,10 @@ public class GridTest {
         BuildWithDetails b = job.getBuildByNumber(1).details();
         assertThat(b.getResult(), equalTo(BuildResult.SUCCESS));
 
+        do {
+            Thread.sleep(1000);
+            b = job.getBuildByNumber(2).details();
+        } while (!b.isBuilding());
         queuedBlocker.complete();
         do {
             Thread.sleep(1000);
