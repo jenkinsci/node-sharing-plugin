@@ -7,4 +7,5 @@
   </launcher>
   <label>wipeout</label>
   <skipWipeout>false</skipWipeout>
+  <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

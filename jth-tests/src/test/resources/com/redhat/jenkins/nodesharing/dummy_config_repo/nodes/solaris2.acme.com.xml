@@ -6,4 +6,5 @@
     <agentCommand />
   </launcher>
   <label>solaris solaris10 sparc</label>
+  <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>
