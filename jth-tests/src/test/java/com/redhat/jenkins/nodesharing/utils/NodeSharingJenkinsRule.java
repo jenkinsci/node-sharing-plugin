@@ -245,11 +245,11 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return bb;
     }
 
-    protected static class BlockingTask extends MockTask {
-        final OneShotEvent running = new OneShotEvent();
-        final OneShotEvent done = new OneShotEvent();
+    public static class BlockingTask extends MockTask {
+        public final OneShotEvent running = new OneShotEvent();
+        public final OneShotEvent done = new OneShotEvent();
 
-        BlockingTask(Label label) {
+        public BlockingTask(Label label) {
             super(DUMMY_OWNER, label);
         }
 
@@ -267,9 +267,9 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     /**
      * Mock task to represent fake reservation task. To be run on orchestrator only.
      */
-    protected static class MockTask extends ReservationTask {
-        final ShareableComputer actuallyRunOn[] = new ShareableComputer[1];
-        MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
+    public static class MockTask extends ReservationTask {
+        private final ShareableComputer actuallyRunOn[] = new ShareableComputer[] { null };
+        public MockTask(@Nonnull ExecutorJenkins owner, @Nonnull Label label) {
             super(owner, label, "MockTask", 1L);
         }
 
@@ -282,6 +282,10 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                     perform();
                 }
             };
+        }
+
+        public ShareableComputer actuallyRunOn() {
+            return actuallyRunOn[0];
         }
 
         public void perform() {
@@ -302,11 +306,11 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return cloud;
     }
 
-    static class BlockingCommandLauncher extends CommandLauncher {
-        final OneShotEvent start = new OneShotEvent();
-        final OneShotEvent end = new OneShotEvent();
+    public static class BlockingCommandLauncher extends CommandLauncher {
+        public final OneShotEvent start = new OneShotEvent();
+        public final OneShotEvent end = new OneShotEvent();
 
-        BlockingCommandLauncher(String command) {
+        public BlockingCommandLauncher(String command) {
             super(command);
         }
 

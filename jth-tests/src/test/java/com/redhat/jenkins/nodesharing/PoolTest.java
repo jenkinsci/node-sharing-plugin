@@ -193,12 +193,12 @@ public class PoolTest {
         Queue.Item item = task.schedule();
         assertEquals("jenkins42", item.task.getFullDisplayName());
         item.getFuture().get();
-        Assert.assertEquals(j.getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
+        Assert.assertEquals(j.getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn());
 
 
         task = new MockTask(j.DUMMY_OWNER, Label.get("windows"));
         task.schedule().getFuture().get();
-        MatcherAssert.assertThat(task.actuallyRunOn[0].getName(), startsWith("win"));
+        MatcherAssert.assertThat(task.actuallyRunOn().getName(), startsWith("win"));
 
         // Never schedule labels we do not serve - including empty one
         task = new MockTask(j.DUMMY_OWNER, Label.get(""));
