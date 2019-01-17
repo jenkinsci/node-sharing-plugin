@@ -93,7 +93,7 @@ public class ExternalJenkinsRule implements TestRule {
 
         Fixture fixture = fixtures.get(name).get();
         try {
-            fixture.waitUntilReady(15);
+            fixture.waitUntilReady(30);
         } catch (Exception e) {
             System.err.println(fixture.log.readToString());
             throw new AssertionError(e.getMessage());
