@@ -138,24 +138,22 @@ public class GridTest {
         assertThat(b.getResult(), equalTo(BuildResult.SUCCESS));
     }
 
+    // From JenkinsTriggerHelper
     private BuildWithDetails triggerJobAndWaitUntilStarted(JenkinsServer server, String jobName, QueueReference queueRef) throws IOException, InterruptedException {
         JobWithDetails job;
         job = server.getJob(jobName);
         QueueItem queueItem = server.getQueueItem(queueRef);
         while (!queueItem.isCancelled() && job.isInQueue()) {
-            // TODO: May be we should make this configurable?
             Thread.sleep(200);
             job = server.getJob(jobName);
             queueItem = server.getQueueItem(queueRef);
         }
 
         if (queueItem.isCancelled()) {
-            // TODO: Check if this is ok?
             // We will get the details of the last build. NOT of the cancelled
             // build, cause there is no information about that available cause
             // it does not exist.
             BuildWithDetails result = new BuildWithDetails(job.getLastBuild().details());
-            // TODO: Should we add more information here?
             result.setResult(BuildResult.CANCELLED);
             return result;
         }

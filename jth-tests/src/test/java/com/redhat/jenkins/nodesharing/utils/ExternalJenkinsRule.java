@@ -37,6 +37,7 @@ import org.junit.runners.model.Statement;
 
 import javax.annotation.Nonnull;
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -405,13 +406,15 @@ public class ExternalJenkinsRule implements TestRule {
     /**
      * External Jenkins instance controlled by us.
      */
-    public static class Fixture {
+    public static class Fixture implements Closeable {
         private final @Nonnull ExternalFixture annotation;
         private final @Nonnull Process process;
         private final @Nonnull FilePath home;
         private final @Nonnull FilePath log;
         private final @Nonnull URI uri;
+
         private volatile boolean ready = false;
+        private final @Nonnull Map<String, JenkinsServer> clients = new HashMap<>();
 
         public Fixture(@Nonnull ExternalFixture annotation, @Nonnull Process process, @Nonnull FilePath home, @Nonnull FilePath log, @Nonnull URI url) {
             this.annotation = annotation;
@@ -437,14 +440,32 @@ public class ExternalJenkinsRule implements TestRule {
             return log;
         }
 
-        // TODO close the client when test ends
         public @Nonnull JenkinsServer getClient(String username, String password) {
-            return new JenkinsServer(uri, username, password);
+            //noinspection IOResourceOpenedButNotSafelyClosed
+            return clients.computeIfAbsent(
+                    username + System.lineSeparator() + password,
+                    k -> new JenkinsServer(uri, username, password)
+            );
         }
 
-        // TODO close the client when test ends
         public @Nonnull JenkinsServer getClient() {
-            return new JenkinsServer(uri);
+            //noinspection IOResourceOpenedButNotSafelyClosed
+            return clients.computeIfAbsent(
+                    "",
+                    k -> new JenkinsServer(uri)
+            );
+        }
+
+        @Override
+        public void close() {
+            for (JenkinsServer client : clients.values()) {
+                try {
+                    client.close();
+                } catch (Exception e) {
+                    // Resume the loop so the remaining connections are cleaned too
+                    e.printStackTrace();
+                }
+            }
         }
 
         private void waitUntilReady(int seconds) throws InterruptedException, TimeoutException {
