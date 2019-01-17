@@ -29,161 +29,158 @@ import com.offbytwo.jenkins.model.BuildResult;
 import com.offbytwo.jenkins.model.BuildWithDetails;
 import com.offbytwo.jenkins.model.Job;
 import com.offbytwo.jenkins.model.JobWithDetails;
-import com.redhat.jenkins.nodesharingbackend.Pool;
-import com.redhat.jenkins.nodesharingbackend.ReservationTask;
-import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
+import com.offbytwo.jenkins.model.QueueItem;
+import com.offbytwo.jenkins.model.QueueReference;
+import com.redhat.jenkins.nodesharing.utils.ExternalFixture;
+import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
+import com.redhat.jenkins.nodesharing.utils.GridRule;
+import com.redhat.jenkins.nodesharing.utils.GridRule.Executor;
+import com.redhat.jenkins.nodesharing.utils.GridRule.Orchestrator;
 import hudson.FilePath;
-import hudson.matrix.AxisList;
-import hudson.matrix.LabelExpAxis;
-import hudson.matrix.MatrixProject;
-import hudson.matrix.TextAxis;
-import hudson.model.Executor;
-import hudson.model.FreeStyleProject;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.model.Result;
-import hudson.tasks.BuildTrigger;
-import hudson.tasks.Shell;
-import hudson.triggers.TimerTrigger;
-import org.hamcrest.Matchers;
-import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.HashSet;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ScheduledFuture;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class GridTest {
+public class JcascTest {
 
-    @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
-    @Rule public ExternalGridRule grid = new ExternalGridRule(j);
+    public @Rule TemporaryFolder tmp = new TemporaryFolder();
+    public @Rule GridRule jcr = new GridRule(tmp);
 
     @Test
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",   injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
+    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
+    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
+    public void smoke() throws Exception {
+        ExternalJenkinsRule.Fixture o = jcr.fixture("o");
+        ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
+        ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
+        ExternalJenkinsRule.Fixture e2 = jcr.fixture("e2");
+
+        for (ExternalJenkinsRule.Fixture fixture : Arrays.asList(e0, e1, e2)) {
+            for (int i = 0; i < 5; i++) {
+                try {
+                    Thread.sleep(10000);
+                    System.out.println('.');
+                    verifyBuildHasRun(fixture, "sol", "win");
+                } catch (AssertionError ex) {
+                    if (i == 4) throw ex;
+                    // Retry
+                }
+            }
+        }
+    }
+
+    private void verifyBuildHasRun(ExternalJenkinsRule.Fixture executor, String... jobNames) throws IOException {
+        JenkinsServer jenkinsServer = executor.getClient();
+        Map<String, Job> jobs = jenkinsServer.getJobs();
+        for (String jobName : jobNames) {
+            JobWithDetails job = jobs.get(jobName).details();
+            assertThat(job.getNextBuildNumber(), greaterThanOrEqualTo(2));
+            Build solBuild = job.getLastFailedBuild();
+            if (solBuild != Build.BUILD_HAS_NEVER_RUN) {
+                fail("All builds of " + jobName + " succeeded on " + executor.getUri() + ":\n" + solBuild.details().getConsoleOutputText());
+            }
+        }
+    }
+
+    @Test
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-restartOrchestrator.yaml", injectPlugins = "matrix-auth")
     public void restartOrchestrator() throws Exception {
-        GitClient repo = grid.masterGrid(j.jenkins);
+        ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
+        JenkinsServer executorClient = e0.getClient("admin", "admin");
+        JobWithDetails job = executorClient.getJob("running");
+        FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
+        BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient, "running", job.build(runningBlocker.buildParams()));
 
-        FreeStyleProject p = j.jenkins.createProject(FreeStyleProject.class, "p");
-        FileBuildBlocker blocker = new FileBuildBlocker();
-        p.getBuildersList().add(blocker.getShellStep());
-        p.setAssignedLabel(Label.get("solaris11"));
-        URL executorUrl = grid.executor(repo).get();
-        p.delete();
+        FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
+        QueueReference qr = job.build(queuedBlocker.buildParams());
+        executorClient.getQueueItem(qr);
 
-        Pool.Updater.getInstance().doRun();
-        assertEquals(1, Pool.getInstance().getConfig().getJenkinses().size());
+        job = executorClient.getJob("running");
+        assertTrue(running.isBuilding());
+        assertTrue(job.isInQueue());
 
-        // When the build is running and one more is queued
-        JenkinsServer exec = new JenkinsServer(executorUrl.toURI(), "admin", "admin");
-        exec.getJob("p").build();
+        JenkinsServer orchestratorClient = jcr.fixture("o").getClient("admin", "admin");
 
-        Build build1 = waitForBuildStarted(exec, "p", 1);
-        exec.getJob("p").build();
-
-        ShareableComputer computer = j.getComputer("solaris1.acme.com");
-        while (computer.isIdle()) { // until queue is propagated and build scheduled
+        // Wait until restarted
+        orchestratorClient.restart(false);
+        while(!orchestratorClient.isRunning()) {
             Thread.sleep(1000);
         }
 
-        // It should pick the state up from executors
-        assertNotNull("Build in progress on orchestrator side: " + ShareableComputer.getAllReservations(), computer.getReservation());
+        runningBlocker.complete();
+        do {
+            Thread.sleep(1000);
+            job = executorClient.getJob("running");
+        } while (job.isInQueue());
 
-        // When orchestrator is restarted
-        // TODO use real restart here
-        System.out.println("Simulating restart");
-        j.jenkins.getQueue().clear();
-        for (Node node : j.jenkins.getNodes()) {
-            for (Executor executor : node.toComputer().getExecutors()) {
-                executor.interrupt(Result.ABORTED);
-            }
-            j.jenkins.removeNode(node);
-        }
-        Pool.ensureOrchestratorIsUpToDateWithTheGrid();
-        assertThat(Pool.ADMIN_MONITOR.getErrors().values(), Matchers.emptyIterable());
-        Thread.sleep(1000);
-        computer = j.getComputer("solaris1.acme.com");
+        BuildWithDetails b = job.getBuildByNumber(1).details();
+        assertThat(b.getResult(), equalTo(BuildResult.SUCCESS));
 
-        // Then it should pick the state up from executors
-        assertNotNull("Build was not rescheduled by ReservationVerifier: " + ShareableComputer.getAllReservations(), computer.getReservation());
-
-        blocker.complete();
-        BuildWithDetails build1details = waitForBuildComplete(build1);
-        assertEquals(BuildResult.SUCCESS, build1details.getResult());
-
-        Build build2 = waitForBuildStarted(exec, "p", 2);
-        assertEquals(1, j.getActiveReservations().size());
-        blocker.complete();
-        BuildWithDetails build2details = waitForBuildComplete(build2);
-        assertEquals(BuildResult.SUCCESS, build2details.getResult());
-
-        assertThat(j.getActiveReservations(), Matchers.<ReservationTask.ReservationExecutable>emptyIterable());
-        assertThat(j.getQueuedReservations(), Matchers.<ReservationTask>emptyIterable());
+        queuedBlocker.complete();
+        do {
+            Thread.sleep(1000);
+            b = job.getBuildByNumber(2).details();
+        } while (b.isBuilding());
+        assertThat(b.getResult(), equalTo(BuildResult.SUCCESS));
     }
 
-    private @Nonnull BuildWithDetails waitForBuildComplete(Build build) throws IOException, InterruptedException {
-        BuildWithDetails details = build.details();
-        while (details.isBuilding()) {
-            Thread.sleep(2000);
-            details = build.details();
+    private BuildWithDetails triggerJobAndWaitUntilStarted(JenkinsServer server, String jobName, QueueReference queueRef) throws IOException, InterruptedException {
+        JobWithDetails job;
+        job = server.getJob(jobName);
+        QueueItem queueItem = server.getQueueItem(queueRef);
+        while (!queueItem.isCancelled() && job.isInQueue()) {
+            // TODO: May be we should make this configurable?
+            Thread.sleep(200);
+            job = server.getJob(jobName);
+            queueItem = server.getQueueItem(queueRef);
         }
-        return details;
+
+        if (queueItem.isCancelled()) {
+            // TODO: Check if this is ok?
+            // We will get the details of the last build. NOT of the cancelled
+            // build, cause there is no information about that available cause
+            // it does not exist.
+            BuildWithDetails result = new BuildWithDetails(job.getLastBuild().details());
+            // TODO: Should we add more information here?
+            result.setResult(BuildResult.CANCELLED);
+            return result;
+        }
+
+        job = server.getJob(jobName);
+        Build lastBuild = job.getLastBuild();
+        return lastBuild.details();
     }
 
-    private Build waitForBuildStarted(JenkinsServer jenkins, String job, int number) throws Exception {
-        Build build = null;
-        for (;;) {
-            if (build == null) {
-                build = jenkins.getJob(job).getBuildByNumber(number);
-            }
-            if (build != null && build.details().isBuilding()) {
-                return build;
-            }
-            Thread.sleep(500);
-        }
-    }
-
-    /**
-     * Create shell build step that can be completed by updating a file.
-     */
     public static final class FileBuildBlocker {
 
         private final FilePath tempFile;
 
-        public FileBuildBlocker() throws IOException, InterruptedException {
-            tempFile = new FilePath(File.createTempFile("node-sharing", getClass().getSimpleName()));
+        public FileBuildBlocker(TemporaryFolder tmp) throws IOException, InterruptedException {
+            tempFile = new FilePath(tmp.newFile());
             tempFile.write("Created", "UTF-8");
-        }
-
-        public Shell getShellStep() {
-            return new Shell(
-                    "#!/usr/bin/env bash -x\n" + // Ensure bash is used in case it would not be the default shell
-                    "echo 'Started' > '" + tempFile.getRemote() + "'\n" +
-                    "while true; do\n" +
-                    "  if [ \"$(cat '" + tempFile.getRemote() + "')\" == 'Done' ]; then\n" +
-                    "    rm '" + tempFile.getRemote() + "'\n" +
-                    "    exit 0\n" +
-                    "  fi\n" +
-                    "  sleep 1\n" +
-                    "done\n"
-            );
         }
 
         public void complete() throws IOException, InterruptedException {
             assertThat(tempFile.readToString(), equalTo("Started\n"));
             tempFile.write("Done", "UTF-8");
+        }
+
+        public Map<String, String> buildParams() {
+            return Collections.singletonMap("FILENAME", tempFile.getRemote());
         }
     }
 }

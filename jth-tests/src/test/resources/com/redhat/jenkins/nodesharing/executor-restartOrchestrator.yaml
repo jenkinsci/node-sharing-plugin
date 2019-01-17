@@ -42,4 +42,23 @@ credentials:
 
 jobs:
   - script: >
-
+      job("running") {
+          label("solaris11")
+          parameters {
+              textParam('FILENAME', '', '')
+          }
+          steps {
+              shell('''
+                  #!/usr/bin/env bash -x // Ensure bash is used in case it would not be the default shell
+                  echo 'Started' > $FILENAME
+                  while true; do
+                    if [ "$(cat $FILENAME)" == 'Done' ]; then
+                      rm $FILENAME
+                      exit 0
+                    fi
+                    sleep 1
+                  done
+              ''')
+          }
+          // TODO blocking builder
+      }

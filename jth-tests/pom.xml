@@ -41,7 +41,7 @@
         <dependency>
             <groupId>com.offbytwo.jenkins</groupId>
             <artifactId>jenkins-client</artifactId>
-            <version>0.3.7</version>
+            <version>0.3.8</version>
             <scope>test</scope>
             <exclusions> <!-- clashes with org.jenkins-ci.dom4j:dom4j -->
                 <exclusion>
@@ -89,6 +89,18 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>job-dsl</artifactId>
             <version>1.66</version>
+        </dependency>
+
+        <!-- Upper bound -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+            <version>4.4.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-all</artifactId>
+            <version>2.4.8</version>
         </dependency>
     </dependencies>
 

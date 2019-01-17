@@ -132,12 +132,16 @@ public class ExternalJenkinsRule implements TestRule {
     /**
      * Pause the execution leaving the fixtures running.
      */
-    public void interactiveBreak() throws Exception {
-        for (Future<Fixture> future : fixtures.values()) {
-            Fixture f = future.get();
-            System.out.println(f.getAnnotation().name() + " is running at " + f.getUri() + " logging to " + f.getLog().getRemote());
+    public void interactiveBreak() {
+        try {
+            for (Future<Fixture> future : fixtures.values()) {
+                Fixture f = future.get();
+                System.out.println(f.getAnnotation().name() + " is running at " + f.getUri() + " logging to " + f.getLog().getRemote());
+            }
+            new BufferedReader(new InputStreamReader(System.in)).readLine();
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            throw new Error(e);
         }
-        new BufferedReader(new InputStreamReader(System.in)).readLine();
     }
 
     // Callbacks
@@ -433,10 +437,12 @@ public class ExternalJenkinsRule implements TestRule {
             return log;
         }
 
+        // TODO close the client when test ends
         public @Nonnull JenkinsServer getClient(String username, String password) {
             return new JenkinsServer(uri, username, password);
         }
 
+        // TODO close the client when test ends
         public @Nonnull JenkinsServer getClient() {
             return new JenkinsServer(uri);
         }
