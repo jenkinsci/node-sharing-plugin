@@ -23,10 +23,10 @@
  */
 package com.redhat.jenkins.nodesharing;
 
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingbackend.Dashboard;
 import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.recipes.WithTimeout;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;

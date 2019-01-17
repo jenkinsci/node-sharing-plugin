@@ -21,12 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharing.utils;
 
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import com.redhat.jenkins.nodesharing.ExecutorJenkins;
+import com.redhat.jenkins.nodesharing.RestEndpoint;
+import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharing.utils.TestUtils;
 import com.redhat.jenkins.nodesharingbackend.Pool;
@@ -125,13 +128,13 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return mas;
     }
 
-    protected @Nonnull ShareableComputer getComputer(String name) {
+    public @Nonnull ShareableComputer getComputer(String name) {
         ShareableComputer shareableComputer = (ShareableComputer) getNode(name).toComputer();
         assert shareableComputer != null;
         return shareableComputer;
     }
 
-    protected @Nonnull ShareableNode getNode(String name) {
+    public @Nonnull ShareableNode getNode(String name) {
         Node node = jenkins.getNode(name);
         assertNotNull("No such node " + name + ". Have: " + jenkins.getNodes(), node);
         return (ShareableNode) node;
@@ -144,7 +147,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     /**
      * Populate config repo making current JVM both Orchestrator and Executor.
      */
-    protected GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
+    public GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
         TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
@@ -171,7 +174,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
-    void disableLocalExecutor(GitClient gitClient) throws Exception {
+    public void disableLocalExecutor(GitClient gitClient) throws Exception {
         // Replace the inner Jenkins with one from different URL as removing the file would cause git to remove the empty
         // directory breaking repo validation
         TestUtils.declareExecutors(gitClient, singletonMap("this-one", getURL() + "/defunc"));
@@ -185,7 +188,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return "rest-cred-id";
     }
 
-    protected List<ReservationTask> getQueuedReservations() {
+    public List<ReservationTask> getQueuedReservations() {
         ArrayList<ReservationTask> out = new ArrayList<>();
         for (Queue.Item item : jenkins.getQueue().getItems()) {
             if (item.task instanceof ReservationTask) {
@@ -196,7 +199,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return out;
     }
 
-    protected List<ReservationTask.ReservationExecutable> getActiveReservations() {
+    public List<ReservationTask.ReservationExecutable> getActiveReservations() {
         ArrayList<ReservationTask.ReservationExecutable> out = new ArrayList<>();
         for (Computer c : jenkins.getComputers()) {
             if (c instanceof ShareableComputer) {
@@ -235,7 +238,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
         return bb;
     }
 
-    @Nonnull private BlockingBuilder getBlockingProject() throws IOException {
+    private @Nonnull BlockingBuilder getBlockingProject() throws IOException {
         FreeStyleProject p = createFreeStyleProject();
         BlockingBuilder bb = new BlockingBuilder(p);
         p.getBuildersList().add(bb);
@@ -322,7 +325,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     /**
      * Trigger workload update now from executor
      */
-    protected void reportWorkloadToOrchestrator() {
+    public void reportWorkloadToOrchestrator() {
         WorkloadReporter.Detector.all().get(WorkloadReporter.Detector.class).run();
     }
 }

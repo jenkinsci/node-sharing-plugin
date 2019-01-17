@@ -24,7 +24,6 @@
 package com.redhat.jenkins.nodesharing.utils;
 
 import com.redhat.jenkins.nodesharing.NodeDefinition;
-import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
