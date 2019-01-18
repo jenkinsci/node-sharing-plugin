@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.offbytwo.jenkins.JenkinsServer;
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Functions;
 import hudson.remoting.Which;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
@@ -34,6 +35,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.junit.runners.model.TestTimedOutException;
 
 import javax.annotation.Nonnull;
 import java.io.BufferedReader;
@@ -43,6 +45,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.annotation.Annotation;
+import java.lang.management.ThreadInfo;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -223,10 +226,22 @@ public class ExternalJenkinsRule implements TestRule {
             }
             try {
                 base.evaluate();
+            } catch (TestTimedOutException ex) {
+                dumpThreads();
+                throw ex;
             } finally {
                 for (Future<Fixture> fixture : ExternalJenkinsRule.this.fixtures.values()) {
                     terminate(fixture.get());
                 }
+            }
+        }
+
+        // From JenkinsRule
+        private void dumpThreads() {
+            ThreadInfo[] threadInfos = Functions.getThreadInfos();
+            Functions.ThreadGroupMap m = Functions.sortThreadsAndGetGroupMap(threadInfos);
+            for (ThreadInfo ti : threadInfos) {
+                System.err.println(Functions.dumpThreadInfo(ti, m));
             }
         }
 

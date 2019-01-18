@@ -54,10 +54,12 @@ import static org.junit.Assert.fail;
 
 public class GridTest {
 
+    private static final int TEST_TIMEOUT = 3 * 60 * 1000;
+
     public @Rule TemporaryFolder tmp = new TemporaryFolder();
     public @Rule GridRule jcr = new GridRule(tmp);
 
-    @Test
+    @Test(timeout = TEST_TIMEOUT)
     @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",   injectPlugins = "matrix-auth")
     @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
     @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
@@ -95,7 +97,7 @@ public class GridTest {
         }
     }
 
-    @Test
+    @Test(timeout = TEST_TIMEOUT)
     @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
     @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-restartOrchestrator.yaml", injectPlugins = "matrix-auth")
     public void restartOrchestrator() throws Exception {
