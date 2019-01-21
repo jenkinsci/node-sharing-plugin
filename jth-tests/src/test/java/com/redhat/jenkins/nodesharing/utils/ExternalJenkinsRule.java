@@ -323,7 +323,7 @@ public class ExternalJenkinsRule implements TestRule {
             pb.environment().putAll(startWithEnvVars(envVars, fixture));
 
             final File sutLog = allocateLogFile(fixture);
-            pb.redirectOutput(sutLog);
+            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(sutLog));
             pb.redirectErrorStream(true);
             final Process process = pb.start();
 

@@ -129,7 +129,6 @@ public class ReservationVerifierTest {
         }
 
         assertThat(l, notLogged(Level.WARNING, ".*"));
-        assertThat(l, notLogged(Level.INFO, ".*"));
     }
 
     @Test // Case: NC1
