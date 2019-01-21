@@ -71,6 +71,7 @@ public class GridTest {
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
         ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
         ExternalJenkinsRule.Fixture e2 = jcr.fixture("e2");
+        jcr.fixture("o"); // Wait for orchestrator to get up
 
         for (ExternalJenkinsRule.Fixture fixture : Arrays.asList(e0, e1, e2)) {
             for (int i = 0; ; i++) {
@@ -81,7 +82,7 @@ public class GridTest {
                     return;
                 } catch (AssertionError ex) {
                     if (i == 4) {
-                        TimeoutException tex = new TimeoutException("Build did notcompleted in time");
+                        TimeoutException tex = new TimeoutException("Build did not completed in time");
                         tex.initCause(ex);
                         throw tex;
                     }
@@ -133,6 +134,7 @@ public class GridTest {
 
         job = executorClient.getJob("running");
         assertTrue(job.isInQueue());
+        assertTrue(job.getBuildByNumber(1).details().isBuilding());
         runningBlocker.complete();
         await(10000, () -> executorClient.getJob("running").getBuildByNumber(1).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
 
