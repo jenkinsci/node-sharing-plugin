@@ -113,6 +113,8 @@ public class ReservationVerifier extends PeriodicWork {
         plans.add(computePlannedFixup(config, api));
         if (plans.get(0).isEmpty()) return; // If there is nothing to do, no need to doublecheck
 
+        LOGGER.info("Collecting more samples to recover the grid state");
+
         try {
             Thread.sleep(RestEndpoint.TIMEOUT * 2);
         } catch (InterruptedException e) {

@@ -101,7 +101,6 @@ public class ReservationVerifierTest {
         }
 
         assertThat(l, notLogged(Level.WARNING, ".*"));
-        assertThat(l, notLogged(Level.INFO, ".*"));
     }
 
     @Test @WithTimeout(300) // Case: A1, A2

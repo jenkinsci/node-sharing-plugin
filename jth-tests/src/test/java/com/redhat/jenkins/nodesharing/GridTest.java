@@ -45,6 +45,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -65,7 +68,6 @@ public class GridTest {
     @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
     @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = {"matrix-auth", "matrix-project"})
     public void smoke() throws Exception {
-        ExternalJenkinsRule.Fixture o = jcr.fixture("o");
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
         ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
         ExternalJenkinsRule.Fixture e2 = jcr.fixture("e2");
@@ -115,33 +117,39 @@ public class GridTest {
         assertTrue(running.isBuilding());
         assertTrue(job.isInQueue());
 
-        JenkinsServer orchestratorClient = jcr.fixture("o").getClient("admin", "admin");
+        ExternalJenkinsRule.Fixture o = jcr.fixture("o");
+        JenkinsServer orchestratorClient = o.getClient("admin", "admin");
 
         // Wait until restarted
         orchestratorClient.restart(false);
-        while(!orchestratorClient.isRunning()) {
-            Thread.sleep(1000);
-        }
+        // Reservation verifier needs RestEndpoint#TIMEOUT * 2 to recover the state so this is going to take a while
+        await(80000, orchestratorClient::isRunning, throwable -> {
+            dumpFixtureLog(o);
+            return "Orchestrator have not started responding in time after restart";
+        });
 
+        job = executorClient.getJob("running");
+        assertTrue(job.isInQueue());
         runningBlocker.complete();
-        do {
-            Thread.sleep(1000);
-            job = executorClient.getJob("running");
-        } while (job.isInQueue());
+        await(3000, () -> executorClient.getJob("running").getBuildByNumber(1).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
 
-        BuildWithDetails b = job.getBuildByNumber(1).details();
-        assertThat(b.getResult(), equalTo(BuildResult.SUCCESS));
+        await(30000, () -> executorClient.getJob("running").getBuildByNumber(2).details().isBuilding(), throwable -> "Build not started in time");
 
-        do {
-            Thread.sleep(1000);
-            b = job.getBuildByNumber(2).details();
-        } while (!b.isBuilding());
         queuedBlocker.complete();
-        do {
-            Thread.sleep(1000);
-            b = job.getBuildByNumber(2).details();
-        } while (b.isBuilding());
-        assertThat(b.getResult(), equalTo(BuildResult.SUCCESS));
+        await(3000, () -> executorClient.getJob("running").getBuildByNumber(2).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+    }
+
+    private void dumpFixtureLog(ExternalJenkinsRule.Fixture o) {
+        try {
+            System.err.println("Orchestrator ouput:");
+            o.getLog().copyTo(System.err);
+            System.out.println("===");
+        } catch (IOException e) {
+            throw new Error(e);
+        } catch (InterruptedException e) {
+            // Do not throw away the interrupted bit
+            Thread.currentThread().interrupt();
+        }
     }
 
     // From JenkinsTriggerHelper
@@ -167,6 +175,32 @@ public class GridTest {
         job = server.getJob(jobName);
         Build lastBuild = job.getLastBuild();
         return lastBuild.details();
+    }
+
+    private void await(int milliseconds, Callable<Boolean> until, Function<Throwable, String> onTimeout) throws InterruptedException, TimeoutException {
+        long end = System.currentTimeMillis() + milliseconds;
+        long step = milliseconds / 10;
+
+        Throwable last = null;
+        for(;;) {
+            try {
+                Boolean call = until.call();
+                if (Boolean.TRUE.equals(call)) return;
+            } catch (InterruptedException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                last = ex;
+            }
+
+            if (System.currentTimeMillis() + step > end) break;
+
+            Thread.sleep(step);
+        }
+
+        String diagnosis = onTimeout.apply(last);
+        TimeoutException timeoutException = new TimeoutException(diagnosis);
+        timeoutException.initCause(last);
+        throw timeoutException;
     }
 
     public static final class FileBuildBlocker {
