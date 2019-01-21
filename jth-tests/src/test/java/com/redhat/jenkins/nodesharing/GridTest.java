@@ -63,9 +63,9 @@ public class GridTest {
     public @Rule GridRule jcr = new GridRule(tmp);
 
     @Test(timeout = TEST_TIMEOUT)
-    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-project")
-    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-project")
-    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-project")
+    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-auth")
     @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",   injectPlugins = "matrix-auth")
     public void smoke() throws Exception {
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
@@ -80,7 +80,11 @@ public class GridTest {
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
                 } catch (AssertionError ex) {
-                    if (i == 4) throw ex;
+                    if (i == 4) {
+                        TimeoutException tex = new TimeoutException("Build did notcompleted in time");
+                        tex.initCause(ex);
+                        throw tex;
+                    }
                     // Retry
                 }
             }
