@@ -63,10 +63,10 @@ public class GridTest {
     public @Rule GridRule jcr = new GridRule(tmp);
 
     @Test(timeout = TEST_TIMEOUT)
-    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",   injectPlugins = "matrix-auth")
     @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-project")
     @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-project")
     @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml", injectPlugins = "matrix-project")
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",   injectPlugins = "matrix-auth")
     public void smoke() throws Exception {
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
         ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
@@ -99,8 +99,8 @@ public class GridTest {
     }
 
     @Test(timeout = TEST_TIMEOUT)
-    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
     @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-restartOrchestrator.yaml", injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
     public void restartOrchestrator() throws Exception {
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
         JenkinsServer executorClient = e0.getClient("admin", "admin");
@@ -130,12 +130,12 @@ public class GridTest {
         job = executorClient.getJob("running");
         assertTrue(job.isInQueue());
         runningBlocker.complete();
-        await(3000, () -> executorClient.getJob("running").getBuildByNumber(1).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+        await(10000, () -> executorClient.getJob("running").getBuildByNumber(1).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
 
         await(30000, () -> executorClient.getJob("running").getBuildByNumber(2).details().isBuilding(), throwable -> "Build not started in time");
 
         queuedBlocker.complete();
-        await(3000, () -> executorClient.getJob("running").getBuildByNumber(2).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+        await(10000, () -> executorClient.getJob("running").getBuildByNumber(2).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
     }
 
     private void dumpFixtureLog(ExternalJenkinsRule.Fixture o) {
