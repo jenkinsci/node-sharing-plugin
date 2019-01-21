@@ -25,12 +25,16 @@ package com.redhat.jenkins.nodesharing.utils;
 
 import com.google.common.collect.Lists;
 import com.offbytwo.jenkins.JenkinsServer;
+import com.offbytwo.jenkins.client.JenkinsHttpClient;
+import com.offbytwo.jenkins.client.JenkinsHttpConnection;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Functions;
 import hudson.remoting.Which;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -459,7 +463,7 @@ public class ExternalJenkinsRule implements TestRule {
             //noinspection IOResourceOpenedButNotSafelyClosed
             return clients.computeIfAbsent(
                     username + System.lineSeparator() + password,
-                    k -> new JenkinsServer(uri, username, password)
+                    k -> new JenkinsServer(new JenkinsHttpClient(uri, getClientBuilder(), username, password))
             );
         }
 
@@ -467,8 +471,18 @@ public class ExternalJenkinsRule implements TestRule {
             //noinspection IOResourceOpenedButNotSafelyClosed
             return clients.computeIfAbsent(
                     "",
-                    k -> new JenkinsServer(uri)
+                    k -> new JenkinsServer(new JenkinsHttpClient(uri, getClientBuilder()))
             );
+        }
+
+        private HttpClientBuilder getClientBuilder() {
+            int connectTimeout = 5000;
+            RequestConfig config = RequestConfig.custom()
+                    .setConnectTimeout(connectTimeout)
+                    .setConnectionRequestTimeout(connectTimeout)
+                    .setSocketTimeout(connectTimeout)
+                    .build();
+            return HttpClientBuilder.create().setDefaultRequestConfig(config);
         }
 
         @Override
