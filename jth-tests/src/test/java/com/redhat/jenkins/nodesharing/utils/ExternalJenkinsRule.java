@@ -100,7 +100,7 @@ public class ExternalJenkinsRule implements TestRule {
 
         Fixture fixture = fixtures.get(name).get();
         try {
-            fixture.waitUntilReady(30);
+            fixture.waitUntilReady(fixtureTimeout(fixture.getAnnotation()));
         } catch (Exception e) {
             System.err.println(fixture.log.readToString());
             throw new AssertionError(e.getMessage());
@@ -205,6 +205,15 @@ public class ExternalJenkinsRule implements TestRule {
      */
     protected List<String> startWithJenkinsArguments(List<String> defaults, ExternalFixture fixture) {
         return defaults;
+    }
+
+    /**
+     * Number of seconds to wait for given fixture to be up and running.
+     * @param fixture the fixture provisioned.
+     * @return Number of seconds to wait.
+     */
+    protected int fixtureTimeout(ExternalFixture fixture) {
+        return 30;
     }
 
     // Internals

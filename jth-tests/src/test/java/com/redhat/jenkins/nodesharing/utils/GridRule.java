@@ -130,6 +130,11 @@ public class GridRule extends ExternalJenkinsRule {
         return defaults;
     }
 
+    @Override
+    protected int fixtureTimeout(ExternalFixture fixture) {
+        return 60;
+    }
+
     public interface Orchestrator extends ExternalFixture.Role {}
     public interface Executor extends ExternalFixture.Role {}
 }
