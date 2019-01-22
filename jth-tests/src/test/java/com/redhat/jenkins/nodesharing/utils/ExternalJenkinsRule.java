@@ -26,7 +26,6 @@ package com.redhat.jenkins.nodesharing.utils;
 import com.google.common.collect.Lists;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.client.JenkinsHttpClient;
-import com.offbytwo.jenkins.client.JenkinsHttpConnection;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Functions;
@@ -315,8 +314,9 @@ public class ExternalJenkinsRule implements TestRule {
             int port = randomLocalPort();
             String url = "http://localhost:" + port + "/";
 
+            String java = System.getProperty("java.home").replaceAll("/jre/?$", "") + "/bin/java";
             ArrayList<String> procArgs = new ArrayList<>();
-            procArgs.add("java");
+            procArgs.add(java);
             procArgs.addAll(startWithJvmOptions(new ArrayList<>(), fixture));
             procArgs.add("-jar");
             procArgs.add(jenkinsWar.getAbsolutePath());
