@@ -82,7 +82,7 @@ public class GridTest {
                     return;
                 } catch (AssertionError ex) {
                     if (i == 4) {
-                        TimeoutException tex = new TimeoutException("Build did not completed in time");
+                        TimeoutException tex = new TimeoutException("Build not completed in time");
                         tex.initCause(ex);
                         throw tex;
                     }
@@ -134,14 +134,21 @@ public class GridTest {
 
         job = executorClient.getJob("running");
         assertTrue(job.isInQueue());
-        assertTrue(job.getBuildByNumber(1).details().isBuilding());
+        assertTrue(buildDetails(job, 1).isBuilding());
         runningBlocker.complete();
-        await(10000, () -> executorClient.getJob("running").getBuildByNumber(1).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+        await(10000,
+                () -> buildDetails(executorClient.getJob("running"), 1).getResult() == BuildResult.SUCCESS,
+                throwable -> "Build not completed in time: " +  buildDetails(executorClient.getJob("running"), 1).getResult()
+        );
 
-        await(30000, () -> executorClient.getJob("running").getBuildByNumber(2).details().isBuilding(), throwable -> "Build not started in time");
+        await(30000, () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(), throwable -> "Build not started in time");
 
         queuedBlocker.complete();
-        await(10000, () -> executorClient.getJob("running").getBuildByNumber(2).details().getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+        await(10000, () -> buildDetails(executorClient.getJob("running"), 2).getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+    }
+
+    private BuildWithDetails buildDetails(JobWithDetails running, int i) throws IOException {
+        return running.getBuildByNumber(i).details();
     }
 
     private void dumpFixtureLog(ExternalJenkinsRule.Fixture o) {
@@ -182,7 +189,7 @@ public class GridTest {
         return lastBuild.details();
     }
 
-    private void await(int milliseconds, Callable<Boolean> until, Function<Throwable, String> onTimeout) throws InterruptedException, TimeoutException {
+    private void await(int milliseconds, Callable<Boolean> until, OnTimeoutHandler<Throwable, String> onTimeout) throws Exception {
         long end = System.currentTimeMillis() + milliseconds;
         long step = milliseconds / 10;
 
@@ -202,7 +209,7 @@ public class GridTest {
             Thread.sleep(step);
         }
 
-        String diagnosis = onTimeout.apply(last);
+        String diagnosis = onTimeout.act(last);
         TimeoutException timeoutException = new TimeoutException(diagnosis);
         timeoutException.initCause(last);
         throw timeoutException;
@@ -225,5 +232,10 @@ public class GridTest {
         public Map<String, String> buildParams() {
             return Collections.singletonMap("FILENAME", tempFile.getRemote());
         }
+    }
+
+    @FunctionalInterface
+    private interface OnTimeoutHandler<Arg, Ret> {
+        Ret act(Arg arg) throws Exception;
     }
 }
