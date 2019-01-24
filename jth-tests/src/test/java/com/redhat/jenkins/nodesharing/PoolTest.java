@@ -27,6 +27,7 @@ import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule.BlockingTask;
 import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule.MockTask;
+import com.redhat.jenkins.nodesharing.utils.ResponseCaptor;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
