@@ -130,7 +130,7 @@ public class GridTest {
         // Wait until restarted
         orchestratorClient.restart(false);
         // Reservation verifier needs RestEndpoint#TIMEOUT * 2 to recover the state so this is going to take a while
-        await(80000, orchestratorClient::isRunning, throwable -> {
+        await(60000 * 3, orchestratorClient::isRunning, throwable -> {
             dumpFixtureLog(o);
             return "Orchestrator have not started responding in time after restart";
         });
