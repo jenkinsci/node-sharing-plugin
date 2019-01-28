@@ -77,13 +77,14 @@ public class GridTest {
 
         for (ExternalJenkinsRule.Fixture fixture : Arrays.asList(e0, e1, e2)) {
             for (int i = 0; ; i++) {
+
                 try {
                     Thread.sleep(10000);
                     System.out.println('.');
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
                 } catch (AssertionError ex) {
-                    if (i == 4) {
+                    if (i == 6) {
                         TimeoutException tex = new TimeoutException("Build not completed in time");
                         tex.initCause(ex);
                         throw tex;
