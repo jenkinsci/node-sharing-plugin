@@ -91,7 +91,7 @@ public class ExternalJenkinsRule implements TestRule {
 
     /**
      * @param name Name of the fixture.
-     * @return The object representing the external jenkins insatnce
+     * @return The object representing the external jenkins instance
      * @throws NoSuchElementException When the name was not declared as fixture by annotations.
      */
     public @Nonnull Fixture fixture(@Nonnull String name) throws NoSuchElementException, ExecutionException, InterruptedException, IOException {
@@ -332,7 +332,7 @@ public class ExternalJenkinsRule implements TestRule {
             pb.environment().putAll(startWithEnvVars(envVars, fixture));
 
             final File sutLog = allocateLogFile(fixture);
-            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(sutLog));
+            pb.redirectOutput(sutLog);
             pb.redirectErrorStream(true);
             final Process process = pb.start();
 

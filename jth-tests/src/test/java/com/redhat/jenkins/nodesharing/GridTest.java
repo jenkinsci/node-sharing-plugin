@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -141,24 +142,30 @@ public class GridTest {
         runningBlocker.complete();
         await(10000,
                 () -> buildDetails(executorClient.getJob("running"), 1).getResult() == BuildResult.SUCCESS,
-                throwable -> "Build not completed in time: " +  buildDetails(executorClient.getJob("running"), 1).getResult()
+                throwable -> { dumpFixtureLogs(); return "Build not completed in time"; }
         );
 
-        await(30000, () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(), throwable -> "Build not started in time");
+        await(30000, () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(), throwable -> { dumpFixtureLogs(); return "Build not started in time"; });
 
         queuedBlocker.complete();
-        await(10000, () -> buildDetails(executorClient.getJob("running"), 2).getResult() == BuildResult.SUCCESS, throwable -> "Build not completed in time");
+        await(10000, () -> buildDetails(executorClient.getJob("running"), 2).getResult() == BuildResult.SUCCESS, throwable -> { dumpFixtureLogs(); return "Build not completed in time"; });
     }
 
     private BuildWithDetails buildDetails(JobWithDetails running, int i) throws IOException {
         return running.getBuildByNumber(i).details();
     }
 
+    private void dumpFixtureLogs() throws ExecutionException, InterruptedException {
+        for (ExternalJenkinsRule.Fixture fixture : jcr.getFixtures().values()) {
+            dumpFixtureLog(fixture);
+        }
+    }
+
     private void dumpFixtureLog(ExternalJenkinsRule.Fixture o) {
         try {
-            System.err.println("Orchestrator ouput:");
+            System.err.println(o.getAnnotation().name() + " output:");
             o.getLog().copyTo(System.err);
-            System.out.println("===");
+            System.err.println("===");
         } catch (IOException e) {
             throw new Error(e);
         } catch (InterruptedException e) {
