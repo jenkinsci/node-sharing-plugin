@@ -36,9 +36,11 @@ import com.redhat.jenkins.nodesharing.utils.ExternalJenkinsRule;
 import com.redhat.jenkins.nodesharing.utils.GridRule;
 import com.redhat.jenkins.nodesharing.utils.GridRule.Executor;
 import com.redhat.jenkins.nodesharing.utils.GridRule.Orchestrator;
+import com.redhat.jenkins.nodesharing.utils.SlowTest;
 import hudson.FilePath;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -47,7 +49,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -55,6 +56,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+@Category(SlowTest.class)
 public class GridTest {
 
     private static final int TEST_TIMEOUT = 3 * 60 * 1000;

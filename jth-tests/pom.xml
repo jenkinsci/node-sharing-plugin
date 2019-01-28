@@ -125,6 +125,32 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Do not run performance sensitive tests in parallel with the rest -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludedGroups>com.redhat.jenkins.nodesharing.utils.SlowTest</excludedGroups>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>slow-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <groups>com.redhat.jenkins.nodesharing.utils.SlowTest</groups>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>
