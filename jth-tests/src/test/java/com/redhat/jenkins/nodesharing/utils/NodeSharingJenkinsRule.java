@@ -330,6 +330,6 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
      * Trigger workload update now from executor
      */
     public void reportWorkloadToOrchestrator() {
-        WorkloadReporter.Detector.all().get(WorkloadReporter.Detector.class).run();
+        WorkloadReporter.Detector.all().get(WorkloadReporter.Detector.class).update();
     }
 }

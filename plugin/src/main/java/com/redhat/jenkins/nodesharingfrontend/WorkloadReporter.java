@@ -30,6 +30,7 @@ import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import hudson.model.queue.QueueListener;
 import hudson.security.ACL;
+import hudson.triggers.SafeTimerTask;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import org.acegisecurity.context.SecurityContext;
@@ -111,42 +112,44 @@ public class WorkloadReporter extends PeriodicWork {
      */
     @Extension
     @Restricted(NoExternalUse.class)
-    public static final class Detector extends QueueListener implements Runnable {
+    public static final class Detector extends QueueListener {
         private volatile Future<?> nextPush;
 
         @Inject
-        WorkloadReporter wr;
+        private WorkloadReporter wr;
+
+        // We need this for predictable authentication and Exception handling
+        private SafeTimerTask safeTimerTask = new SafeTimerTask() {
+            @Override
+            protected void doRun() {
+                nextPush = null;
+                wr.doRun();
+            }
+        };
 
         @Override
         public void onEnterBuildable(Queue.BuildableItem bi) {
-            push();
+            scheduleUpdate();
         }
 
         @Override
         public void onLeaveBuildable(Queue.BuildableItem bi) {
-            push();
+            scheduleUpdate();
         }
 
         @Override
         public void onLeft(Queue.LeftItem li) {
-            push();
+            scheduleUpdate();
         }
 
-        private void push() {
+        private void scheduleUpdate() {
             // Can be done or canceled in case of a bug or external intervention - do not allow it to hang there forever
             if (nextPush != null && !(nextPush.isDone() || nextPush.isCancelled())) return;
-            nextPush = Timer.get().schedule(this, 10, TimeUnit.SECONDS);
+            nextPush = Timer.get().schedule(safeTimerTask, 10, TimeUnit.SECONDS);
         }
 
-        @Override
-        public void run() {
-            nextPush = null;
-            SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
-            try {
-                wr.doRun();
-            } finally {
-                SecurityContextHolder.setContext(oldContext);
-            }
+        public void update() {
+            safeTimerTask.run();
         }
     }
 }
