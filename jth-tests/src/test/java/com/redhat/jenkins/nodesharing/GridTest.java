@@ -162,7 +162,16 @@ public class GridTest {
     }
 
     private void dumpFixtureLog(ExternalJenkinsRule.Fixture o) {
-        System.out.println("[[ATTACHMENT|" + o.getLog().getRemote() + "]");
+        try {
+            System.err.println(o.getAnnotation().name() + " output:");
+            o.getLog().copyTo(System.err);
+            System.err.println("===");
+        } catch (IOException e) {
+            throw new Error(e);
+        } catch (InterruptedException e) {
+            // Do not throw away the interrupted bit
+            Thread.currentThread().interrupt();
+        }
     }
 
     // From JenkinsTriggerHelper
