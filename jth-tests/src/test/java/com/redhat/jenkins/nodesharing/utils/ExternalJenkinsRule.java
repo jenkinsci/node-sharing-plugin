@@ -347,7 +347,7 @@ public class ExternalJenkinsRule implements TestRule {
             final File sutLog = new File(String.format(
                     "target/surefire-reports/%s.%s-ExternalFixture-%s.log",
                     d.getClassName(), d.getMethodName(), fixture.name()
-            ));
+            )).getAbsoluteFile();
             Files.createDirectories(sutLog.getParentFile().toPath());
             return sutLog;
         }
