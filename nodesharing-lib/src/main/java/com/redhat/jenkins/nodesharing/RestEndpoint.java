@@ -269,9 +269,10 @@ public class RestEndpoint {
         @Override
         public @CheckForNull T handleResponse(HttpResponse response) throws IOException {
             StatusLine sl = response.getStatusLine();
-            if (shouldFail(sl)) throw new ActionFailed.RequestFailed(
-                    method, response.getStatusLine(), getPayloadAsString(response)
-            );
+            if (shouldFail(sl)) {
+                String payload = proccessErrorPayload(getPayloadAsString(response));
+                throw new ActionFailed.RequestFailed(method, response.getStatusLine(), payload);
+            }
 
             return consumeEntity(response);
         }
@@ -296,6 +297,16 @@ public class RestEndpoint {
             try (InputStream is = response.getEntity().getContent()) {
                 return IOUtils.toString(is);
             }
+        }
+
+        // Clear some of the common error causes
+        private @Nonnull String proccessErrorPayload(@Nonnull String payload) {
+            String JENKINS_LOADING = "Please wait while Jenkins is getting ready to work";
+            if (payload.contains(JENKINS_LOADING)) {
+                return JENKINS_LOADING;
+            }
+
+            return payload;
         }
     }
 
