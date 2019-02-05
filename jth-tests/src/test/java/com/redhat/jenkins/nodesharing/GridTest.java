@@ -46,6 +46,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -219,7 +220,8 @@ public class GridTest {
             Thread.sleep(step);
         }
 
-        String diagnosis = onTimeout.act(last);
+        String timing = "(Waited " + milliseconds + "ms until " + new Date() + ")"; // Call ASAP after timeout
+        String diagnosis = onTimeout.act(last) + timing;
         TimeoutException timeoutException = new TimeoutException(diagnosis);
         timeoutException.initCause(last);
         throw timeoutException;
