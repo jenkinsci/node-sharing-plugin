@@ -143,7 +143,7 @@ public class GridTest {
         runningBlocker.complete();
         await(20000,
                 () -> buildDetails(executorClient.getJob("running"), 1).getResult() == BuildResult.SUCCESS,
-                throwable -> { dumpFixtureLogs(); return "Build not completed in time:" + buildDetails(executorClient.getJob("running"), 1).getResult(); }
+                throwable -> { dumpFixtureLogs(); return "Build not completed in time"; }
         );
 
         await(30000, () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(), throwable -> { dumpFixtureLogs(); return "Build not started in time"; });
