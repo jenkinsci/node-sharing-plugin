@@ -141,15 +141,15 @@ public class GridTest {
         assertTrue(job.isInQueue());
         assertTrue(buildDetails(job, 1).isBuilding());
         runningBlocker.complete();
-        await(20000,
+        await(60000,
                 () -> buildDetails(executorClient.getJob("running"), 1).getResult() == BuildResult.SUCCESS,
-                throwable -> { dumpFixtureLogs(); return "Build not completed in time"; }
+                throwable -> { dumpFixtureLogs(); return "Build not completed in time:" + buildDetails(executorClient.getJob("running"), 1).getResult(); }
         );
 
         await(30000, () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(), throwable -> { dumpFixtureLogs(); return "Build not started in time"; });
 
         queuedBlocker.complete();
-        await(20000, () -> buildDetails(executorClient.getJob("running"), 2).getResult() == BuildResult.SUCCESS, throwable -> { dumpFixtureLogs(); return "Build not completed in time"; });
+        await(60000, () -> buildDetails(executorClient.getJob("running"), 2).getResult() == BuildResult.SUCCESS, throwable -> { dumpFixtureLogs(); return "Build not completed in time"; });
     }
 
     private BuildWithDetails buildDetails(JobWithDetails running, int i) throws IOException {
