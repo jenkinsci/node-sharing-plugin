@@ -345,7 +345,7 @@ public class ExternalJenkinsRule implements TestRule {
 
         private File allocateLogFile(ExternalFixture fixture) throws IOException {
             final File sutLog = new File(String.format(
-                    "target/%s.%s-ExternalFixture-%s.log.hpi",
+                    "target/surefire-reports/%s.%s-ExternalFixture-%s.log",
                     d.getClassName(), d.getMethodName(), fixture.name()
             ));
             Files.createDirectories(sutLog.getParentFile().toPath());
