@@ -1,0 +1,59 @@
+unclassified:
+  location:
+    url: ${JCASC_SELF_URL}
+
+jenkins:
+  numExecutors: 0
+  quietPeriod: 0
+  slaveAgentPort: -1
+
+  securityRealm:
+    local:
+      users:
+        - id: "admin"
+          password: "admin"
+        - id: "jerry"
+          password: "jerry"
+  authorizationStrategy:
+    globalMatrix:
+      grantedPermissions:
+      - "Overall/Administer:admin"
+      - "Overall/Read:anonymous"
+      - "Job/Read:anonymous"
+      - "Overall/Read:jerry"
+      - "Job/Read:jerry"
+      - "NodeSharing/Reserve:jerry"
+
+  clouds:
+    - nodeSharing:
+        configRepoUrl: ${JCASC_CONFIG_REPO_URL}
+        orchestratorCredentialsId: "node-sharing-rest"
+
+credentials:
+  system:
+    domainCredentials:
+    - credentials:
+      - usernamePassword:
+          scope: SYSTEM
+          id: "node-sharing-rest"
+          username: "jerry"
+          password: "jerry"
+          description: "Rest credential for node sharing"
+
+jobs:
+  - script: >
+     job("win") {
+         label("windows")
+         triggers {
+             cron("* * * * *")
+             upstream("win")
+         }
+     }
+
+     job("sol") {
+         label("solaris10||solaris11")
+         triggers {
+             cron("* * * * *")
+             upstream("sol")
+         }
+     }

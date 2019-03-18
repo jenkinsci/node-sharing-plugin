@@ -1,19 +1,19 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.model.Computer;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerListener;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Computer listener to cleanup after failed launches.
@@ -49,7 +49,7 @@ public class NodeSharingComputerListener extends ComputerListener {
     private String getLogText(Computer c) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         c.getLogText().writeLogTo(0, baos);
-        return baos.toString();
+        return baos.toString(Charset.defaultCharset().name());
     }
 
     @Override
@@ -61,15 +61,14 @@ public class NodeSharingComputerListener extends ComputerListener {
                     "Uncaught unexpected exception occurred while calling super.onLaunchFailed(): ", e);
         }
         if (c instanceof SharedComputer) {
-            Node node = c.getNode();
-            if (node instanceof SharedNode) {
-               SharedNodeCloud cloud =
-                       SharedNodeCloud.getByName(((SharedNode) node).getId().getCloudName());
-               if (cloud == null || !cloud.isOperational()) {
-                   // Be defensive and prevent any slave that got serialized to launch returning it eagerly
-                   throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
-               }
-           }
+            SharedNode node = ((SharedComputer) c).getNode();
+            if (node == null) return;
+
+            SharedNodeCloud cloud = SharedNodeCloud.getByName(node.getId().getCloudName());
+            if (cloud == null || !cloud.isOperational()) {
+                // Be defensive and prevent any slave that got serialized to launch returning it eagerly
+                throw new AbortException("This is a leaked SharedNode after Jenkins restart!");
+            }
         }
     }
 

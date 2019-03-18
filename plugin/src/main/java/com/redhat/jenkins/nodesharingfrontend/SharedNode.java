@@ -2,18 +2,17 @@ package com.redhat.jenkins.nodesharingfrontend;
 
 import hudson.Extension;
 import hudson.FilePath;
-import hudson.Util;
-import hudson.model.Node;
-import hudson.model.TaskListener;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Queue.BuildableItem;
-import hudson.model.queue.CauseOfBlockage;
+import hudson.model.Node;
 import hudson.model.Queue;
+import hudson.model.Queue.BuildableItem;
+import hudson.model.TaskListener;
+import hudson.model.queue.CauseOfBlockage;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
+import hudson.slaves.ComputerLauncher;
 import hudson.slaves.EphemeralNode;
 import hudson.slaves.NodeProperty;
-import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import hudson.slaves.SlaveComputer;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
@@ -26,9 +25,7 @@ import org.kohsuke.accmod.restrictions.DoNotUse;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.List;
-
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,11 +47,12 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         @Override public String getShortDescription() { return "ReservationTasks should not run here"; }
     };
 
+    @SuppressWarnings("unused") // Deserialized
     private boolean skipWipeout;
 
-    @Nonnull
+    @SuppressWarnings("NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR") @Nonnull
     private ProvisioningActivity.Id id;
-    @Nonnull
+    @SuppressWarnings("NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR") @Nonnull
     private String hostname;
 
     // Never used, the class is always created from NodeDefinition. See: SharedNodeCloud#createNode()
@@ -105,7 +103,7 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     }
 
     @Override
-    protected void _terminate(TaskListener listener) throws InterruptedException {
+    protected void _terminate(TaskListener listener) {
         SharedNodeCloud cloud = SharedNodeCloud.getByName(id.getCloudName());
         if (cloud != null) { // Might be deleted or using different config repo
             // Wipeout the workspace content if necessary but left untouched workspace itself
@@ -141,23 +139,10 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
         }
     }
 
-    private final void logSlave(@Nonnull final String msg) {
-        TaskListener tl = null;
-
-        // Jenkins master 2.9+ can use public method SlaveComputer.getListener() which return TaskLister directly
-        try {
-            Field field = SlaveComputer.class.getDeclaredField("taskListener");
-            field.setAccessible(true);
-            if(toComputer() instanceof SlaveComputer) {
-                tl = (TaskListener) field.get(toComputer());
-            }
-        } catch (NoSuchFieldException e) {
-            // No-op
-        } catch (IllegalAccessException e) {
-            // No-op
-        }
-
-        if (tl != null && Util.fixEmpty(msg) != null) {
+    private void logSlave(@Nonnull final String msg) {
+        SlaveComputer slaveComputer = (SlaveComputer) toComputer();
+        if (slaveComputer != null) {
+            TaskListener tl = slaveComputer.getListener();
             tl.getLogger().println(msg);
         }
     }

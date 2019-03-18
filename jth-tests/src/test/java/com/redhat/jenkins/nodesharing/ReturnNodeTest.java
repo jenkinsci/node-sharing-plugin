@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import com.google.common.base.Joiner;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
@@ -32,7 +33,6 @@ import com.redhat.jenkins.nodesharingfrontend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.model.FreeStyleBuild;
-import hudson.model.FreeStyleProject;
 import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.queue.QueueTaskFuture;

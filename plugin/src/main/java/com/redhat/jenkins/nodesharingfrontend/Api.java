@@ -64,6 +64,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
@@ -232,7 +234,7 @@ public class Api {
             new UtilizeNodeResponse(fingerprint).toOutputStream(rsp.getOutputStream());
             rsp.setStatus(HttpServletResponse.SC_OK);
         } catch (IllegalArgumentException e) {
-            e.printStackTrace(new PrintStream(rsp.getOutputStream()));
+            e.printStackTrace(new PrintStream(rsp.getOutputStream(), false, StandardCharsets.UTF_8.name()));
             rsp.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
         }
     }

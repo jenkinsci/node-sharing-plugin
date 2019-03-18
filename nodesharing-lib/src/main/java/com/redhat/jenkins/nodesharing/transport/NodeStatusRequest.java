@@ -31,8 +31,6 @@ import javax.annotation.Nonnull;
 public class NodeStatusRequest extends AbstractEntity {
     private final @Nonnull String nodeName;
 
-    public final static String REQUEST_URI = "/nodeStatus";
-
     /**
      * @param nodeName Name of the node to be returned.
      */

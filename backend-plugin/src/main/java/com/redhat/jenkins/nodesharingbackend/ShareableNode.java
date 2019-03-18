@@ -49,6 +49,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,7 +61,7 @@ import java.util.Map;
 public final class ShareableNode extends Slave implements EphemeralNode {
     private static final long serialVersionUID = 1864241962205144748L;
 
-    private final transient Object nodeSharingAttributesLock = new Object();
+    private /*final*/ transient Object nodeSharingAttributesLock = new Object();
     @GuardedBy("nodeSharingAttributesLock")
     private @Nonnull NodeDefinition nodeDefinition;
 
@@ -85,6 +86,12 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     public ShareableNode(@Nonnull NodeDefinition def) throws Descriptor.FormException, IOException {
         super(def.getName(), def.getName(), "/unused", 1, Mode.EXCLUSIVE, def.getLabel(), new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
         nodeDefinition = def;
+    }
+
+    protected Object readResolve() {
+        super.readResolve();
+        nodeSharingAttributesLock = new Object();
+        return this;
     }
 
     @Override public Computer createComputer() {

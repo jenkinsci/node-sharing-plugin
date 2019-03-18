@@ -21,14 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharing.utils;
 
+import com.redhat.jenkins.nodesharing.RestEndpoint;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
-import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.client.methods.HttpOptions;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -39,8 +38,11 @@ import java.io.IOException;
  * To be used as a {@link ResponseHandler} for {@link RestEndpoint}<tt>#executeRequest</tt>.
  */
 public final class ResponseCaptor extends RestEndpoint.AbstractResponseHandler<ResponseCaptor.Capture> {
+
+    private static final HttpOptions IGNORED = new HttpOptions();
+
     public ResponseCaptor() {
-        super(null);
+        super(IGNORED);
     }
 
     @Override protected boolean shouldFail(@Nonnull StatusLine sl) { return false; }

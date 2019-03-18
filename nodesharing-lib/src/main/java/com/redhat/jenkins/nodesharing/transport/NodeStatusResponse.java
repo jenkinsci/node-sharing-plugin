@@ -55,7 +55,7 @@ public class NodeStatusResponse extends ExecutorEntity {
      */
     @Nonnull
     public Status getStatus() {
-        return status == null ? Status.INVALID : status;
+        return status;
     }
 
     /**
@@ -67,7 +67,7 @@ public class NodeStatusResponse extends ExecutorEntity {
      *      'BUSY' if the node is executing
      *      'NOT_FOUND' if the node isn't exist
      */
-    public static enum Status {
+    public enum Status {
         INVALID,
         FOUND,
         IDLE,
@@ -76,7 +76,7 @@ public class NodeStatusResponse extends ExecutorEntity {
         BUSY,
         NOT_FOUND;
 
-        final static Status getState(final int status) {
+        static Status getState(final int status) {
             for (Status s : Status.values()) {
                 if (s.ordinal() == status) {
                     return s;

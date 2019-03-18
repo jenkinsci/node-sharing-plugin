@@ -12,4 +12,5 @@
     <retryWaitTime>0</retryWaitTime>
   </launcher>
   <label>windows w2k16</label>
+  <nodeProperties/>
 </com.redhat.jenkins.nodesharingfrontend.SharedNode>

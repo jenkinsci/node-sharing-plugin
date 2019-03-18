@@ -46,6 +46,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jenkins.model.JenkinsLocationConfiguration;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.kohsuke.accmod.Restricted;
@@ -86,15 +87,15 @@ public class SharedNodeCloud extends Cloud {
     @CheckForNull
     private transient ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
 
-    @VisibleForTesting
+    @VisibleForTesting @SuppressWarnings("MS_SHOULD_BE_FINAL")
     @Restricted(NoExternalUse.class)
-    public static boolean isWsCleanupAvailable;
-    {
+    public static boolean isWsCleanupAvailable = detectCleanup();
+    private static boolean detectCleanup() {
         try {
             Class.forName("hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty");
-            isWsCleanupAvailable = true;
+            return true;
         } catch (ClassNotFoundException e) {
-            isWsCleanupAvailable = false;
+            return false;
         }
     }
 
@@ -124,9 +125,21 @@ public class SharedNodeCloud extends Cloud {
         if (this.api == null) {
             ConfigRepo.Snapshot latestConfig = getLatestConfig();
             if (latestConfig == null) throw new IllegalStateException("No latest config found");
-            this.api = new Api(latestConfig, configRepoUrl, this, JenkinsLocationConfiguration.get().getUrl());
+
+            this.api = new Api(latestConfig, configRepoUrl, this, getJenkinsUrl());
         }
         return this.api;
+    }
+
+    private static String getJenkinsUrl() {
+        JenkinsLocationConfiguration location = JenkinsLocationConfiguration.get();
+        if (location == null) throw new IllegalStateException();
+
+        String url = location.getUrl();
+        if (url == null) {
+            throw new IllegalStateException("No Jenkins URL configured");
+        }
+        return url;
     }
 
     /**
@@ -200,7 +213,7 @@ public class SharedNodeCloud extends Cloud {
         ConfigRepo.Snapshot config = getLatestConfig();
         if (config != null) {
             try {
-                config.getJenkinsByUrl(JenkinsLocationConfiguration.get().getUrl());
+                config.getJenkinsByUrl(getJenkinsUrl());
                 return true;
             } catch (NoSuchElementException e) {
                 // Expected
@@ -336,6 +349,7 @@ public class SharedNodeCloud extends Cloud {
     }
 
     @Extension
+    @Symbol("nodeSharing")
     public static class DescriptorImpl extends Descriptor<Cloud> {
 
         @Override
@@ -383,7 +397,7 @@ public class SharedNodeCloud extends Cloud {
             testConfigRepoDir.deleteRecursive();
             try {
                 SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId);
-                String jenkinsUrl = JenkinsLocationConfiguration.get().getUrl();
+                String jenkinsUrl = getJenkinsUrl();
                 Api api = new Api(cloud.getConfigRepo().getSnapshot(), configRepoUrl, cloud, jenkinsUrl);
                 DiscoverResponse discover = api.discover();
                 if (!discover.getDiagnosis().isEmpty()) {

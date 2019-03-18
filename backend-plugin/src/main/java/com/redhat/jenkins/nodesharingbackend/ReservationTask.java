@@ -81,7 +81,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         this.taskName = taskName;
         this.qid = qid;
         this.backfill = false;
-        setUrlToNode("");
+        this.url = getUrlToNode("");
     }
 
     public ReservationTask(@Nonnull ExecutorJenkins owner, @Nonnull String host, boolean backfill) {
@@ -90,12 +90,12 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         this.taskName = host;
         this.qid = -1;
         this.backfill = backfill;
-        setUrlToNode(host);
+        this.url = getUrlToNode(host);
     }
 
-    private void setUrlToNode(String node) {
+    private String getUrlToNode(String node) {
         // TODO nodes have hard to predict names on Executor so pointing to Executor home for now
-        url = "redirectToExecutor/" + getOwner().getName() + "/" /*+ node*/;
+        return "redirectToExecutor/" + getOwner().getName() + "/" /*+ node*/;
     }
 
     @Override public boolean isBuildBlocked() { return false; }
@@ -185,7 +185,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
 
         private final @Nonnull ReservationTask task;
         private @CheckForNull String nodeName; // Assigned as soon as execution starts
-        private @CheckForNull String taskName; // Assigned as soon as execution starts
+        private @Nonnull String taskName;
         private @Nonnull OneShotEvent done = new OneShotEvent();
 
         protected ReservationExecutable(@Nonnull ReservationTask task) {
@@ -211,7 +211,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
         public void run() throws AsynchronousExecution {
             ShareableComputer computer = getExecutingComputer();
             nodeName = computer.getName();
-            task.setUrlToNode(nodeName);
+            task.url = task.getUrlToNode(nodeName);
             String executorName = task.getOwner().getName();
             taskName = "Reservation of " + nodeName + " by " + executorName + " (qid=" + task.qid + ", hash=" + System.identityHashCode(task) + ")";
             LOGGER.info(taskName + " started");

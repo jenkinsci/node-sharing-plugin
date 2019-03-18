@@ -40,7 +40,6 @@ import java.util.Objects;
 /**
  * Remote Jenkins authorized to use this orchestrator.
  */
-@Restricted(NoExternalUse.class)
 public class ExecutorJenkins {
 
     private final @Nonnull URL url;

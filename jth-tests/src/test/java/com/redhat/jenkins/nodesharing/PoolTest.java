@@ -24,9 +24,10 @@
 package com.redhat.jenkins.nodesharing;
 
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
-import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.BlockingTask;
-import com.redhat.jenkins.nodesharing.NodeSharingJenkinsRule.MockTask;
-import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule.BlockingTask;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule.MockTask;
+import com.redhat.jenkins.nodesharing.utils.ResponseCaptor;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.Pool.Updater;
@@ -35,14 +36,11 @@ import com.redhat.jenkins.nodesharingbackend.ShareableComputer;
 import com.redhat.jenkins.nodesharingbackend.ShareableNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import hudson.AbortException;
-import hudson.ExtensionList;
 import hudson.FilePath;
 import hudson.model.Computer;
-import hudson.model.FreeStyleBuild;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
-import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
 import hudson.slaves.DumbSlave;
 import jenkins.model.Jenkins;
@@ -196,12 +194,12 @@ public class PoolTest {
         Queue.Item item = task.schedule();
         assertEquals("jenkins42", item.task.getFullDisplayName());
         item.getFuture().get();
-        Assert.assertEquals(j.getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn[0]);
+        Assert.assertEquals(j.getNode("solaris1.acme.com").toComputer(), task.actuallyRunOn());
 
 
         task = new MockTask(j.DUMMY_OWNER, Label.get("windows"));
         task.schedule().getFuture().get();
-        MatcherAssert.assertThat(task.actuallyRunOn[0].getName(), startsWith("win"));
+        MatcherAssert.assertThat(task.actuallyRunOn().getName(), startsWith("win"));
 
         // Never schedule labels we do not serve - including empty one
         task = new MockTask(j.DUMMY_OWNER, Label.get(""));

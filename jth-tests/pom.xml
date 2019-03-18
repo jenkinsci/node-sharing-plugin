@@ -20,16 +20,12 @@
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-orchestrator</artifactId>
         </dependency>
-        <dependency><!-- Transient but required by JaCoCo to add to code coverage report -->
+        <dependency><!-- Transitive but required by JaCoCo to add to code coverage report -->
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-lib</artifactId>
         </dependency>
 
         <!-- Java modules -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
@@ -41,7 +37,7 @@
         <dependency>
             <groupId>com.offbytwo.jenkins</groupId>
             <artifactId>jenkins-client</artifactId>
-            <version>0.3.7</version>
+            <version>0.3.8</version>
             <scope>test</scope>
             <exclusions> <!-- clashes with org.jenkins-ci.dom4j:dom4j -->
                 <exclusion>
@@ -69,11 +65,38 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>matrix-auth</artifactId>
-            <version>1.7</version>
+            <version>2.3</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ws-cleanup</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jenkins</groupId>
+            <artifactId>configuration-as-code</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jenkins.configuration-as-code</groupId>
+            <artifactId>configuration-as-code-support</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>job-dsl</artifactId>
+            <version>1.66</version>
+        </dependency>
+
+        <!-- Upper bound -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpcore</artifactId>
+            <version>4.4.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-all</artifactId>
+            <version>2.4.8</version>
         </dependency>
     </dependencies>
 
@@ -87,6 +110,46 @@
                 <configuration>
                     <skip>true</skip>
                 </configuration>
+            </plugin>
+            <!-- Since this is not an hpi packaged module, it needs to be told explicitly to resolve the .hpi of depending plugins for ExternalJenkinsRule -->
+            <plugin>
+                <groupId>org.jenkins-ci.tools</groupId>
+                <artifactId>maven-hpi-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-resolve-test-dependencies</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>resolve-test-dependencies</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Do not run performance sensitive tests in parallel with the rest -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludedGroups>com.redhat.jenkins.nodesharing.utils.SlowTest</excludedGroups>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>slow-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <groups>com.redhat.jenkins.nodesharing.utils.SlowTest</groups>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

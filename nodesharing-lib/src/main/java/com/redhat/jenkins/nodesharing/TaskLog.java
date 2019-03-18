@@ -33,8 +33,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 
 /**
@@ -67,11 +69,11 @@ public class TaskLog extends StreamTaskListener implements AutoCloseable, Closea
     }
 
     public AnnotatedLargeText<TaskLog> getAnnotatedText() {
-        return new AnnotatedLargeText<TaskLog>(target, Charset.defaultCharset(), completed, this);
+        return new AnnotatedLargeText<>(target, Charset.defaultCharset(), completed, this);
     }
 
     public void println(String msg) {
-        getLogger().printf(msg);
+        getLogger().println(msg);
     }
 
     public void printf(String format, Object... args) {
@@ -136,7 +138,7 @@ public class TaskLog extends StreamTaskListener implements AutoCloseable, Closea
         @Override
         public String toString() {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            PrintWriter ps = new PrintWriter(baos);
+            PrintWriter ps = new PrintWriter(new OutputStreamWriter(baos, Charset.defaultCharset()));
             ps.println(super.toString());
             try {
                 ps.println(">>>>>>");
@@ -151,7 +153,11 @@ public class TaskLog extends StreamTaskListener implements AutoCloseable, Closea
                 ps.close();
             }
 
-            return baos.toString();
+            try {
+                return baos.toString(Charset.defaultCharset().name());
+            } catch (UnsupportedEncodingException e) {
+                throw new AssertionError();
+            }
         }
     }
 }

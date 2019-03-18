@@ -29,6 +29,7 @@ import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeRequest;
 import com.redhat.jenkins.nodesharing.transport.UtilizeNodeResponse;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
@@ -387,7 +388,7 @@ public class SharedNodeCloudTest {
             cloud.createNode(new NodeDefinition.Xml("failed-node.xml", source));
             fail();
         } catch (IllegalArgumentException e) {
-            assertEquals("java.lang.IllegalArgumentException: Misunderstand definition", e.toString());
+            assertEquals("java.lang.IllegalArgumentException: Invalid node definition", e.toString());
         }
     }
 
@@ -441,7 +442,7 @@ public class SharedNodeCloudTest {
             fail();
         } catch (ActionFailed.RequestFailed e) {
             assertThat(e.toString(), containsString("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST"));
-            assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Misunderstand definition"));
+            assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Invalid node definition"));
         }
     }
 

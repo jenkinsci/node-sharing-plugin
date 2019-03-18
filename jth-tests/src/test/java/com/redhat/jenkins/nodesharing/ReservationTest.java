@@ -24,6 +24,7 @@
 package com.redhat.jenkins.nodesharing;
 
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;

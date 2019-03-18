@@ -1,0 +1,24 @@
+unclassified:
+  location:
+    url: ${JCASC_SELF_URL}
+
+jenkins:
+  numExecutors: 0
+  quietPeriod: 0
+  slaveAgentPort: -1
+  securityRealm:
+    local:
+      users:
+        - id: "admin"
+          password: "admin"
+        - id: "jerry"
+          password: "jerry"
+  authorizationStrategy:
+    globalMatrix:
+      grantedPermissions:
+      - "Overall/Administer:admin"
+      - "Overall/Read:anonymous"
+      - "Job/Read:anonymous"
+      - "Overall/Read:jerry"
+      - "Job/Read:jerry"
+      - "NodeSharing/Reserve:jerry"

@@ -21,23 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.redhat.jenkins.nodesharing;
+package com.redhat.jenkins.nodesharing.utils;
 
-import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
-import com.redhat.jenkins.nodesharingbackend.Dashboard;
-import org.junit.Rule;
-import org.junit.Test;
-
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.MatcherAssert.assertThat;
-
-public class DashboardTest {
-
-    @Rule
-    public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
-
-    @Test
-    public void test() {
-        assertThat(j.jenkins.getPrimaryView(), instanceOf(Dashboard.class));
-    }
+/**
+ * Tests are not supposed to run in parallel with any other tests.
+ */
+public interface SlowTest {
 }

@@ -32,6 +32,7 @@ import com.redhat.jenkins.nodesharing.transport.Entity;
 import hudson.Util;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
+import hudson.model.ModelObject;
 import hudson.security.Permission;
 import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
@@ -108,8 +109,7 @@ public class RestEndpoint {
     }
 
     private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
-    private static final PermissionScope NODE_SHARING_SCOPE = new PermissionScope(RestEndpoint.class);
-    public static final Permission RESERVE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, NODE_SHARING_SCOPE);
+    public static final Permission RESERVE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, PermissionScope.JENKINS);
 
     // Since the permission is declared in a class that might not be loaded for a while after Jenkins startup or plugin
     // install, adding dummy initializer to kick in during startup causing Jenkins to initialize this class and register
@@ -269,9 +269,10 @@ public class RestEndpoint {
         @Override
         public @CheckForNull T handleResponse(HttpResponse response) throws IOException {
             StatusLine sl = response.getStatusLine();
-            if (shouldFail(sl)) throw new ActionFailed.RequestFailed(
-                    method, response.getStatusLine(), getPayloadAsString(response)
-            );
+            if (shouldFail(sl)) {
+                String payload = proccessErrorPayload(getPayloadAsString(response));
+                throw new ActionFailed.RequestFailed(method, response.getStatusLine(), payload);
+            }
 
             return consumeEntity(response);
         }
@@ -296,6 +297,16 @@ public class RestEndpoint {
             try (InputStream is = response.getEntity().getContent()) {
                 return IOUtils.toString(is);
             }
+        }
+
+        // Clear some of the common error causes
+        private @Nonnull String proccessErrorPayload(@Nonnull String payload) {
+            String JENKINS_LOADING = "Please wait while Jenkins is getting ready to work";
+            if (payload.contains(JENKINS_LOADING)) {
+                return JENKINS_LOADING;
+            }
+
+            return payload;
         }
     }
 

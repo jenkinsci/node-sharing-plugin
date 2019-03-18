@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharing;
 import com.gargoylesoftware.htmlunit.HttpMethod;
 import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.WebResponse;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingbackend.Pool;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud;
 import jenkins.model.Jenkins;

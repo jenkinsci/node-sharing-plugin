@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharing;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
+import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingfrontend.Api;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
@@ -53,7 +54,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-public class RemovingExecutorFromConfigRepo {
+public class RemovingExecutorFromConfigRepoTest {
 
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();
     @Rule public LoggerRule l = new LoggerRule();
