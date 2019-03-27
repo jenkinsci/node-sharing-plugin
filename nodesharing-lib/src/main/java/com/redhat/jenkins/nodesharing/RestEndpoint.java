@@ -108,7 +108,7 @@ public class RestEndpoint {
         return DEFAULT_TIMEOUT;
     }
 
-    private static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
+    public static final PermissionGroup NODE_SHARING_GROUP = new PermissionGroup(RestEndpoint.class, Messages._RestEndpoint_PermissionGroupName());
     public static final Permission RESERVE = new Permission(NODE_SHARING_GROUP, "Reserve", Messages._RestEndpoint_ReserveDescription(), null, PermissionScope.JENKINS);
 
     // Since the permission is declared in a class that might not be loaded for a while after Jenkins startup or plugin
