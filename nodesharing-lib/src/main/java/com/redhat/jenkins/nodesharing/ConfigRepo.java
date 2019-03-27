@@ -157,6 +157,7 @@ public class ConfigRepo {
                 if (orchestratorUrl == null) {
                     taskLog.error("No " + KEY_CONFIG_ORCHESTRATOR_URL + " specified by Config Repository");
                 } else {
+                    if(!orchestratorUrl.endsWith("/")) orchestratorUrl += "/";
                     try {
                         URL url = new URL(orchestratorUrl);
                         if (!isSafeUrl(url, config)) {
