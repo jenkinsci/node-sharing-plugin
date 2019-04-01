@@ -363,8 +363,25 @@ public class SharedNodeCloud extends Cloud {
         return latestConfig != null;
     }
 
+    /**
+     * Check whether cloud is temporary disabled.
+     *
+     * @return true if cloud is temporary disabled.
+     */
     public boolean isDisabled() {
         return disabled;
+    }
+
+    /**
+     * Set temporary disabled status to the new state.
+     *
+     * @param disabled new disabled status.
+     * @return old disabled status.
+     */
+    public synchronized boolean disabled(final boolean disabled) {
+        boolean retVal = this.disabled;
+        this.disabled = disabled;
+        return retVal;
     }
 
     @Extension
