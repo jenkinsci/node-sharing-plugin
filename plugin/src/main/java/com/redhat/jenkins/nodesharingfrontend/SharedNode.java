@@ -30,8 +30,6 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.jenkinsci.plugins.cloudstats.ProvisioningActivity.Phase.COMPLETED;
-
 /**
  * Shared execution node.
  */
@@ -72,13 +70,14 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
 
         // Make a current phase of provisioning activity failed if exists for any node with the same name
         for (ProvisioningActivity a : CloudStatistics.get().getNotCompletedActivities()) {
-            if (Objects.equals(name, a.getId().getNodeName()) && a.getCurrentPhase() != COMPLETED){
+            if (Objects.equals(name, a.getId().getNodeName()) && a.getCurrentPhase()
+                    != ProvisioningActivity.Phase.COMPLETED){
                 PhaseExecutionAttachment attachment = new PhaseExecutionAttachment(
                         ProvisioningActivity.Status.FAIL,
-                        "Provisioning activity have not completed before the node was reserved again!"
+                        "Provisioning activity has not completed before the node was reserved again!"
                 );
                 CloudStatistics.get().attach(a, a.getCurrentPhase(), attachment);
-                a.enterIfNotAlready(COMPLETED);
+                a.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
             }
         }
         CloudStatistics.ProvisioningListener.get().onStarted(id);
