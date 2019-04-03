@@ -99,7 +99,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     @Override public boolean isBuildBlocked() { return false; }
-    @Override public String getWhyBlocked() { return null; }
+    @Override @Deprecated public String getWhyBlocked() { return null; }
 
     @Override public String getName() { return jenkins.getName(); }
     @Override public String getFullDisplayName() { return jenkins.getName(); }

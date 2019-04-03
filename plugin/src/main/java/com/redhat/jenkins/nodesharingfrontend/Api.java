@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharingfrontend;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
@@ -68,6 +69,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -116,7 +118,8 @@ public class Api {
     private UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
         String cid = cloud.getOrchestratorCredentialsId();
         UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
+                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
+                        ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
                 CredentialsMatchers.withId(cid)
         );
         if (cred == null) throw new IllegalStateException(

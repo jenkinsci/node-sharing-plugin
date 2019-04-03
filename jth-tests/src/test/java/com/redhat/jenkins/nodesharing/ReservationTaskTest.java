@@ -64,11 +64,11 @@ public class ReservationTaskTest {
         JenkinsRule.WebClient wc = j.createWebClient().login("admin", "admin");
         String activeUrl = active.getParent().getUrl();
         assertThat(activeUrl, not(startsWith("/")));
-        Page target = wc.getPage(j.getURL() + activeUrl);
+        Page target = wc.goTo(activeUrl);
         assertEquals(j.getURL(), target.getUrl());
         String waitingUrl = waiting.getUrl();
         assertThat(waitingUrl, not(startsWith("/")));
-        target = wc.getPage(j.getURL() + waitingUrl);
+        target = wc.goTo(waitingUrl);
         assertEquals(j.getURL(), target.getUrl());
     }
 }

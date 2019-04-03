@@ -8,6 +8,7 @@ import hudson.model.ExecutorListener;
 import hudson.model.OneOffExecutor;
 import hudson.model.Queue;
 import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.CloudRetentionStrategy;
@@ -105,11 +106,8 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
                 try {
                     AbstractCloudSlave node = c.getNode();
                     if (node != null) {
-                        SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
-                        try {
+                        try (ACLContext ctx = ACL.as(ACL.SYSTEM)) {
                             node.terminate();
-                        } finally {
-                            SecurityContextHolder.setContext(oldContext);
                         }
                     }
                     LOGGER.log(Level.INFO, "Terminating computer " + c.getName());

@@ -84,7 +84,13 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     }
 
     public ShareableNode(@Nonnull NodeDefinition def) throws Descriptor.FormException, IOException {
-        super(def.getName(), def.getName(), "/unused", 1, Mode.EXCLUSIVE, def.getLabel(), new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+        super(def.getName(), "/unused", new NoopLauncher());
+        setNodeDescription(def.getName());
+        setNumExecutors(1);
+        setMode(Mode.EXCLUSIVE);
+        setLabelString(def.getLabel());
+        setRetentionStrategy(RetentionStrategy.NOOP);
+        setNodeProperties(Collections.<NodeProperty<?>>emptyList());
         nodeDefinition = def;
     }
 

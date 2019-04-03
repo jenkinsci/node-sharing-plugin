@@ -46,6 +46,7 @@ import hudson.security.AuthorizationStrategy;
 import hudson.security.LegacySecurityRealm;
 import hudson.security.csrf.DefaultCrumbIssuer;
 import hudson.slaves.AbstractCloudComputer;
+import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Rule;
@@ -215,7 +216,7 @@ public class SharedNodeCloudTest {
         // still IDLE status although offline
         assertFalse(computer.isConnecting());
         //noinspection deprecation
-        computer.setTemporarilyOffline(true);
+        computer.setTemporarilyOffline(true, null);
         computer.waitUntilOffline();
         while (computer.isConnecting()) {
             Thread.sleep(50);
@@ -265,7 +266,7 @@ public class SharedNodeCloudTest {
         assertTrue(job.isBuilding());
         assertFalse(computer.isIdle());
         //noinspection deprecation
-        computer.setTemporarilyOffline(true);
+        computer.setTemporarilyOffline(true, null);
         computer.waitUntilOffline();
         assertTrue(computer.isOffline());
         assertFalse(computer.isIdle());
@@ -463,7 +464,7 @@ public class SharedNodeCloudTest {
         checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.BUSY);
         assertTrue(computer.isOnline());
 
-        computer.cliOffline("Temp offline");
+        computer.setTemporarilyOffline(true, new OfflineCause.ByCLI("Temp offline"));
         while (computer.isOnline()) {
             Thread.sleep(50);
         }
@@ -474,9 +475,9 @@ public class SharedNodeCloudTest {
         }
         assertTrue(computer.isIdle());
         assertFalse(job.isBuilding());
-        assertTrue(computer.isTemporarilyOffline());
+        assertTrue(computer.isOffline());
         assertThat(computer.getOfflineCauseReason(), is("Temp offline"));
-        computer.cliOnline();
+        computer.setTemporarilyOffline(false, null);
         while (computer.isOffline()) {
             Thread.sleep(50);
         }

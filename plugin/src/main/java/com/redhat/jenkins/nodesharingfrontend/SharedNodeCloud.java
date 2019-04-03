@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
@@ -14,15 +15,17 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Item;
 import hudson.model.Label;
 import hudson.model.PeriodicWork;
 import hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty;
+import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
-import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -365,9 +368,11 @@ public class SharedNodeCloud extends Cloud {
         @Nonnull
         public ListBoxModel doFillOrchestratorCredentialsIdItems() {
             Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
-            return new StandardListBoxModel().withMatching(
-                    instanceOf(UsernamePasswordCredentials.class),
-                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
+            return new StandardListBoxModel().includeMatchingAs(ACL.SYSTEM,
+                    Jenkins.getInstance(),
+                    StandardUsernameCredentials.class,
+                    Collections.<DomainRequirement>emptyList(),
+                    CredentialsMatchers.instanceOf(UsernamePasswordCredentials.class)
             );
         }
 
