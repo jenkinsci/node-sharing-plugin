@@ -86,7 +86,7 @@ public class Pool {
     private @CheckForNull ConfigRepo.Snapshot config = null;
 
     public static @Nonnull Pool getInstance() {
-        ExtensionList<Pool> list = Jenkins.getActiveInstance().getExtensionList(Pool.class);
+        ExtensionList<Pool> list = Jenkins.getInstance().getExtensionList(Pool.class);
         assert list.size() == 1; // $COVERAGE-IGNORE$
         return list.iterator().next();
     }
@@ -146,7 +146,7 @@ public class Pool {
     }
 
     private void updateOrchestrator(final ConfigRepo.Snapshot config) {
-        final Jenkins j = Jenkins.getActiveInstance();
+        final Jenkins j = Jenkins.getInstance();
         // Use queue lock so pool changes appear atomic from perspective of Queue#maintian and Api#doReportWorkload
         Queue.withLock(new Runnable() {
             @Override public void run() {
@@ -208,7 +208,7 @@ public class Pool {
     @Restricted(DoNotUse.class)
     public static void ensureOrchestratorIsUpToDateWithTheGrid() throws Exception {
         LOGGER.info("Verifying state of the grid");
-        Jenkins jenkins = Jenkins.getActiveInstance();
+        Jenkins jenkins = Jenkins.getInstance();
         jenkins.doQuietDown(); // Prevent builds to be scheduled during the process
         jenkins.getQueue().clear(); // Clear any items that might be there from before restart - we can get more recent here
         try {
@@ -224,11 +224,11 @@ public class Pool {
 
     @Extension
     public static final class Updater extends PeriodicWork {
-        private static final File WORK_DIR = new File(Jenkins.getActiveInstance().getRootDir(), "node-sharing");
+        private static final File WORK_DIR = new File(Jenkins.getInstance().getRootDir(), "node-sharing");
         private static final File CONFIG_DIR = new File(WORK_DIR, "config");
 
         public static @Nonnull Updater getInstance() {
-            ExtensionList<Updater> list = Jenkins.getActiveInstance().getExtensionList(Updater.class);
+            ExtensionList<Updater> list = Jenkins.getInstance().getExtensionList(Updater.class);
             assert list.size() == 1;
             return list.iterator().next();
         }

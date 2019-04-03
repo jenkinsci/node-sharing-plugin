@@ -85,7 +85,7 @@ public class Api implements RootAction {
             // PJ: Not working, during JUnit phase execution there aren't made packages...
             InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingbackend.properties");
             if (resource == null) {
-                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+                version = Jenkins.getInstance().pluginManager.whichPlugin(getClass()).getVersion();
             } else {
                 Properties properties = new Properties();
                 properties.load(resource);
@@ -98,7 +98,7 @@ public class Api implements RootAction {
     }
 
     public static @Nonnull Api getInstance() {
-        ExtensionList<Api> list = Jenkins.getActiveInstance().getExtensionList(Api.class);
+        ExtensionList<Api> list = Jenkins.getInstance().getExtensionList(Api.class);
         assert list.size() == 1;
         return list.iterator().next();
     }
@@ -189,7 +189,7 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doDiscover(StaplerRequest req, StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         Pool pool = Pool.getInstance();
         Collection<NodeDefinition> nodes = pool.getConfig().getNodes().values(); // Fail early when there is no config
@@ -240,7 +240,7 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReportWorkload(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         Pool pool = Pool.getInstance();
         final ConfigRepo.Snapshot config = pool.getConfig(); // Fail early when there is no config
@@ -264,7 +264,7 @@ public class Api implements RootAction {
 
         Queue.withLock(new Runnable() {
             @Override public void run() {
-                Queue queue = Jenkins.getActiveInstance().getQueue();
+                Queue queue = Jenkins.getInstance().getQueue();
                 for (Queue.Item item : queue.getItems()) {
                     if (item.task instanceof ReservationTask && ((ReservationTask) item.task).getOwner().equals(executor)) {
                         // Cancel items executor is no longer interested in and keep those it cares for
@@ -297,7 +297,7 @@ public class Api implements RootAction {
      */
     @RequirePOST
     public void doReturnNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         String ocr = Pool.getInstance().getConfigRepoUrl(); // Fail early when there is no config
         ReturnNodeRequest request = Entity.fromInputStream(req.getInputStream(), ReturnNodeRequest.class);
@@ -308,7 +308,7 @@ public class Api implements RootAction {
             return;
         }
 
-        Jenkins jenkins = Jenkins.getActiveInstance();
+        Jenkins jenkins = Jenkins.getInstance();
         Computer c = jenkins.getComputer(request.getNodeName());
         if (c == null) {
             LOGGER.info(

@@ -127,7 +127,7 @@ public class ReservationTask extends AbstractQueueTask implements AccessControll
     }
 
     public Queue.Item schedule() {
-        return Jenkins.getActiveInstance().getQueue().schedule2(this, 0).getItem();
+        return Jenkins.getInstance().getQueue().schedule2(this, 0).getItem();
     }
 
     @Override public @Nonnull String getUrl() {

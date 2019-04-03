@@ -57,7 +57,7 @@ public class ConfigRepoAdminMonitor extends AdministrativeMonitor {
 
     public ConfigRepoAdminMonitor() {
         // Configure UI logger for ease of maintenance
-        LogRecorderManager log = Jenkins.getActiveInstance().getLog();
+        LogRecorderManager log = Jenkins.getInstance().getLog();
         LogRecorder recorder = log.getLogRecorder("node-sharing");
         if (recorder == null) {
             recorder = new LogRecorder("node-sharing");

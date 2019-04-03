@@ -74,7 +74,7 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
 
     public static Map<ShareableComputer, ReservationTask.ReservationExecutable> getAllReservations() {
         Map<ShareableComputer, ReservationTask.ReservationExecutable> out = new HashMap<>();
-        for (Computer computer : Jenkins.getActiveInstance().getComputers()) {
+        for (Computer computer : Jenkins.getInstance().getComputers()) {
             if (computer instanceof ShareableComputer) {
                 ShareableComputer shareableComputer = (ShareableComputer) computer;
                 out.put(shareableComputer, shareableComputer.getReservation());
@@ -84,7 +84,7 @@ public class ShareableComputer extends SlaveComputer implements EphemeralNode {
     }
 
     public static ShareableComputer getByName(String name) throws NoSuchElementException {
-        Computer computer = Jenkins.getActiveInstance().getComputer(name);
+        Computer computer = Jenkins.getInstance().getComputer(name);
         if (computer instanceof ShareableComputer) {
             return (ShareableComputer) computer;
         }

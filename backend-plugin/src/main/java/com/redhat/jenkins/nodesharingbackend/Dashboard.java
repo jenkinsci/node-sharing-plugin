@@ -51,7 +51,7 @@ public class Dashboard extends View {
     // It is quite delicate when this is invoked to fit between primary view updates hardcoded in Jenkins class itself
     @Initializer(after = InitMilestone.JOB_LOADED)
     public static void registerDashboard() throws IOException {
-        Jenkins j = Jenkins.getActiveInstance();
+        Jenkins j = Jenkins.getInstance();
         Dashboard dashboard = new Dashboard();
         j.addView(dashboard);
         j.setPrimaryView(dashboard);

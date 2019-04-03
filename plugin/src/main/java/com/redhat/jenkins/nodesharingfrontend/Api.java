@@ -97,7 +97,7 @@ public class Api {
             // PJ: Not working, during JUnit phase execution there aren't made packages...
             InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingfrontend.properties");
             if (resource == null) {
-                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+                version = Jenkins.getInstance().pluginManager.whichPlugin(getClass()).getVersion();
             } else {
                 Properties properties = new Properties();
                 properties.load(resource);
@@ -191,7 +191,7 @@ public class Api {
      */
     @RequirePOST
     public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        final Jenkins jenkins = Jenkins.getActiveInstance();
+        final Jenkins jenkins = Jenkins.getInstance();
         jenkins.checkPermission(RestEndpoint.RESERVE);
 
         UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
@@ -279,7 +279,7 @@ public class Api {
      */
     @RequirePOST
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         NodeStatusRequest request = Entity.fromInputStream(req.getInputStream(), NodeStatusRequest.class);
         String nodeName = request.getNodeName();
@@ -292,11 +292,11 @@ public class Api {
 
     @RequirePOST
     public void doReportUsage(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         ReportUsageRequest request = Entity.fromInputStream(req.getInputStream(), ReportUsageRequest.class);
         ArrayList<String> usedNodes = new ArrayList<>();
-        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+        for (Node node : Jenkins.getInstance().getNodes()) {
             if (node instanceof SharedNode) {
                 SharedNode sharedNode = (SharedNode) node;
                 SharedNodeCloud cloud = SharedNodeCloud.getByName(sharedNode.getId().getCloudName());
@@ -316,7 +316,7 @@ public class Api {
      */
     @RequirePOST
     public void doImmediatelyReturnNode() {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
         throw new UnsupportedOperationException("TODO");
     }
 }
