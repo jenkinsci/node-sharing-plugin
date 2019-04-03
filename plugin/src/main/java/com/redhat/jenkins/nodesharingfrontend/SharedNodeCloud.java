@@ -9,6 +9,7 @@ import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Computer;
@@ -87,10 +88,11 @@ public class SharedNodeCloud extends Cloud {
     @CheckForNull
     private transient ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
 
-    @VisibleForTesting @SuppressWarnings("MS_SHOULD_BE_FINAL")
+    @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
+    @VisibleForTesting
     @Restricted(NoExternalUse.class)
     public static boolean isWsCleanupAvailable = detectCleanup();
-    private static boolean detectCleanup() {
+    private final static boolean detectCleanup() {
         try {
             Class.forName("hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty");
             return true;
