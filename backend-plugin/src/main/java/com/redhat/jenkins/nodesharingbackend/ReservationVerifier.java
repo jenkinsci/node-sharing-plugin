@@ -84,7 +84,7 @@ public class ReservationVerifier extends PeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(ReservationVerifier.class.getName());
 
     public static @Nonnull ReservationVerifier getInstance() {
-        ExtensionList<ReservationVerifier> list = Jenkins.getActiveInstance().getExtensionList(ReservationVerifier.class);
+        ExtensionList<ReservationVerifier> list = Jenkins.getInstance().getExtensionList(ReservationVerifier.class);
         assert list.size() == 1;
         return list.iterator().next();
     }

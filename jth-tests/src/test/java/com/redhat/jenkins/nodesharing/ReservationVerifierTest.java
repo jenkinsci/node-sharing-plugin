@@ -163,7 +163,7 @@ public class ReservationVerifierTest {
         BlockingBuilder bb = j.getBlockingProject(sharedNode);
         QueueTaskFuture<FreeStyleBuild> fb = bb.getProject().scheduleBuild2(0);
 
-        Jenkins.getActiveInstance().addNode(sharedNode);
+        Jenkins.getInstance().addNode(sharedNode);
         FreeStyleBuild build = fb.getStartCondition().get();
         bb.start.block();
 

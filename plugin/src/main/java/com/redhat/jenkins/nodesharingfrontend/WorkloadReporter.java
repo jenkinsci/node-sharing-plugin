@@ -80,9 +80,9 @@ public class WorkloadReporter extends PeriodicWork {
         }
 
         // Fill only if Jenkins isn't going to restart, report empty workload otherwise
-        if (!Jenkins.getActiveInstance().isQuietingDown() && !Jenkins.getActiveInstance().isTerminating()) {
+        if (!Jenkins.getInstance().isQuietingDown() && !Jenkins.getInstance().isTerminating()) {
             // Make sure those scheduled sooner are at the beginning
-            List<Queue.BuildableItem> items = Jenkins.getActiveInstance().getQueue().getBuildableItems();
+            List<Queue.BuildableItem> items = Jenkins.getInstance().getQueue().getBuildableItems();
             for (Queue.Item item : items) {
                 if ("com.redhat.jenkins.nodesharingbackend.ReservationTask".equals(item.task.getClass().getName())) {
                     // TEST HACK: these are not supposed to coexist but they do in jth-tests

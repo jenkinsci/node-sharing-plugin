@@ -24,7 +24,6 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import hudson.remoting.Callable;
-import hudson.remoting.CallableFilter;
 import hudson.remoting.Channel;
 import hudson.remoting.ChannelBuilder;
 import hudson.remoting.ChannelProperty;
@@ -83,8 +82,8 @@ public class NoopChannel extends Channel {
     @Override public void addLocalExecutionInterceptor(CallableDecorator decorator) { } // $COVERAGE-IGNORE$
     @Override public void removeLocalExecutionInterceptor(CallableDecorator decorator) { } // $COVERAGE-IGNORE$
 
-    @Override public void addLocalExecutionInterceptor(CallableFilter filter) { } // $COVERAGE-IGNORE$
-    @Override public void removeLocalExecutionInterceptor(CallableFilter filter) { } // $COVERAGE-IGNORE$
+    @Override @Deprecated public void addLocalExecutionInterceptor(hudson.remoting.CallableFilter filter) { } // $COVERAGE-IGNORE$
+    @Override @Deprecated public void removeLocalExecutionInterceptor(hudson.remoting.CallableFilter filter) { } // $COVERAGE-IGNORE$
 
     @Override public boolean isRestricted() { return true; } // $COVERAGE-IGNORE$
     @Override public void setRestricted(boolean b) { } // $COVERAGE-IGNORE$

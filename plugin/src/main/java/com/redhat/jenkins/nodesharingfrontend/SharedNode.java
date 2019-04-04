@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Descriptor.FormException;
@@ -50,9 +51,12 @@ public class SharedNode extends AbstractCloudSlave implements EphemeralNode, Tra
     @SuppressWarnings("unused") // Deserialized
     private boolean skipWipeout;
 
-    @SuppressWarnings("NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR") @Nonnull
+    @SuppressFBWarnings("NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR")
+    @Nonnull
     private ProvisioningActivity.Id id;
-    @SuppressWarnings("NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR") @Nonnull
+
+    @SuppressFBWarnings("NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR")
+    @Nonnull
     private String hostname;
 
     // Never used, the class is always created from NodeDefinition. See: SharedNodeCloud#createNode()

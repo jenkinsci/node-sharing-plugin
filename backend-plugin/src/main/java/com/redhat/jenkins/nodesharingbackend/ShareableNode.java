@@ -67,7 +67,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
 
     public static @Nonnull Map<String, ShareableNode> getAll() {
         Map<String, ShareableNode> nodes = new HashMap<>();
-        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+        for (Node node : Jenkins.getInstance().getNodes()) {
             if (node instanceof ShareableNode) {
                 nodes.put(((ShareableNode) node).name, (ShareableNode) node);
             }
@@ -76,7 +76,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     }
 
     public static @CheckForNull ShareableNode getNodeByName(@Nonnull String name) throws IllegalStateException{
-        Node node = Jenkins.getActiveInstance().getNode(name);
+        Node node = Jenkins.getInstance().getNode(name);
         if (node == null) return null;
         if (node instanceof ShareableNode) return ((ShareableNode) node);
 
@@ -84,7 +84,13 @@ public final class ShareableNode extends Slave implements EphemeralNode {
     }
 
     public ShareableNode(@Nonnull NodeDefinition def) throws Descriptor.FormException, IOException {
-        super(def.getName(), def.getName(), "/unused", 1, Mode.EXCLUSIVE, def.getLabel(), new NoopLauncher(), RetentionStrategy.NOOP, Collections.<NodeProperty<?>>emptyList());
+        super(def.getName(), "/unused", new NoopLauncher());
+        setNodeDescription(def.getName());
+        setNumExecutors(1);
+        setMode(Mode.EXCLUSIVE);
+        setLabelString(def.getLabel());
+        setRetentionStrategy(RetentionStrategy.NOOP);
+        setNodeProperties(Collections.<NodeProperty<?>>emptyList());
         nodeDefinition = def;
     }
 
@@ -142,7 +148,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         }
 
         try {
-            Jenkins j = Jenkins.getActiveInstance();
+            Jenkins j = Jenkins.getInstance();
             j.removeNode(this);
         } catch (IOException e) {
             // delay as if not idle
@@ -163,7 +169,7 @@ public final class ShareableNode extends Slave implements EphemeralNode {
         @VisibleForTesting
         @Override
         public void doRun() {
-            for (Node node : Jenkins.getActiveInstance().getNodes()) {
+            for (Node node : Jenkins.getInstance().getNodes()) {
                 if (node instanceof ShareableNode && ((ShareableNode) node).canBeDeleted()) {
                     ((ShareableNode) node).deleteWhenIdle();
                 }

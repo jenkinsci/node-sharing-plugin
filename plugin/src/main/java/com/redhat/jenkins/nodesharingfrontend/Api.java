@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharingfrontend;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.redhat.jenkins.nodesharing.ActionFailed;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.NodeDefinition;
@@ -68,6 +69,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -97,7 +99,7 @@ public class Api {
             // PJ: Not working, during JUnit phase execution there aren't made packages...
             InputStream resource = this.getClass().getClassLoader().getResourceAsStream("nodesharingfrontend.properties");
             if (resource == null) {
-                version = Jenkins.getActiveInstance().pluginManager.whichPlugin(getClass()).getVersion();
+                version = Jenkins.getInstance().pluginManager.whichPlugin(getClass()).getVersion();
             } else {
                 Properties properties = new Properties();
                 properties.load(resource);
@@ -116,7 +118,8 @@ public class Api {
     private UsernamePasswordCredentials getRestCredential(@Nonnull SharedNodeCloud cloud) throws IllegalStateException {
         String cid = cloud.getOrchestratorCredentialsId();
         UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(), ACL.SYSTEM),
+                CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
+                        ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
                 CredentialsMatchers.withId(cid)
         );
         if (cred == null) throw new IllegalStateException(
@@ -191,7 +194,7 @@ public class Api {
      */
     @RequirePOST
     public void doUtilizeNode(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        final Jenkins jenkins = Jenkins.getActiveInstance();
+        final Jenkins jenkins = Jenkins.getInstance();
         jenkins.checkPermission(RestEndpoint.RESERVE);
 
         UtilizeNodeRequest request = Entity.fromInputStream(req.getInputStream(), UtilizeNodeRequest.class);
@@ -279,7 +282,7 @@ public class Api {
      */
     @RequirePOST
     public void doNodeStatus(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         NodeStatusRequest request = Entity.fromInputStream(req.getInputStream(), NodeStatusRequest.class);
         String nodeName = request.getNodeName();
@@ -292,11 +295,11 @@ public class Api {
 
     @RequirePOST
     public void doReportUsage(@Nonnull final StaplerRequest req, @Nonnull final StaplerResponse rsp) throws IOException {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
 
         ReportUsageRequest request = Entity.fromInputStream(req.getInputStream(), ReportUsageRequest.class);
         ArrayList<String> usedNodes = new ArrayList<>();
-        for (Node node : Jenkins.getActiveInstance().getNodes()) {
+        for (Node node : Jenkins.getInstance().getNodes()) {
             if (node instanceof SharedNode) {
                 SharedNode sharedNode = (SharedNode) node;
                 SharedNodeCloud cloud = SharedNodeCloud.getByName(sharedNode.getId().getCloudName());
@@ -316,7 +319,7 @@ public class Api {
      */
     @RequirePOST
     public void doImmediatelyReturnNode() {
-        Jenkins.getActiveInstance().checkPermission(RestEndpoint.RESERVE);
+        Jenkins.getInstance().checkPermission(RestEndpoint.RESERVE);
         throw new UnsupportedOperationException("TODO");
     }
 }

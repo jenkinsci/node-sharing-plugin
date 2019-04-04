@@ -1,5 +1,6 @@
 package com.redhat.jenkins.nodesharingfrontend;
 
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ConfigRepoAdminMonitor;
@@ -9,19 +10,22 @@ import com.redhat.jenkins.nodesharing.RestEndpoint;
 import com.redhat.jenkins.nodesharing.TaskLog;
 import com.redhat.jenkins.nodesharing.transport.DiscoverResponse;
 import com.redhat.jenkins.nodesharing.transport.NodeStatusResponse;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Item;
 import hudson.model.Label;
 import hudson.model.PeriodicWork;
 import hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty;
+import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
-import static com.cloudbees.plugins.credentials.CredentialsMatchers.instanceOf;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -87,10 +91,11 @@ public class SharedNodeCloud extends Cloud {
     @CheckForNull
     private transient ConfigRepo.Snapshot latestConfig; // Null when not yet obtained or there ware errors while doing so
 
-    @VisibleForTesting @SuppressWarnings("MS_SHOULD_BE_FINAL")
+    @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
+    @VisibleForTesting
     @Restricted(NoExternalUse.class)
     public static boolean isWsCleanupAvailable = detectCleanup();
-    private static boolean detectCleanup() {
+    private final static boolean detectCleanup() {
         try {
             Class.forName("hudson.plugins.ws_cleanup.DisableDeferredWipeoutNodeProperty");
             return true;
@@ -172,7 +177,7 @@ public class SharedNodeCloud extends Cloud {
         synchronized (this) { // Prevent several ConfigRepo instances to be created over same directory
             if (configRepo != null) return configRepo;
 
-            FilePath configRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/" + name);
+            FilePath configRepoDir = Jenkins.getInstance().getRootPath().child("node-sharing/configs/" + name);
             return configRepo = new ConfigRepo(configRepoUrl, new File(configRepoDir.getRemote()));
         }
     }
@@ -259,7 +264,7 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public NodeStatusResponse.Status getNodeStatus(@Nonnull final String nodeName) {
         NodeStatusResponse.Status status = NodeStatusResponse.Status.NOT_FOUND;
-        Computer computer = Jenkins.getActiveInstance().getComputer(getNodeName(nodeName));
+        Computer computer = Jenkins.getInstance().getComputer(getNodeName(nodeName));
         if (computer instanceof SharedComputer) {
             status = NodeStatusResponse.Status.FOUND;
             if (computer.isIdle() && !computer.isConnecting()) {
@@ -320,7 +325,7 @@ public class SharedNodeCloud extends Cloud {
      */
     @CheckForNull
     public static SharedNodeCloud getByName(@Nonnull final String name) throws IllegalArgumentException {
-        Cloud cloud = Jenkins.getActiveInstance().clouds.getByName(name);
+        Cloud cloud = Jenkins.getInstance().clouds.getByName(name);
         if (cloud instanceof SharedNodeCloud) {
             return (SharedNodeCloud) cloud;
         }
@@ -333,7 +338,7 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     public static Collection<SharedNodeCloud> getAll() {
         ArrayList<SharedNodeCloud> out = new ArrayList<>();
-        for (Cloud cloud : Jenkins.getActiveInstance().clouds) {
+        for (Cloud cloud : Jenkins.getInstance().clouds) {
             if (cloud instanceof SharedNodeCloud) {
                 out.add((SharedNodeCloud) cloud);
             }
@@ -362,10 +367,12 @@ public class SharedNodeCloud extends Cloud {
         @RequirePOST
         @Nonnull
         public ListBoxModel doFillOrchestratorCredentialsIdItems() {
-            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
-            return new StandardListBoxModel().withMatching(
-                    instanceOf(UsernamePasswordCredentials.class),
-                    CredentialsProvider.lookupCredentials(StandardUsernameCredentials.class)
+            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
+            return new StandardListBoxModel().includeMatchingAs(ACL.SYSTEM,
+                    Jenkins.getInstance(),
+                    StandardUsernameCredentials.class,
+                    Collections.<DomainRequirement>emptyList(),
+                    CredentialsMatchers.instanceOf(UsernamePasswordCredentials.class)
             );
         }
 
@@ -393,7 +400,7 @@ public class SharedNodeCloud extends Cloud {
                 return FormValidation.error(e, Messages.InvalidURI());
             }
 
-            FilePath testConfigRepoDir = Jenkins.getActiveInstance().getRootPath().child("node-sharing/configs/testNewConfig");
+            FilePath testConfigRepoDir = Jenkins.getInstance().getRootPath().child("node-sharing/configs/testNewConfig");
             testConfigRepoDir.deleteRecursive();
             try {
                 SharedNodeCloud cloud = new SharedNodeCloud(configRepoUrl, restCredentialId);
