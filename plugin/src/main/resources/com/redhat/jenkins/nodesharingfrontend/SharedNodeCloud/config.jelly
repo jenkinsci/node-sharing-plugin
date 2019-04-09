@@ -8,6 +8,9 @@
     <f:entry title="${%Orchestrator Credentials}" field="orchestratorCredentialsId">
       <c:select/>
     </f:entry>
+    <f:entry title="${%Temporary disabled}" field="disabled">
+      <f:checkbox />
+    </f:entry>
   </f:section>
 
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="configRepoUrl,orchestratorCredentialsId" />

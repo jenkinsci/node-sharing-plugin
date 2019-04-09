@@ -81,6 +81,9 @@ public class SharedNodeCloud extends Cloud {
     @Nonnull
     private String orchestratorCredentialsId;
 
+    /** True if cloud is temporary disabled -> not operational */
+    private boolean disabled;
+
     /** DELETED - The id of the ssh credentials for hosts. */
     @Deprecated private transient String sshCredentialsId;
 
@@ -110,12 +113,24 @@ public class SharedNodeCloud extends Cloud {
      * @param configRepoUrl ConfigRepo url
      * @param orchestratorCredentialsId Orchestrator credential.
      */
-    @DataBoundConstructor
     public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId) {
+        this(configRepoUrl, orchestratorCredentialsId, false);
+    }
+
+    /**
+     * Constructor for Config Page.
+     *
+     * @param configRepoUrl ConfigRepo url
+     * @param orchestratorCredentialsId Orchestrator credential.
+     * @param disabled true if cloud is disabled temporary.
+     */
+    @DataBoundConstructor
+    public SharedNodeCloud(@Nonnull String configRepoUrl, @Nonnull String orchestratorCredentialsId, boolean disabled) {
         super(ExecutorJenkins.inferCloudName(configRepoUrl));
 
         this.configRepoUrl = configRepoUrl;
         this.orchestratorCredentialsId = orchestratorCredentialsId;
+        this.disabled = disabled;
         this.configRepo = getConfigRepo();
     }
 
@@ -351,6 +366,27 @@ public class SharedNodeCloud extends Cloud {
      */
     public boolean isOperational() {
         return latestConfig != null;
+    }
+
+    /**
+     * Check whether cloud is temporary disabled.
+     *
+     * @return true if cloud is temporary disabled.
+     */
+    public boolean isDisabled() {
+        return disabled;
+    }
+
+    /**
+     * Set temporary disabled status to the new state.
+     *
+     * @param disabled new disabled status.
+     * @return old disabled status.
+     */
+    public synchronized boolean disabled(final boolean disabled) {
+        boolean retVal = this.disabled;
+        this.disabled = disabled;
+        return retVal;
     }
 
     @Extension

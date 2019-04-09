@@ -62,6 +62,20 @@ public class ReportUsageTest {
         SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
         cloud.getLatestConfig(); // NodeSharingComputerListener#preLaunch does not consider this to be operational until we have config
 
+        testExecutorUsage(cloud);
+    }
+
+    @Test
+    public void reportExecutorUsageWhenCloudTemporaryDisabled() throws Exception {
+        j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(getInstance().getConfigRepoUrl());
+        cloud.getLatestConfig(); // NodeSharingComputerListener#preLaunch does not consider this to be operational until we have config
+        cloud.disabled(true);
+
+        testExecutorUsage(cloud);
+    }
+
+    private void testExecutorUsage(SharedNodeCloud cloud) throws Exception {
         ConfigRepo.Snapshot snapshot = getInstance().getConfig();
         Collection<NodeDefinition> declaredNodes = snapshot.getNodes().values();
 

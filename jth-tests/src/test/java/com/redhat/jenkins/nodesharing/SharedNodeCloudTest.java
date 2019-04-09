@@ -199,6 +199,10 @@ public class SharedNodeCloudTest {
 
         assertNull(j.jenkins.getComputer("foo"));
         checkNodeStatus(cloud, "foo", NodeStatusResponse.Status.NOT_FOUND);
+
+        cloud.disabled(true);
+        checkNodeStatus(cloud, "foo", NodeStatusResponse.Status.NOT_FOUND);
+        cloud.disabled(false);
     }
 
     @Test
@@ -213,6 +217,10 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isIdle());
         checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.IDLE);
 
+        cloud.disabled(true);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.IDLE);
+        cloud.disabled(false);
+
         // still IDLE status although offline
         assertFalse(computer.isConnecting());
         //noinspection deprecation
@@ -224,6 +232,10 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isOffline());
         assertFalse(computer.isConnecting());
         checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.IDLE);
+
+        cloud.disabled(true);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.IDLE);
+        cloud.disabled(false);
     }
 
     @Test
@@ -244,6 +256,11 @@ public class SharedNodeCloudTest {
         assertTrue(job.isBuilding());
         assertFalse(computer.isIdle());
         checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.BUSY);
+
+        cloud.disabled(true);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.BUSY);
+        cloud.disabled(false);
+
         builder.end.signal();
         j.waitUntilNoActivity();
     }
@@ -271,6 +288,11 @@ public class SharedNodeCloudTest {
         assertTrue(computer.isOffline());
         assertFalse(computer.isIdle());
         checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.OFFLINE);
+
+        cloud.disabled(true);
+        checkNodeStatus(cloud, "solaris2.acme.com", NodeStatusResponse.Status.OFFLINE);
+        cloud.disabled(false);
+
         builder.end.signal();
     }
 
@@ -290,6 +312,11 @@ public class SharedNodeCloudTest {
         assertTrue(connectingSlave.toComputer().isConnecting());
         blockingLauncher.start.block();
         checkNodeStatus(cloud, "aConnectingNode", NodeStatusResponse.Status.CONNECTING);
+
+        cloud.disabled(true);
+        checkNodeStatus(cloud, "aConnectingNode", NodeStatusResponse.Status.CONNECTING);
+        cloud.disabled(false);
+
         blockingLauncher.end.signal();
         connectingSlave.toComputer().waitUntilOnline();
         assertTrue(connectingSlave.toComputer().isOnline());
@@ -445,6 +472,53 @@ public class SharedNodeCloudTest {
             assertThat(e.toString(), containsString("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST"));
             assertThat(e.toString(), containsString("java.lang.IllegalArgumentException: Invalid node definition"));
         }
+    }
+
+    @Test
+    public void testDoUtilizeNodeWhenCloudTemporaryDisabled() throws Exception {
+        String source = "<com.redhat.jenkins.nodesharingfrontend.SharedNode>\n" +
+                "  <name>solaris1.redhat.com</name>\n" +
+                "  <description/>\n" +
+                "  <remoteFS>/var/jenkins-workspace</remoteFS>\n" +
+                "  <numExecutors>1</numExecutors>\n" +
+                "  <mode>EXCLUSIVE</mode>\n" +
+                "  <launcher class=\"hudson.slaves.CommandLauncher\">\n" +
+                "    <agentCommand />\n" +
+                "    <env serialization=\"custom\">\n" +
+                "      <unserializable-parents/>\n" +
+                "      <tree-map>\n" +
+                "        <default>\n" +
+                "          <comparator class=\"hudson.util.CaseInsensitiveComparator\"/>\n" +
+                "        </default>\n" +
+                "        <int>0</int>\n" +
+                "      </tree-map>\n" +
+                "    </env>\n" +
+                "  </launcher>\n" +
+                "  <label>foo</label>\n" +
+                "  <nodeProperties/>\n" +
+                "</com.redhat.jenkins.nodesharingfrontend.SharedNode>";
+
+        final GitClient gitClient = j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
+
+        FreeStyleProject job = j.createFreeStyleProject();
+        job.setAssignedLabel(new LabelAtom("foo"));
+        job.scheduleBuild2(0).getStartCondition();
+        assertFalse(job.isBuilding());
+
+        cloud.disabled(true);
+        try {
+            RestEndpoint rest = new RestEndpoint(j.getURL().toExternalForm(), "cloud/" + cloud.name + "/api", j.getRestCredential());
+            rest.executeRequest(rest.post("utilizeNode"), new UtilizeNodeRequest(
+                    Pool.getInstance().getConfigRepoUrl(),
+                    "4.2",
+                    new NodeDefinition.Xml("ok-node.xml", source)
+            ), UtilizeNodeResponse.class);
+        } catch (ActionFailed.RequestFailed e) {
+            assertThat(e.toString(), containsString("com.redhat.jenkins.nodesharing.ActionFailed$RequestFailed: Executing REST call POST"));
+            assertThat(e.toString(), containsString("410 Gone"));
+        }
+        assertFalse(job.isBuilding());
     }
 
     @Test

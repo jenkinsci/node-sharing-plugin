@@ -135,6 +135,7 @@ public class Api {
      */
     // Response never used as there is likely nothing to report - async request candidate
     public void reportWorkload(@Nonnull final ReportWorkloadRequest.Workload workload) {
+        if (cloud.isDisabled()) return;
         final ReportWorkloadRequest request = new ReportWorkloadRequest(fingerprint, workload);
         rest.executeRequest(rest.post("reportWorkload"), request, ReportWorkloadResponse.class);
     }
@@ -212,10 +213,11 @@ public class Api {
             return;
         }
 
-        // Do not accept the node when there is no load for it
-        if (!isThereAWorkloadFor(jenkins, definition)) {
+        // Do not accept the node when there is no load for it or cloud is temporary disabled
+        if (cloud.isDisabled() || !isThereAWorkloadFor(jenkins, definition)) {
             rsp.setStatus(HttpServletResponse.SC_GONE);
-            LOGGER.info("Skipping node addition as there isn't a workload for it");
+            LOGGER.info("Skipping node addition " +
+                    (cloud.isDisabled() ? "- the cloud is temporary disabled" : "as there isn't a workload for it"));
             return;
         }
 

@@ -47,10 +47,12 @@ import java.util.Properties;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 public class ReservationTest {
 
@@ -239,5 +241,32 @@ public class ReservationTest {
         assertEquals(1, j.jenkins.getQueue().getBuildableItems().size());
         assertEquals(0, j.getActiveReservations().size());
         assertEquals(0, j.getQueuedReservations().size());
+    }
+
+    @Test
+    public void doNotReportWorkloadWhenDisabled() throws Exception {
+        j.singleJvmGrid(j.jenkins);
+        SharedNodeCloud cloud = j.addSharedNodeCloud(Pool.getInstance().getConfigRepoUrl());
+        cloud.disabled(true);
+
+        Label label = Label.get("w2k12");
+        FreeStyleProject project = j.createFreeStyleProject("keep");
+        project.setAssignedLabel(label);
+
+        assertTrue(cloud.canProvision(label));
+        assertEquals(0, j.jenkins.getQueue().getBuildableItems().size());
+        assertThat(j.getQueuedReservations(), emptyIterable());
+        assertThat(j.getActiveReservations(), emptyIterable());
+
+        project.scheduleBuild2(0);
+
+        // No-op, cloud is disabled
+        j.reportWorkloadToOrchestrator();
+        j.jenkins.getQueue().scheduleMaintenance().get(); // Make sure parallel #maintain will not change the order while using it
+
+        // Run should be still in the queue only
+        assertEquals(1, j.jenkins.getQueue().getBuildableItems().size());
+        assertThat(j.getQueuedReservations(), emptyIterable());
+        assertThat(j.getActiveReservations(), emptyIterable());
     }
 }
