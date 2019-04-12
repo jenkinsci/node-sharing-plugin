@@ -38,6 +38,7 @@ import hudson.Functions;
 import hudson.Util;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
+import hudson.model.Computer;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import jenkins.model.Jenkins;
@@ -133,16 +134,28 @@ public class Pool {
     }
 
     private void updateConfig(@Nonnull ConfigRepo.Snapshot config) {
+        boolean needsReconfiguration = false;
         synchronized (configLock) {
             String oldRev = this.config == null ? null : this.config.getSource();
             String newRev = config.getSource();
             this.config = config;
             if (!newRev.equals(oldRev)) {
                 LOGGER.info("Config repo updated from " + oldRev + " to " + newRev);
+                needsReconfiguration = true;
             }
         }
 
-        updateOrchestrator(config);
+        if (needsReconfiguration) {
+            updateOrchestrator(config);
+
+            // Start grid verification immediately after config repo change in a separate thread
+            Computer.threadPoolForRemoting.submit(new Runnable() {
+                @Override
+                public void run() {
+                    ReservationVerifier.getInstance().doRun();
+                }
+            });
+        }
     }
 
     private void updateOrchestrator(final ConfigRepo.Snapshot config) {
