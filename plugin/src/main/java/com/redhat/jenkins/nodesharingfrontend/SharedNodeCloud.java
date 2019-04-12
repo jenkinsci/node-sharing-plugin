@@ -222,6 +222,8 @@ public class SharedNodeCloud extends Cloud {
             String newRev = latestConfig.getSource();
             if (!newRev.equals(oldRev)) {
                 LOGGER.info("Config repo for " + name + " updated from " + oldRev + " to " + newRev);
+                // Drop an Api instance to recreate it based on the new config repo content
+                api = null;
             }
         } catch (IOException|TaskLog.TaskFailed ex) {
             ADMIN_MONITOR.report(configRepoUrl, ex);
