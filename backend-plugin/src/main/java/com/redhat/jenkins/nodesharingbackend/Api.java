@@ -331,6 +331,9 @@ public class Api implements RootAction {
         ShareableComputer computer = (ShareableComputer) c;
         ReservationTask.ReservationExecutable executable = computer.getReservation();
         if (executable == null) {
+            LOGGER.info(
+                    "An attempt to return a node '" + request.getNodeName() + "' that is not reserved by " + request.getExecutorUrl())
+            ;
             rsp.setStatus(HttpServletResponse.SC_OK);
             return;
         }
