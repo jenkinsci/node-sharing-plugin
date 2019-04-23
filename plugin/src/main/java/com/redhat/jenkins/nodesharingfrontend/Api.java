@@ -313,6 +313,9 @@ public class Api {
             }
         }
 
+        // Schedule report workload to Orchestrator
+        WorkloadReporter.Detector.getInstance().scheduleUpdate();
+
         new ReportUsageResponse(fingerprint, usedNodes).toOutputStream(rsp.getOutputStream());
     }
 

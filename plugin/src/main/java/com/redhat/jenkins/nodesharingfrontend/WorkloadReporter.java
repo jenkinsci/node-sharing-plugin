@@ -26,6 +26,7 @@ package com.redhat.jenkins.nodesharingfrontend;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.transport.ReportWorkloadRequest;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
 import hudson.model.queue.QueueListener;
@@ -38,6 +39,7 @@ import org.acegisecurity.context.SecurityContextHolder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.List;
@@ -115,6 +117,12 @@ public class WorkloadReporter extends PeriodicWork {
     public static final class Detector extends QueueListener {
         private volatile Future<?> nextPush;
 
+        public static @Nonnull Detector getInstance() {
+            ExtensionList<Detector> list = Jenkins.getInstance().getExtensionList(Detector.class);
+            assert list.size() == 1;
+            return list.iterator().next();
+        }
+
         @Inject
         private WorkloadReporter wr;
 
@@ -142,7 +150,7 @@ public class WorkloadReporter extends PeriodicWork {
             scheduleUpdate();
         }
 
-        private void scheduleUpdate() {
+        /* package */ void scheduleUpdate() {
             // Can be done or canceled in case of a bug or external intervention - do not allow it to hang there forever
             if (nextPush != null && !(nextPush.isDone() || nextPush.isCancelled())) return;
             nextPush = Timer.get().schedule(safeTimerTask, 10, TimeUnit.SECONDS);
