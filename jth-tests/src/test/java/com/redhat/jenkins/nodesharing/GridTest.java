@@ -88,7 +88,7 @@ public class GridTest {
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
                 } catch (AssertionError ex) {
-                    if (i == 6) {
+                    if (i == 8) {
                         TimeoutException tex = new TimeoutException("Build not completed in time");
                         tex.initCause(ex);
                         throw tex;
@@ -110,7 +110,7 @@ public class GridTest {
         }
     }
 
-    @Test(timeout = TEST_TIMEOUT)
+    @Test(timeout = TEST_TIMEOUT * 2)
     @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-restartOrchestrator.yaml", injectPlugins = "matrix-auth")
     @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
     public void restartOrchestrator() throws Exception {
@@ -120,7 +120,12 @@ public class GridTest {
 
         // Run nr. 1 - will be in building state during Orchestrator restart
         FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
-        BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient, "running", job.build(runningBlocker.buildParams()));
+        BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient, "running",
+                job.build(runningBlocker.buildParams()));
+        await(10000,
+                () -> runningBlocker.isRunning(),
+                throwable -> { dumpFixtureLogs(); return "Build not running in time";
+        });
 
         // Run nr. 2 - will be in queued state during Orchestrator restart
         FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
@@ -161,7 +166,14 @@ public class GridTest {
         );
 
         // Run nr. 2 should be building right after nr. 1 finishes
-        await(30000, () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(), throwable -> { dumpFixtureLogs(); return "Build not started in time"; });
+        await(30000,
+                () -> buildDetails(executorClient.getJob("running"), 2).isBuilding(),
+                throwable -> { dumpFixtureLogs(); return "Build not started in time";
+        });
+        await(10000,
+                () -> queuedBlocker.isRunning(),
+                throwable -> { dumpFixtureLogs(); return "Build not running in time";
+        });
 
         // Signal to finish run nr. 2
         queuedBlocker.complete();
@@ -172,8 +184,8 @@ public class GridTest {
 
     @Test(timeout = TEST_TIMEOUT * 2)
     @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-restartOrchestrator.yaml", injectPlugins = "matrix-auth")
-    @ExternalFixture(name = "o1",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
-    @ExternalFixture(name = "o2",  roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "o1", roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "o2", roles = Orchestrator.class, resource = "orchestrator.yaml",                 injectPlugins = "matrix-auth")
     public void changeOrchestratorUrlSmokeTest() throws Exception {
         ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
         JenkinsServer executorClient0 = e0.getClient("admin", "admin");
@@ -188,7 +200,12 @@ public class GridTest {
 
         // Run nr. 1 - will be in building state during Orchestrator restart
         FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
-        BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient0, "running", job.build(runningBlocker.buildParams()));
+        BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient0, "running",
+                job.build(runningBlocker.buildParams()));
+        await(10000,
+                () -> runningBlocker.isRunning(),
+                throwable -> { dumpFixtureLogs(); return "Build not running in time";
+        });
 
         // Run nr. 2 - will be in queued state during Orchestrator restart
         FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
@@ -240,21 +257,30 @@ public class GridTest {
         // Run nr. 1 should complete with success
         await(20000,
                 () -> buildDetails(executorClient0.getJob("running"), 1).getResult() == BuildResult.SUCCESS,
-                throwable -> { dumpFixtureLogs(); return "Build not completed in time"; }
-        );
+                throwable -> { dumpFixtureLogs(); return "Build not completed in time";
+        });
 
         // Run nr. 2 should be building right after nr. 1 finishes
-        await(30000, () -> buildDetails(executorClient0.getJob("running"), 2).isBuilding(), throwable -> { dumpFixtureLogs(); return "Build not started in time"; });
+        await(30000,
+                () -> buildDetails(executorClient0.getJob("running"), 2).isBuilding(),
+                throwable -> { dumpFixtureLogs(); return "Build not started in time";
+        });
+        await(10000,
+                () -> queuedBlocker.isRunning(),
+                throwable -> { dumpFixtureLogs(); return "Build not running in time";
+        });
 
         // Signal to finish run nr. 2
         queuedBlocker.complete();
 
         // Run nr. 2 should complete with success as well
-        await(20000, () -> buildDetails(executorClient0.getJob("running"), 2).getResult() == BuildResult.SUCCESS, throwable -> { dumpFixtureLogs(); return "Build not completed in time"; });
+        await(20000,
+                () -> buildDetails(executorClient0.getJob("running"), 2).getResult() == BuildResult.SUCCESS,
+                throwable -> { dumpFixtureLogs(); return "Build not completed in time";
+        });
 
-//        dumpFixtureLog(e0);
-//        dumpFixtureLog(o2);
-//        dumpFixtureLog(o1);
+        // Wait a bit for node termination
+        Thread.sleep(1000);
 
         String e0Log = e0.getLog().readToString();
         // Executor should terminate computer twice
@@ -332,6 +358,7 @@ public class GridTest {
         }
 
         job = server.getJob(jobName);
+
         Build lastBuild = job.getLastBuild();
         return lastBuild.details();
     }
@@ -375,6 +402,10 @@ public class GridTest {
         public void complete() throws IOException, InterruptedException {
             assertThat(tempFile.readToString(), equalTo("Started\n"));
             tempFile.write("Done", "UTF-8");
+        }
+
+        public boolean isRunning() throws IOException, InterruptedException {
+            return tempFile.readToString().equals("Started\n");
         }
 
         public Map<String, String> buildParams() {
