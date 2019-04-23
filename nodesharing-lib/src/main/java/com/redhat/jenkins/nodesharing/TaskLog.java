@@ -24,7 +24,6 @@
 package com.redhat.jenkins.nodesharing;
 
 import hudson.FilePath;
-import hudson.Platform;
 import hudson.console.AnnotatedLargeText;
 import hudson.util.StreamTaskListener;
 
@@ -34,7 +33,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;

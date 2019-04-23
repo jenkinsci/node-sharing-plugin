@@ -34,8 +34,6 @@ import hudson.security.ACL;
 import hudson.triggers.SafeTimerTask;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
-import org.acegisecurity.context.SecurityContext;
-import org.acegisecurity.context.SecurityContextHolder;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 

@@ -23,7 +23,6 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
-import com.google.common.annotations.VisibleForTesting;
 import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Executor;

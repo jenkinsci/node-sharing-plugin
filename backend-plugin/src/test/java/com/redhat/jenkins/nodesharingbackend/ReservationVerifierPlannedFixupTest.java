@@ -24,7 +24,8 @@
 package com.redhat.jenkins.nodesharingbackend;
 
 import static com.redhat.jenkins.nodesharingbackend.ReservationVerifier.PlannedFixup.reduce;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharingbackend.ReservationVerifier.PlannedFixup;

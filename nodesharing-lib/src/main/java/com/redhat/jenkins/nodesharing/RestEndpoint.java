@@ -32,7 +32,6 @@ import com.redhat.jenkins.nodesharing.transport.Entity;
 import hudson.Util;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
-import hudson.model.ModelObject;
 import hudson.security.Permission;
 import hudson.security.PermissionGroup;
 import hudson.security.PermissionScope;
