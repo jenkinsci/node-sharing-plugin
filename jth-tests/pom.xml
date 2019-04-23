@@ -147,6 +147,7 @@
                         </goals>
                         <configuration>
                             <groups>com.redhat.jenkins.nodesharing.utils.SlowTest</groups>
+                            <forkCount>1</forkCount>
                         </configuration>
                     </execution>
                 </executions>
