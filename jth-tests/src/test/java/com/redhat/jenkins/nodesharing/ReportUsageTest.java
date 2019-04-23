@@ -24,6 +24,7 @@
 package com.redhat.jenkins.nodesharing;
 
 import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
+import com.redhat.jenkins.nodesharing.utils.SlowTest;
 import com.redhat.jenkins.nodesharingbackend.ReservationTask;
 import com.redhat.jenkins.nodesharingbackend.ReservationVerifier;
 import com.redhat.jenkins.nodesharingfrontend.SharedNode;
@@ -40,6 +41,7 @@ import hudson.model.queue.QueueTaskFuture;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.jvnet.hudson.test.TestBuilder;
 
 import java.util.Collection;
@@ -51,6 +53,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+@Category(SlowTest.class)
 public class ReportUsageTest {
 
     @Rule
@@ -90,7 +93,6 @@ public class ReportUsageTest {
             j.jenkins.getComputer(definition.getName()).waitUntilOnline();
         }
         assertThat(j.jenkins.getNodes(), Matchers.<Node>iterableWithSize(declaredNodes.size() * 2));
-
         for (int i = 0; i < 3; i++) {
             // When usage is reported
             ReservationVerifier.getInstance().doRun();
