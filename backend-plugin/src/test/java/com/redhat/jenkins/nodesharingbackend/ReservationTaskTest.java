@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import hudson.model.Label;
-import hudson.model.labels.LabelAtom;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;

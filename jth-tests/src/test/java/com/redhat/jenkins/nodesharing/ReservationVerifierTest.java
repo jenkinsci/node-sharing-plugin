@@ -5,6 +5,7 @@ import com.redhat.jenkins.nodesharing.transport.ReportUsageResponse;
 import com.redhat.jenkins.nodesharing.utils.BlockingBuilder;
 import com.redhat.jenkins.nodesharing.utils.DoNotSquashQueueAction;
 import com.redhat.jenkins.nodesharing.utils.NodeSharingJenkinsRule;
+import com.redhat.jenkins.nodesharing.utils.SlowTest;
 import com.redhat.jenkins.nodesharing.utils.TestUtils;
 import com.redhat.jenkins.nodesharingbackend.Api;
 import com.redhat.jenkins.nodesharingbackend.Pool;
@@ -29,6 +30,7 @@ import org.jenkinsci.plugins.gitclient.GitClient;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.recipes.WithTimeout;
@@ -55,6 +57,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@Category(SlowTest.class)
 public class ReservationVerifierTest {
 
     @Rule public NodeSharingJenkinsRule j = new NodeSharingJenkinsRule();

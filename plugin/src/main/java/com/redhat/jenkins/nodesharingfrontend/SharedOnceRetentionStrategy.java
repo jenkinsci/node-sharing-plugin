@@ -14,8 +14,6 @@ import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.CloudRetentionStrategy;
 import hudson.slaves.OfflineCause;
 import hudson.util.TimeUnit2;
-import org.acegisecurity.context.SecurityContext;
-import org.acegisecurity.context.SecurityContextHolder;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;

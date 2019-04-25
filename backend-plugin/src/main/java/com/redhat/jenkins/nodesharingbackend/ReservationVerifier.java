@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
 import com.redhat.jenkins.nodesharing.ExecutorJenkins;
 import com.redhat.jenkins.nodesharing.RestEndpoint;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Functions;
@@ -107,7 +108,8 @@ public class ReservationVerifier extends PeriodicWork {
     }
 
     @VisibleForTesting
-    public static void verify(ConfigRepo.Snapshot config, Api api) {
+    @SuppressFBWarnings(value="SWL_SLEEP_WITH_LOCK_HELD")
+    synchronized public static void verify(ConfigRepo.Snapshot config, Api api) {
         // Capture multiple plans so we can identify long-lasting problems. The number of samples and delay is to be fine-tuned.
         ArrayList<Map<ExecutorJenkins, PlannedFixup>> plans = new ArrayList<>();
         plans.add(computePlannedFixup(config, api));

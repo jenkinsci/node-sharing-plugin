@@ -49,7 +49,6 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

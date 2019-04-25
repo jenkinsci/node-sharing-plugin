@@ -27,8 +27,6 @@ import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
 import hudson.model.Failure;
 import jenkins.model.Jenkins;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;

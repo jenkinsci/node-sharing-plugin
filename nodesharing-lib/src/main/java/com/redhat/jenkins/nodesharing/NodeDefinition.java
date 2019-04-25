@@ -35,8 +35,6 @@ import javax.annotation.concurrent.Immutable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Definition of the node in Config Repository.
