@@ -225,14 +225,12 @@ public class GridTest {
         assertTrue(job.isInQueue());
         assertTrue(buildDetails(job, 1).isBuilding());
 
-        assertThat(jcr.configRepo().getWorkTree().child("config").readToString(), containsString("orchestrator.url=" + o2.getUri()));
-        jcr.configRepo().getWorkTree().child("config").write(
-                jcr.configRepo().getWorkTree().child("config").readToString().replace(o2.getUri().toString(), o1.getUri().toString()),
-                "UTF-8"
-        );
+        FilePath config = jcr.configRepo().getWorkTree().child("config");
+        assertThat(config.readToString(), containsString("orchestrator.url=" + o2.getUri()));
+        config.write(config.readToString().replace(o2.getUri().toString(), o1.getUri().toString()),"UTF-8");
         jcr.configRepo().add("config");
         jcr.configRepo().commit("Writing a new Orchestrator URL");
-        assertThat(jcr.configRepo().getWorkTree().child("config").readToString(), containsString("orchestrator.url=" + o1.getUri()));
+        assertThat(config.readToString(), containsString("orchestrator.url=" + o1.getUri()));
 
         // Make sure updated config is propagated through the grid
         executorClient0.runScript("Jenkins.instance.getExtensionList(com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.ConfigRepoUpdater.class).get(0).doRun();");
