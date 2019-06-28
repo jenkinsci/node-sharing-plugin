@@ -97,9 +97,14 @@ public class ConfigRepo {
                 try {
                     currentHead = getRemoteHead(taskLog);
                 } catch (GitException e) {
-                    LOGGER.info("Getting config repo HEAD from remote failed, trying to recover from locally stored config");
-                    snapshot = readConfig(currentHead, taskLog);
-                    currentHead = snapshot.source;
+                    LOGGER.info("Getting HEAD of config repo from remote location failed");
+                    if (snapshot != null) {
+                        LOGGER.info("Trying to recover from previous locally stored config");
+                        snapshot = readConfig(snapshot.source, taskLog);
+                        currentHead = snapshot.source;
+                    } else {
+                        throw e;
+                    }
                 }
                 if (currentHead != null) {
                     if (snapshot != null && currentHead.equals(snapshot.source)) {
