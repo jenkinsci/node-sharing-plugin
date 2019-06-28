@@ -92,16 +92,25 @@ public class ConfigRepo {
         Files.createDirectories(workingDir.toPath());
         TaskLog taskLog = new TaskLog(new File(workingDir.getAbsolutePath() + ".log"));
         try {
-            ObjectId currentHead = getRemoteHead(taskLog);
             synchronized (repoLock) {
-                if (snapshot != null && currentHead.equals(snapshot.source)) {
-                    LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
-                } else {
-                    taskLog.getLogger().printf("Node sharing config changes discovered %s%nPulling %s to %s%n", currentHead.name(), url, workingDir);
-                    fetchChanges(taskLog);
-                    ObjectId checkedOutHead = getClient(taskLog).revParse("HEAD");
-                    assert currentHead.equals(checkedOutHead): "What was discovered was in fact checked out";
+                ObjectId currentHead = null;
+                try {
+                    currentHead = getRemoteHead(taskLog);
+                } catch (GitException e) {
+                    LOGGER.info("Getting config repo HEAD from remote failed, trying to recover from locally stored config");
                     snapshot = readConfig(currentHead, taskLog);
+                    currentHead = snapshot.source;
+                }
+                if (currentHead != null) {
+                    if (snapshot != null && currentHead.equals(snapshot.source)) {
+                        LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
+                    } else {
+                        taskLog.getLogger().printf("Node sharing config changes discovered %s%nPulling %s to %s%n", currentHead.name(), url, workingDir);
+                        fetchChanges(taskLog);
+                        ObjectId checkedOutHead = getClient(taskLog).revParse("HEAD");
+                        assert currentHead.equals(checkedOutHead) : "What was discovered was in fact checked out";
+                        snapshot = readConfig(currentHead, taskLog);
+                    }
                 }
             }
         } catch (IOException|GitException ex) {

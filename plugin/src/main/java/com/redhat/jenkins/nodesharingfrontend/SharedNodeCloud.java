@@ -215,7 +215,7 @@ public class SharedNodeCloud extends Cloud {
         return latestConfig;
     }
 
-    private void updateConfigSnapshot() throws InterruptedException {
+    synchronized private void updateConfigSnapshot() throws InterruptedException {
         try {
             String oldRev = latestConfig == null ? null : latestConfig.getSource();
             latestConfig = getConfigRepo().getSnapshot();
