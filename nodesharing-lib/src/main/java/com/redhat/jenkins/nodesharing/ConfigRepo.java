@@ -100,22 +100,25 @@ public class ConfigRepo {
                     LOGGER.info("Getting HEAD of config repo from remote location failed");
                     if (snapshot != null) {
                         LOGGER.info("Trying to recover from previous locally stored config");
-                        snapshot = readConfig(snapshot.source, taskLog);
+                        try {
+                            snapshot = readConfig(snapshot.source, taskLog);
+                        } catch (Exception e1) {
+                            e1.addSuppressed(e);
+                            throw e1;
+                        }
                         currentHead = snapshot.source;
                     } else {
                         throw e;
                     }
                 }
-                if (currentHead != null) {
-                    if (snapshot != null && currentHead.equals(snapshot.source)) {
-                        LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
-                    } else {
-                        taskLog.getLogger().printf("Node sharing config changes discovered %s%nPulling %s to %s%n", currentHead.name(), url, workingDir);
-                        fetchChanges(taskLog);
-                        ObjectId checkedOutHead = getClient(taskLog).revParse("HEAD");
-                        assert currentHead.equals(checkedOutHead) : "What was discovered was in fact checked out";
-                        snapshot = readConfig(currentHead, taskLog);
-                    }
+                if (snapshot != null && currentHead.equals(snapshot.source)) {
+                    LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
+                } else {
+                    taskLog.getLogger().printf("Node sharing config changes discovered %s%nPulling %s to %s%n", currentHead.name(), url, workingDir);
+                    fetchChanges(taskLog);
+                    ObjectId checkedOutHead = getClient(taskLog).revParse("HEAD");
+                    assert currentHead.equals(checkedOutHead) : "What was discovered was in fact checked out";
+                    snapshot = readConfig(currentHead, taskLog);
                 }
             }
         } catch (IOException|GitException ex) {
