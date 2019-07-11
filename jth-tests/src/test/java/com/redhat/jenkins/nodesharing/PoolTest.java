@@ -42,6 +42,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.Queue;
 import hudson.model.queue.ScheduleResult;
+import hudson.plugins.git.GitException;
 import hudson.slaves.DumbSlave;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
@@ -52,9 +53,11 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
@@ -72,6 +75,7 @@ import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -80,6 +84,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 public class PoolTest {
 
@@ -130,6 +136,57 @@ public class PoolTest {
         ));
 
         assertFalse(Pool.ADMIN_MONITOR.getErrors().toString(), Pool.ADMIN_MONITOR.isActivated());
+    }
+
+    @Test
+    public void getSnapshotFailedRemote() throws Exception {
+        final File workingDir = new File(Jenkins.getInstance().getRootDir() + "/node-sharing/config");
+        final ConfigRepo repo = new ConfigRepo(Pool.getInstance().getConfigRepoUrl(), workingDir);
+
+        // Case 1 - recovered from previously stored config repo
+        ConfigRepo mockConfigRepo = spy(repo);
+        mockConfigRepo.getSnapshot();
+        when(mockConfigRepo.getRemoteHead(Mockito.any(TaskLog.class))).thenThrow(new GitException("Not available"));
+        boolean exceptionThrown = false;
+        try {
+            mockConfigRepo.getSnapshot();
+        } catch (TaskLog.TaskFailed e) {
+            exceptionThrown = true;
+        }
+        assertFalse("TaskLog.TaskFailed exceptions shouldn't be thrown", exceptionThrown);
+
+        // Case 2 - trying to recover from not existing config repo (wasn't saved previously)
+        mockConfigRepo = spy(repo);
+        when(mockConfigRepo.getRemoteHead(Mockito.any(TaskLog.class))).thenThrow(new GitException("Git not available - intentionally"));
+        exceptionThrown = false;
+        try {
+            mockConfigRepo.getSnapshot();
+        } catch (TaskLog.TaskFailed e) {
+            exceptionThrown = true;
+            assertThat(e, instanceOf(TaskLog.TaskFailed.class));
+            assertThat(e.getMessage(), containsString("Unable to read snapshot from "));
+            assertThat(e.getLog().readContent(), containsString("Git not available - intentionally"));
+        }
+        assertTrue("TaskLog.TaskFailed exceptions should be thrown", exceptionThrown);
+
+        // Case 3 - trying to recover from corrupted config repo (was saved previously, but can't read the config)
+        mockConfigRepo = spy(repo);
+        mockConfigRepo.getSnapshot();
+        when(mockConfigRepo.getRemoteHead(Mockito.any(TaskLog.class))).thenThrow(new GitException("Git not available - corrupted repo"));
+        final File f = new File(workingDir, "config");
+        assertTrue("config file should exist", f.exists());
+        f.delete();
+        assertFalse("config file should be deleted", f.exists());
+        exceptionThrown = false;
+        try {
+            mockConfigRepo.getSnapshot();
+        } catch (TaskLog.TaskFailed e) {
+            exceptionThrown = true;
+            assertThat(e, instanceOf(TaskLog.TaskFailed.class));
+            assertThat(e.getMessage(), containsString("Unable to read config repository"));
+            assertThat(e.getLog().readContent(), containsString("ERROR: No file named 'config' found in Config Repository"));
+        }
+        assertTrue("TaskLog.TaskFailed exceptions should be thrown", exceptionThrown);
     }
 
     @Test

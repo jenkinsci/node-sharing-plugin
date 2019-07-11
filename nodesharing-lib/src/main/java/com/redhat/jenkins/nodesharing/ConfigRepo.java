@@ -102,12 +102,15 @@ public class ConfigRepo {
                         LOGGER.info("Trying to recover from previous locally stored config");
                         try {
                             snapshot = readConfig(snapshot.source, taskLog);
+                            LOGGER.info("Recovered from previous locally stored config");
                         } catch (Exception e1) {
+                            LOGGER.info("Can't recover - previous config cannot be read");
                             e1.addSuppressed(e);
                             throw e1;
                         }
                         currentHead = snapshot.source;
                     } else {
+                        LOGGER.info("Can't recover - previous config doesn't exist");
                         throw e;
                     }
                 }
@@ -132,7 +135,7 @@ public class ConfigRepo {
         return snapshot;
     }
 
-    private @Nonnull ObjectId getRemoteHead(@Nonnull TaskLog taskLog) throws InterruptedException, GitException {
+    /* package */ @Nonnull ObjectId getRemoteHead(@Nonnull TaskLog taskLog) throws InterruptedException, GitException {
         return getClient(taskLog).getHeadRev(url, "master");
     }
 
