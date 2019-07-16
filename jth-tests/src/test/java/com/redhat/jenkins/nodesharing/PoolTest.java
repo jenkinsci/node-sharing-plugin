@@ -147,27 +147,23 @@ public class PoolTest {
         ConfigRepo mockConfigRepo = spy(repo);
         mockConfigRepo.getSnapshot();
         when(mockConfigRepo.getRemoteHead(Mockito.any(TaskLog.class))).thenThrow(new GitException("Not available"));
-        boolean exceptionThrown = false;
         try {
             mockConfigRepo.getSnapshot();
         } catch (TaskLog.TaskFailed e) {
-            exceptionThrown = true;
+            fail("TaskLog.TaskFailed shouldn't be thrown!");
         }
-        assertFalse("TaskLog.TaskFailed exceptions shouldn't be thrown", exceptionThrown);
 
         // Case 2 - trying to recover from not existing config repo (wasn't saved previously)
         mockConfigRepo = spy(repo);
         when(mockConfigRepo.getRemoteHead(Mockito.any(TaskLog.class))).thenThrow(new GitException("Git not available - intentionally"));
-        exceptionThrown = false;
         try {
             mockConfigRepo.getSnapshot();
+            fail("TaskLog.TaskFailed exception should be thrown!");
         } catch (TaskLog.TaskFailed e) {
-            exceptionThrown = true;
             assertThat(e, instanceOf(TaskLog.TaskFailed.class));
             assertThat(e.getMessage(), containsString("Unable to read snapshot from "));
             assertThat(e.getLog().readContent(), containsString("Git not available - intentionally"));
         }
-        assertTrue("TaskLog.TaskFailed exceptions should be thrown", exceptionThrown);
 
         // Case 3 - trying to recover from corrupted config repo (was saved previously, but can't read the config)
         mockConfigRepo = spy(repo);
@@ -177,16 +173,14 @@ public class PoolTest {
         assertTrue("config file should exist", f.exists());
         f.delete();
         assertFalse("config file should be deleted", f.exists());
-        exceptionThrown = false;
         try {
             mockConfigRepo.getSnapshot();
+            fail("TaskLog.TaskFailed exception should be thrown!");
         } catch (TaskLog.TaskFailed e) {
-            exceptionThrown = true;
             assertThat(e, instanceOf(TaskLog.TaskFailed.class));
             assertThat(e.getMessage(), containsString("Unable to read config repository"));
             assertThat(e.getLog().readContent(), containsString("ERROR: No file named 'config' found in Config Repository"));
         }
-        assertTrue("TaskLog.TaskFailed exceptions should be thrown", exceptionThrown);
     }
 
     @Test
