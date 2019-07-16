@@ -99,7 +99,7 @@ public class ConfigRepo {
                 } catch (GitException e) {
                     LOGGER.info("Getting HEAD of config repo from remote location failed");
                     if (snapshot != null) {
-                        LOGGER.info("Trying to recover from previous locally stored config");
+                        LOGGER.fine("Trying to recover from previous locally stored config");
                         try {
                             snapshot = readConfig(snapshot.source, taskLog);
                             LOGGER.info("Recovered from previous locally stored config");
