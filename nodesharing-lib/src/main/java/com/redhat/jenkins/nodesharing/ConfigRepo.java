@@ -92,15 +92,35 @@ public class ConfigRepo {
         Files.createDirectories(workingDir.toPath());
         TaskLog taskLog = new TaskLog(new File(workingDir.getAbsolutePath() + ".log"));
         try {
-            ObjectId currentHead = getRemoteHead(taskLog);
             synchronized (repoLock) {
+                ObjectId currentHead = null;
+                try {
+                    currentHead = getRemoteHead(taskLog);
+                } catch (GitException e) {
+                    LOGGER.info("Getting HEAD of config repo from remote location failed");
+                    if (snapshot != null) {
+                        LOGGER.fine("Trying to recover from previous locally stored config");
+                        try {
+                            snapshot = readConfig(snapshot.source, taskLog);
+                            LOGGER.info("Recovered from previous locally stored config");
+                        } catch (Exception e1) {
+                            LOGGER.info("Can't recover - previous config cannot be read");
+                            e1.addSuppressed(e);
+                            throw e1;
+                        }
+                        currentHead = snapshot.source;
+                    } else {
+                        LOGGER.info("Can't recover - previous config doesn't exist");
+                        throw e;
+                    }
+                }
                 if (snapshot != null && currentHead.equals(snapshot.source)) {
                     LOGGER.fine("No config update in " + url + " after: " + snapshot.source.name());
                 } else {
                     taskLog.getLogger().printf("Node sharing config changes discovered %s%nPulling %s to %s%n", currentHead.name(), url, workingDir);
                     fetchChanges(taskLog);
                     ObjectId checkedOutHead = getClient(taskLog).revParse("HEAD");
-                    assert currentHead.equals(checkedOutHead): "What was discovered was in fact checked out";
+                    assert currentHead.equals(checkedOutHead) : "What was discovered was in fact checked out";
                     snapshot = readConfig(currentHead, taskLog);
                 }
             }
@@ -115,7 +135,7 @@ public class ConfigRepo {
         return snapshot;
     }
 
-    private @Nonnull ObjectId getRemoteHead(@Nonnull TaskLog taskLog) throws InterruptedException, GitException {
+    /* package */ @Nonnull ObjectId getRemoteHead(@Nonnull TaskLog taskLog) throws InterruptedException, GitException {
         return getClient(taskLog).getHeadRev(url, "master");
     }
 
