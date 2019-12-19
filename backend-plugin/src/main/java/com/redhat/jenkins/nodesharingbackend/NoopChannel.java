@@ -179,7 +179,8 @@ public class NoopChannel extends Channel {
             caller = st[1].getClassName() + "#" + st[1].getMethodName();
         }
 
-        return "hudson.node_monitors.AbstractAsyncNodeMonitorDescriptor#monitor".equals(caller);
+        return "hudson.node_monitors.AbstractAsyncNodeMonitorDescriptor#monitor".equals(caller)
+                || "hudson.node_monitors.AbstractAsyncNodeMonitorDescriptor#monitorDetailed".equals(caller);
     }
 
     private <V, T extends Throwable> boolean isSafeCallToBeExecutedLocally(@Nonnull Callable<V, T> trace) {
