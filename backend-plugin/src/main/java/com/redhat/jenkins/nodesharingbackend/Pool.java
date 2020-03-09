@@ -60,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -298,7 +299,7 @@ public class Pool extends GlobalConfiguration {
     @DataBoundSetter
     public void setConfigRepo(@Nonnull final String configRepo) {
         String prop = getConfigRepo();
-        if (prop != null && prop.compareTo(configRepo) != 0) {
+        if (prop != null && !Objects.equals(prop, configRepo)) {
             // Clashes
             String msg = "Node-sharing Config Repo setting content clashes between environment ("
                     + prop + ") and JCasC (" + configRepo + ")";
@@ -316,9 +317,9 @@ public class Pool extends GlobalConfiguration {
     @DataBoundSetter
     public void setUsername(@Nonnull final String username) {
         String prop = getUsername();
-        if (prop != null && prop.compareTo(username) != 0) {
+        if (prop != null && !Objects.equals(prop, username)) {
             // Clashes
-            String msg = "Node-sharing Config Repo setting content clashes between environment ("
+            String msg = "Node-sharing Username setting clashes between environment ("
                     + prop + ") and JCasC (" + username + ")";
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
             throw new PoolMisconfigured(msg);
@@ -334,10 +335,9 @@ public class Pool extends GlobalConfiguration {
     @DataBoundSetter
     public void setPassword(@Nonnull final String password) {
         String prop = getPassword();
-        if (prop != null && prop.compareTo(password) != 0) {
+        if (prop != null && !Objects.equals(prop, password)) {
             // Clashes
-            String msg = "Node-sharing Config Repo setting content clashes between environment ("
-                    + prop + ") and JCasC (" + password + ")";
+            String msg = "Node-sharing Password setting clashes between environment and JCasC";
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
             throw new PoolMisconfigured(msg);
         }
