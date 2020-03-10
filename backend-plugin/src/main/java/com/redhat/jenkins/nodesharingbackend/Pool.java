@@ -41,10 +41,13 @@ import hudson.init.Initializer;
 import hudson.model.Computer;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
+import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
+import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -57,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -68,7 +72,8 @@ import java.util.logging.Logger;
  */
 @Restricted(NoExternalUse.class)
 @Extension
-public class Pool {
+@Symbol("nodeSharingPool")
+public class Pool extends GlobalConfiguration {
     private static final Logger LOGGER = Logger.getLogger(Pool.class.getName());
 
     public static final String CONFIG_REPO_PROPERTY_NAME = "com.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT";
@@ -283,5 +288,59 @@ public class Pool {
         public void generateResponse(StaplerRequest req, StaplerResponse rsp, Object node) throws IOException {
             rsp.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, getMessage());
         }
+    }
+
+    // Helpers for JCasC
+    @CheckForNull
+    public String getConfigRepo() {
+        return System.getProperty(CONFIG_REPO_PROPERTY_NAME);
+    }
+
+    @DataBoundSetter
+    public void setConfigRepo(@Nonnull final String configRepo) {
+        String prop = getConfigRepo();
+        if (prop != null && !Objects.equals(prop, configRepo)) {
+            // Clashes
+            String msg = "Node-sharing Config Repo setting content clashes between environment ("
+                    + prop + ") and JCasC (" + configRepo + ")";
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
+            throw new PoolMisconfigured(msg);
+        }
+        System.setProperty(CONFIG_REPO_PROPERTY_NAME, configRepo);
+    }
+
+    @CheckForNull
+    public String getUsername() {
+        return System.getProperty(USERNAME_PROPERTY_NAME);
+    }
+
+    @DataBoundSetter
+    public void setUsername(@Nonnull final String username) {
+        String prop = getUsername();
+        if (prop != null && !Objects.equals(prop, username)) {
+            // Clashes
+            String msg = "Node-sharing Username setting clashes between environment ("
+                    + prop + ") and JCasC (" + username + ")";
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
+            throw new PoolMisconfigured(msg);
+        }
+        System.setProperty(USERNAME_PROPERTY_NAME, username);
+    }
+
+    @CheckForNull
+    public String getPassword() {
+        return System.getProperty(PASSWORD_PROPERTY_NAME);
+    }
+
+    @DataBoundSetter
+    public void setPassword(@Nonnull final String password) {
+        String prop = getPassword();
+        if (prop != null && !Objects.equals(prop, password)) {
+            // Clashes
+            String msg = "Node-sharing Password setting clashes between environment and JCasC";
+            ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(msg));
+            throw new PoolMisconfigured(msg);
+        }
+        System.setProperty(PASSWORD_PROPERTY_NAME, password);
     }
 }

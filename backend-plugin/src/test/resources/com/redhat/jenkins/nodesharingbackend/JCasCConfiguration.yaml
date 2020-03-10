@@ -1,0 +1,5 @@
+unclassified:
+  nodeSharingPool:
+    configRepo: "test-repo"
+    username: "test-user"
+    password: "test-pwd"

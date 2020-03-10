@@ -68,6 +68,16 @@
         <version>1.11</version>
       </dependency>
       <dependency>
+        <groupId>org.jenkins-ci</groupId>
+        <artifactId>symbol-annotation</artifactId>
+        <version>1.7</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jenkins-ci.main</groupId>
+        <artifactId>jenkins-test-harness</artifactId>
+        <version>2.56</version>
+      </dependency>
+      <dependency>
         <groupId>org.jenkins-ci.modules</groupId>
         <artifactId>instance-identity</artifactId>
         <version>2.1</version>
@@ -122,12 +132,18 @@
         <artifactId>structs</artifactId>
         <version>1.7</version>
       </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci</groupId>
-        <artifactId>symbol-annotation</artifactId>
-        <version>1.7</version>
-      </dependency>
 
+      <!-- JCasC modules -->
+      <dependency>
+        <groupId>io.jenkins</groupId>
+        <artifactId>configuration-as-code</artifactId>
+        <version>${configuration-as-code.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jenkins.configuration-as-code</groupId>
+        <artifactId>test-harness</artifactId>
+        <version>${configuration-as-code.version}</version>
+      </dependency>
 
       <!-- Java modules -->
       <dependency>
@@ -204,5 +220,6 @@
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
     <concurrency>0.5C</concurrency>
+    <configuration-as-code.version>1.36</configuration-as-code.version>
   </properties>
 </project>
