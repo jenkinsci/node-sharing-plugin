@@ -42,9 +42,10 @@ public class ExecutorJenkins {
 
     private final @Nonnull URL url;
     private final @Nonnull String name;
+    private final String credentialId;
     private /*final once initialized*/ @CheckForNull RestEndpoint rest;
 
-    public ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
+    public ExecutorJenkins(@Nonnull String url, @Nonnull String name, String credentialId) {
         try {
             Jenkins.checkGoodName(name);
             this.name = name;
@@ -60,8 +61,12 @@ public class ExecutorJenkins {
         } catch (MalformedURLException|URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
+        this.credentialId = credentialId;
     }
 
+    public ExecutorJenkins(@Nonnull String url, @Nonnull String name) {
+        this(url, name, null);
+    }
     // Make safe and readable name from URL
     public static String inferCloudName(String url) {
         // This is awfully long, especially for node names
@@ -75,6 +80,10 @@ public class ExecutorJenkins {
 
     public @Nonnull URL getUrl() {
         return url;
+    }
+
+    public String getCredentialId() {
+        return credentialId;
     }
 
     /**
@@ -98,7 +107,7 @@ public class ExecutorJenkins {
 
         ExecutorJenkins that = (ExecutorJenkins) o;
         try {
-            return Objects.equals(name, that.name) && Objects.equals(url.toURI(), that.url.toURI());
+            return Objects.equals(name, that.name) && Objects.equals(url.toURI(), that.url.toURI()) && Objects.equals(credentialId, that.credentialId);
         } catch (URISyntaxException e) {
             throw new AssertionError(e);
         }

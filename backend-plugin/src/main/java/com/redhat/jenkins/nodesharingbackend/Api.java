@@ -128,7 +128,7 @@ public class Api implements RootAction {
         Pool pool = Pool.getInstance();
         String configRepoUrl = pool.getConfigRepoUrl();
         UtilizeNodeRequest request = new UtilizeNodeRequest(configRepoUrl, version, node.getNodeDefinition());
-        RestEndpoint rest = executor.getRest(configRepoUrl, pool.getCredential());
+        RestEndpoint rest = executor.getRest(configRepoUrl, pool.getExecutorCredential(executor));
         try {
             rest.executeRequest(rest.post("utilizeNode"), request, UtilizeNodeResponse.class);
             return true;
@@ -152,7 +152,7 @@ public class Api implements RootAction {
         Pool pool = Pool.getInstance();
         String configRepoUrl = pool.getConfigRepoUrl();
         ReportUsageRequest request = new ReportUsageRequest(configRepoUrl, version);
-        RestEndpoint rest = owner.getRest(configRepoUrl, pool.getCredential());
+        RestEndpoint rest = owner.getRest(configRepoUrl, pool.getExecutorCredential(owner));
         return rest.executeRequest(rest.post("reportUsage"), request, ReportUsageResponse.class);
     }
 
@@ -177,7 +177,7 @@ public class Api implements RootAction {
         Pool pool = Pool.getInstance();
         String configRepoUrl = pool.getConfigRepoUrl();
         NodeStatusRequest request = new NodeStatusRequest(configRepoUrl, version, nodeName);
-        RestEndpoint rest = jenkins.getRest(configRepoUrl, pool.getCredential());
+        RestEndpoint rest = jenkins.getRest(configRepoUrl, pool.getExecutorCredential(jenkins));
         NodeStatusResponse nodeStatus = rest.executeRequest(rest.post("nodeStatus"), request, NodeStatusResponse.class);
         return nodeStatus.getStatus();
     }
