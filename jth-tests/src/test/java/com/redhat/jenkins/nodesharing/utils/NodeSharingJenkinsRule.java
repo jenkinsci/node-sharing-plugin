@@ -156,7 +156,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     public GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
-        TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
+        TestUtils.declareOrchestrator(git, jenkins.getRootUrl(), null);
 
         TestUtils.declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
         TestUtils.makeNodesLaunchable(git);

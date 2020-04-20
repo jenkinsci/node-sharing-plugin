@@ -68,7 +68,7 @@ public class GridRule extends ExternalJenkinsRule {
                     ExternalFixture annotation = fixture.getAnnotation();
                     String name = annotation.name();
                     if (hasRole(annotation, Orchestrator.class)) {
-                        TestUtils.declareOrchestrator(configRepo, fixture.getUri().toString());
+                        TestUtils.declareOrchestrator(configRepo, fixture.getUri().toString(), annotation.credentialId());
                     } else if (hasRole(annotation, Executor.class)) {
                         TestUtils.declareExecutor(configRepo, name, fixture.getUri().toString());
                     }
@@ -116,8 +116,10 @@ public class GridRule extends ExternalJenkinsRule {
     protected List<String> startWithJvmOptions(List<String> defaults, ExternalFixture fixture) {
         if (hasRole(fixture, Orchestrator.class)) {
             defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.ENDPOINT=" + configRepo.getWorkTree().getRemote());
-            defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.USERNAME=jerry");
-            defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.PASSWORD=jerry");
+            if(fixture.setupEnvCredential()) {
+                defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.USERNAME=jerry");
+                defaults.add("-Dcom.redhat.jenkins.nodesharingbackend.Pool.PASSWORD=jerry");
+            }
         }
         return defaults;
     }
