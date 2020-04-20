@@ -137,59 +137,108 @@ public class PoolTest {
         ));
 
         assertFalse(Pool.ADMIN_MONITOR.getErrors().toString(), Pool.ADMIN_MONITOR.isActivated());
+
+        ExecutorJenkins[] jenkinses = pool.getConfig().getJenkinses().toArray(new ExecutorJenkins[0]);
+        UsernamePasswordCredentials creds0 = pool.getExecutorCredential(jenkinses[0]);
+        UsernamePasswordCredentials creds1 = pool.getExecutorCredential(jenkinses[1]);
+
+        assertNotNull(creds0);
+        assertNotNull(creds1);
     }
 
     @Test
-    public void getCredentialsFromJenkins() throws Exception {
+    public void getCredentialsFromJenkinsWithPreference() throws Exception {
         GitClient cr = j.getConfigRepo();
+
         FilePath j2Config = cr.getWorkTree().child("jenkinses").child("jenkins2");
         StringBuilder newConfig = new StringBuilder(j2Config.readToString());
-        newConfig.append("credential_id=rest-cred-id");
+        newConfig.append("credential_id=");
+        newConfig.append(j.getRestCredentialId());
         j2Config.write(newConfig.toString(), Charset.defaultCharset().name());
+
+        FilePath poolConfig = cr.getWorkTree().child("config");
+        newConfig = new StringBuilder(poolConfig.readToString());
+        newConfig.append("credential_id=");
+        newConfig.append(j.getPoolCredentialId());
+        poolConfig.write(newConfig.toString(), Charset.defaultCharset().name());
+
         cr.add("*");
         cr.commit("Setup");
         Updater.getInstance().doRun();
 
         Pool pool = Pool.getInstance();
         Map<String, String> config = pool.getConfig().getConfig();
+        assertTrue(config.containsKey("credential_id"));
+        assertFalse(config.get("credential_id").isEmpty());
 
-        ExecutorJenkins[] jenkinses = pool.getConfig().getJenkinses().toArray(new ExecutorJenkins[0]);
-        assertEquals(2, jenkinses.length);
-        assertNotEquals(jenkinses[0].getCredentialId(), jenkinses[1].getCredentialId());
+        UsernamePasswordCredentials creds1 = pool.getExecutorCredential(pool.getConfig().getJenkinsByName("jenkins1"));
+        UsernamePasswordCredentials creds2 = pool.getExecutorCredential(pool.getConfig().getJenkinsByName("jenkins2"));
 
-        UsernamePasswordCredentials creds0 = pool.getExecutorCredential(jenkinses[0]);
-        UsernamePasswordCredentials creds1 = pool.getExecutorCredential(jenkinses[1]);
-
-        assertNotNull(creds0);
         assertNotNull(creds1);
-        assertNotEquals(creds0, creds1);
+        assertNotNull(creds1);
+
+        assertEquals(creds1, j.getPoolCredential()); // jenkins1 uses pool credential
+        assertEquals(creds2, j.getRestCredential()); // jenkins2 uses it's own (restCredentials)
     }
+
 
     @Test
     public void getCredentialsFromJenkinsBroken() throws Exception {
         GitClient cr = j.getConfigRepo();
+        FilePath j1Config = cr.getWorkTree().child("jenkinses").child("jenkins1");
+        StringBuilder newConfig = new StringBuilder(j1Config.readToString());
+        newConfig.append("credential_id= ");    // space is intentional
+        j1Config.write(newConfig.toString(), Charset.defaultCharset().name());
+
         FilePath j2Config = cr.getWorkTree().child("jenkinses").child("jenkins2");
-        StringBuilder newConfig = new StringBuilder(j2Config.readToString());
+        newConfig = new StringBuilder(j2Config.readToString());
         newConfig.append("credential_id=fake-cred-id");
         j2Config.write(newConfig.toString(), Charset.defaultCharset().name());
+
+        FilePath poolConfig = cr.getWorkTree().child("config");
+        newConfig = new StringBuilder(poolConfig.readToString());
+        newConfig.append("credential_id= ");
+        poolConfig.write(newConfig.toString(), Charset.defaultCharset().name());
+
         cr.add("*");
         cr.commit("Break it!");
         Updater.getInstance().doRun();
 
         Pool pool = Pool.getInstance();
-        boolean found = false;
-        for(ExecutorJenkins jenkins : pool.getConfig().getJenkinses()) {
-            if(!jenkins.getName().equals("jenkins2"))
-                continue;
 
-            assertNotNull(jenkins.getCredentialId());
-            UsernamePasswordCredentials creds0 = pool.getExecutorCredential(jenkins);
-            assertNull(creds0);
-            found=true;
-        }
-        // we should fail if jenkins2 was not found for any reason
-        assertTrue(found);
+        assertFalse(pool.getConfig().getConfig().containsKey("credential_id"));
+
+        ExecutorJenkins jenkins = pool.getConfig().getJenkinsByName("jenkins1");
+        assertNull(jenkins.getCredentialId());
+
+        jenkins = pool.getConfig().getJenkinsByName("jenkins2");
+        assertNotNull(jenkins.getCredentialId());
+        UsernamePasswordCredentials creds0 = pool.getExecutorCredential(jenkins);
+        assertNull(creds0);
+
+        assertThat(Pool.ADMIN_MONITOR.getErrors().toString(),
+            containsString("Credentials for node-sharing to jenkins2 not found in Jenkins"));
+        Pool.ADMIN_MONITOR.clear();
     }
+
+    @Test
+    public void getPoolWideCredentialsFromJenkinsBroken() throws Exception {
+        GitClient cr = j.getConfigRepo();
+
+        FilePath poolConfig = cr.getWorkTree().child("config");
+        StringBuilder newConfig = new StringBuilder(poolConfig.readToString());
+        newConfig.append("credential_id=fake-cred-id");
+        poolConfig.write(newConfig.toString(), Charset.defaultCharset().name());
+        cr.add("*");
+        cr.commit("Break it!");
+        Updater.getInstance().doRun();
+
+        Pool pool = Pool.getInstance();
+
+        assertNull(pool.getExecutorCredential(pool.getConfig().getJenkinsByName("jenkins2")));
+        assertThat(Pool.ADMIN_MONITOR.getErrors().toString(),
+            containsString("Pool-Wide credentials 'fake-cred-id' for node-sharing not found in Jenkins."));
+   }
 
     @Test
     public void getSnapshotFailedRemote() throws Exception {

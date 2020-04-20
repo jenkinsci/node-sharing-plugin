@@ -25,6 +25,7 @@ package com.redhat.jenkins.nodesharing;
 
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Util;
 import hudson.plugins.git.GitException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.jenkinsci.plugins.gitclient.Git;
@@ -62,7 +63,7 @@ public class ConfigRepo {
 
     private static final String KEY_JENKINS_URL = "url";
     private static final String KEY_ENFORCE_HTTPS = "enforce_https";
-    private static final String KEY_CREDENTIAL_ID = "credential_id";
+    public static final String KEY_CREDENTIAL_ID = "credential_id";
 
     private static final Logger LOGGER = Logger.getLogger(ConfigRepo.class.getName());
 
@@ -259,8 +260,10 @@ public class ConfigRepo {
             Object key = entry.getKey();
             if (key instanceof String) {
                 Object value = entry.getValue();
-                if (value instanceof  String) {
-                    c.put((String) key, (String) value);
+                if (value instanceof String) {
+                    if(Util.fixEmptyAndTrim((String)value) != null) {
+                        c.put((String) key, (String) value);
+                    }
                 }
             }
         }

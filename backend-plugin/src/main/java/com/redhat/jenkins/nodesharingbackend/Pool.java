@@ -114,14 +114,15 @@ public class Pool extends GlobalConfiguration {
     }
 
     public @CheckForNull UsernamePasswordCredentials getExecutorCredential(ExecutorJenkins executor) {
-        if(executor.getCredentialId() != null && !executor.getCredentialId().isEmpty()) {
+        if(executor.getCredentialId() != null) {
+            LOGGER.finest("using credential with id " + executor.getCredentialId() + " for " + executor.getName());
+
             UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
                     CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
                             ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
                     CredentialsMatchers.withId(executor.getCredentialId())
             );
 
-            LOGGER.info("credential id: " + executor.getCredentialId());
             if(cred == null) {
                 ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
                         "Credentials for node-sharing to " + executor.getName() + " not found in Jenkins."
@@ -129,8 +130,29 @@ public class Pool extends GlobalConfiguration {
                 return null;
             }
 
-            LOGGER.info("using credentials: " + cred);
             return cred;
+        }
+
+        if(getConfig().getConfig().containsKey(ConfigRepo.KEY_CREDENTIAL_ID)) {
+            String credentialId = getConfig().getConfig().get(ConfigRepo.KEY_CREDENTIAL_ID);
+
+            LOGGER.finest("using pool wide credential with id " + credentialId + " for " + executor.getName());
+
+            UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
+                    CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
+                            ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
+                    CredentialsMatchers.withId(credentialId)
+            );
+
+            if(cred == null) {
+                ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
+                        "Pool-Wide credentials '" + credentialId + "' for node-sharing not found in Jenkins."
+                ));
+                return null;
+            }
+
+            return cred;
+
         }
 
         String username = Util.fixEmptyAndTrim(System.getProperty(USERNAME_PROPERTY_NAME));
