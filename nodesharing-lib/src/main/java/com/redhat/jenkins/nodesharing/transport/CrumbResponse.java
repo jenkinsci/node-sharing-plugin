@@ -23,9 +23,6 @@
  */
 package com.redhat.jenkins.nodesharing.transport;
 
-import java.util.List;
-import java.util.ArrayList;
-
 import javax.annotation.Nonnull;
 
 /**
@@ -39,12 +36,10 @@ public class CrumbResponse extends Entity {
 
     private final @Nonnull String crumb;
     private final @Nonnull String crumbRequestField;
-    private List<String> cookies;
 
     public CrumbResponse(@Nonnull String crumb, @Nonnull String crumbRequestField) {
         this.crumb = crumb;
         this.crumbRequestField = crumbRequestField;
-        this.cookies = new ArrayList<String>();
     }
 
     public @Nonnull String getCrumb() {
@@ -53,19 +48,5 @@ public class CrumbResponse extends Entity {
 
     public @Nonnull String getCrumbRequestField() {
         return crumbRequestField;
-    }
-
-    public List<String> getCookies() {
-        if(this.cookies == null) {
-            return new ArrayList<String>();
-        }
-        return this.cookies;
-    }
-
-    public void addCookie(String value) {
-        if(this.cookies == null) {
-            this.cookies = new ArrayList<String>();
-        }
-        this.cookies.add(value);
     }
 }
