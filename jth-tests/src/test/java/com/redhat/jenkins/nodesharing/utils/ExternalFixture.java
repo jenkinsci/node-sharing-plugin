@@ -72,7 +72,7 @@ public @interface ExternalFixture {
     Class<? extends Role>[] roles() default {};
 
     /**
-     * Should we stetup JVM options to pass REST credential
+     * Should we setup JVM options to pass REST credential
      */
     boolean setupEnvCredential() default true;
 
