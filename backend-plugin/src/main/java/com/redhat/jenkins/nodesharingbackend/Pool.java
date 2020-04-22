@@ -114,13 +114,14 @@ public class Pool extends GlobalConfiguration {
     }
 
     public @CheckForNull UsernamePasswordCredentials getExecutorCredential(ExecutorJenkins executor) {
-        if(executor.getCredentialId() != null) {
-            LOGGER.finest("using credential with id " + executor.getCredentialId() + " for " + executor.getName());
+        String credentialId = executor.getCredentialId();
+        if(credentialId != null) {
+            LOGGER.finest("using credential with id " + credentialId + " for " + executor.getName());
 
             UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
                     CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
                             ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
-                    CredentialsMatchers.withId(executor.getCredentialId())
+                    CredentialsMatchers.withId(credentialId)
             );
 
             if(cred == null) {
@@ -134,19 +135,19 @@ public class Pool extends GlobalConfiguration {
         }
 
         if(getConfig().getConfig().containsKey(ConfigRepo.KEY_CREDENTIAL_ID)) {
-            String credentialId = getConfig().getConfig().get(ConfigRepo.KEY_CREDENTIAL_ID);
+            String poolCredentialId = getConfig().getConfig().get(ConfigRepo.KEY_CREDENTIAL_ID);
 
-            LOGGER.finest("using pool wide credential with id " + credentialId + " for " + executor.getName());
+            LOGGER.finest("using pool wide credential with id " + poolCredentialId + " for " + executor.getName());
 
             UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
                     CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
                             ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
-                    CredentialsMatchers.withId(credentialId)
+                    CredentialsMatchers.withId(poolCredentialId)
             );
 
             if(cred == null) {
                 ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
-                        "Pool-Wide credentials '" + credentialId + "' for node-sharing not found in Jenkins."
+                        "Pool-Wide credentials '" + poolCredentialId + "' for node-sharing not found in Jenkins."
                 ));
                 return null;
             }
