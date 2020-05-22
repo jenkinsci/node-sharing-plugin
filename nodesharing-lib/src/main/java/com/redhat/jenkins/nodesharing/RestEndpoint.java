@@ -66,6 +66,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.SocketTimeoutException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -163,7 +164,9 @@ public class RestEndpoint {
             @Nonnull Entity requestEntity,
             @Nonnull Class<T> returnType
     ) throws ActionFailed {
-        method.addHeader(getCrumbHeader());
+        for(Header h : getCrumbHeaders()) {
+            method.addHeader(h);
+        }
         method.setEntity(new WrappingEntity(requestEntity));
         return _executeRequest(method, new DefaultResponseHandler<>(method, returnType));
     }
@@ -185,7 +188,9 @@ public class RestEndpoint {
             @Nonnull Entity requestEntity,
             @Nonnull ResponseHandler<T> handler
     ) throws ActionFailed {
-        method.addHeader(getCrumbHeader());
+        for(Header h : getCrumbHeaders()) {
+            method.addHeader(h);
+        }
         method.setEntity(new WrappingEntity(requestEntity));
         return _executeRequest(method, handler);
     }
@@ -195,7 +200,9 @@ public class RestEndpoint {
             @Nonnull HttpEntityEnclosingRequestBase method,
             @Nonnull ResponseHandler<T> handler
     ) throws ActionFailed {
-        method.addHeader(getCrumbHeader());
+        for(Header h : getCrumbHeaders()) {
+            method.addHeader(h);
+        }
         return _executeRequest(method, handler);
     }
 
@@ -235,9 +242,10 @@ public class RestEndpoint {
         return context;
     }
 
-    private Header getCrumbHeader() {
+    private List<Header> getCrumbHeaders() {
+        List<Header> headers = new ArrayList<Header>();
         final HttpGet method = new HttpGet(crumbIssuerEndpoint);
-        CrumbResponse crumbResponse = _executeRequest(method, new AbstractResponseHandler<CrumbResponse>(method) {
+        _executeRequest(method, new AbstractResponseHandler<CrumbResponse>(method) {
             private final List<Integer> ACCEPTED_CODES = Arrays.asList(200, 404);
 
             @Override
@@ -248,15 +256,18 @@ public class RestEndpoint {
             @Override
             protected @CheckForNull CrumbResponse consumeEntity(@Nonnull HttpResponse response) throws IOException {
                 if (response.getStatusLine().getStatusCode() == 404) return null;
-                return createEntity(response, CrumbResponse.class);
+                CrumbResponse result = createEntity(response, CrumbResponse.class);
+                if (result != null) {
+                    for(Header cookie : response.getHeaders("Set-Cookie")) {
+                        headers.add(new BasicHeader("Cookie", cookie.getValue()));
+                    }
+                    headers.add(new BasicHeader(result.getCrumbRequestField(), result.getCrumb()));
+                }
+                return result;
             }
         });
 
-        if (crumbResponse == null) { // No crumb issuer used by other side
-            return new BasicHeader("Jenkins-Crumb", "Not-Used");
-        }
-
-        return new BasicHeader(crumbResponse.getCrumbRequestField(), crumbResponse.getCrumb());
+        return headers;
     }
 
     public static class AbstractResponseHandler<T> implements ResponseHandler<T> {
