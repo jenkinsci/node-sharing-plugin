@@ -99,6 +99,37 @@ public class GridTest {
         }
     }
 
+    @Test(timeout = TEST_TIMEOUT)
+    @ExternalFixture(name = "e0", roles = Executor.class,     resource = "executor-smoke.yaml",          injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "e1", roles = Executor.class,     resource = "executor-smoke.yaml",          injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "e2", roles = Executor.class,     resource = "executor-smoke.yaml",          injectPlugins = "matrix-auth")
+    @ExternalFixture(name = "o",  roles = Orchestrator.class, resource = "orchestrator-credential.yaml", injectPlugins = "matrix-auth", setupEnvCredential = false, credentialId = "rest-cred-id")
+    public void smokeNoEnvCredential() throws Exception {
+        ExternalJenkinsRule.Fixture e0 = jcr.fixture("e0");
+        ExternalJenkinsRule.Fixture e1 = jcr.fixture("e1");
+        ExternalJenkinsRule.Fixture e2 = jcr.fixture("e2");
+        jcr.fixture("o"); // Wait for orchestrator to get up
+
+        for (ExternalJenkinsRule.Fixture fixture : Arrays.asList(e0, e1, e2)) {
+            for (int i = 0; ; i++) {
+
+                try {
+                    Thread.sleep(10000);
+                    System.out.println('.');
+                    verifyBuildHasRun(fixture, "sol", "win");
+                    return;
+                } catch (AssertionError ex) {
+                    if (i == 8) {
+                        TimeoutException tex = new TimeoutException("Build not completed in time");
+                        tex.initCause(ex);
+                        throw tex;
+                    }
+                    // Retry
+                }
+            }
+        }
+    }
+
     private void verifyBuildHasRun(ExternalJenkinsRule.Fixture executor, String... jobNames) throws IOException {
         JenkinsServer jenkinsServer = executor.getClient();
         Map<String, Job> jobs = jenkinsServer.getJobs();

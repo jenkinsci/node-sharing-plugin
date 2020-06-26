@@ -23,6 +23,8 @@
  */
 package com.redhat.jenkins.nodesharing.utils;
 
+import hudson.Util;
+
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Repeatable;
@@ -69,6 +71,16 @@ public @interface ExternalFixture {
      */
     Class<? extends Role>[] roles() default {};
 
+    /**
+     * Should we setup JVM options to pass REST credential
+     */
+    boolean setupEnvCredential() default true;
+
+    /**
+     * Pool-Wide credentials to use
+     */
+    String credentialId() default "";
+
     interface Role {}
 
     @Retention(RetentionPolicy.RUNTIME)
@@ -84,9 +96,11 @@ public @interface ExternalFixture {
         private String resource;
         private List<String> injectPlugins = new ArrayList<>();
         private List<Class<? extends Role>> roles = new ArrayList<>();
+        boolean setupEnvCredential = true;
+        private String credentialId;
 
         public static Builder from(ExternalFixture f) {
-            Builder builder = new Builder().setResource(f.resource()).setInjectPlugins(f.injectPlugins()).setRoles(f.roles());
+            Builder builder = new Builder().setResource(f.resource()).setInjectPlugins(f.injectPlugins()).setSetupEnvCredential(f.setupEnvCredential()).setCredentialId(f.credentialId()).setRoles(f.roles());
             builder.name = f.name();
             return builder;
         }
@@ -108,6 +122,16 @@ public @interface ExternalFixture {
 
         public Builder addInjectPlugins(String... injectPlugins) {
             this.injectPlugins.addAll(Arrays.asList(injectPlugins));
+            return this;
+        }
+
+        public Builder setSetupEnvCredential(boolean setupEnvCredential) {
+            this.setupEnvCredential = setupEnvCredential;
+            return this;
+        }
+
+        public Builder setCredentialId(String credentialId) {
+            this.credentialId = Util.fixEmptyAndTrim(credentialId);
             return this;
         }
 
@@ -144,6 +168,14 @@ public @interface ExternalFixture {
                     @SuppressWarnings("unchecked")
                     Class<? extends Role>[] a = new Class[0];
                     return roles.toArray(a);
+                }
+
+                @Override public boolean setupEnvCredential() {
+                    return setupEnvCredential;
+                }
+
+                @Override public String credentialId() {
+                    return credentialId;
                 }
             };
         }

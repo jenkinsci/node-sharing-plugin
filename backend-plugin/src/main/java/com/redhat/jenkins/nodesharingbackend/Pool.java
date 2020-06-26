@@ -23,7 +23,11 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.common.UsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.google.common.annotations.VisibleForTesting;
 import com.redhat.jenkins.nodesharing.ConfigRepo;
@@ -41,6 +45,7 @@ import hudson.init.Initializer;
 import hudson.model.Computer;
 import hudson.model.PeriodicWork;
 import hudson.model.Queue;
+import hudson.security.ACL;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import org.jenkinsci.Symbol;
@@ -59,6 +64,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -107,7 +113,49 @@ public class Pool extends GlobalConfiguration {
         return property;
     }
 
-    public @CheckForNull StandardUsernamePasswordCredentials getCredential() {
+    public @CheckForNull UsernamePasswordCredentials getExecutorCredential(ExecutorJenkins executor) {
+        String credentialId = executor.getCredentialId();
+        if(credentialId != null) {
+            LOGGER.finest("using credential with id " + credentialId + " for " + executor.getName());
+
+            UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
+                    CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
+                            ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
+                    CredentialsMatchers.withId(credentialId)
+            );
+
+            if(cred == null) {
+                ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
+                        "Credentials for node-sharing to " + executor.getName() + " not found in Jenkins."
+                ));
+                return null;
+            }
+
+            return cred;
+        }
+
+        if(getConfig().getConfig().containsKey(ConfigRepo.KEY_CREDENTIAL_ID)) {
+            String poolCredentialId = getConfig().getConfig().get(ConfigRepo.KEY_CREDENTIAL_ID);
+
+            LOGGER.finest("using pool wide credential with id " + poolCredentialId + " for " + executor.getName());
+
+            UsernamePasswordCredentials cred = CredentialsMatchers.firstOrNull(
+                    CredentialsProvider.lookupCredentials(UsernamePasswordCredentials.class, Jenkins.getInstance(),
+                            ACL.SYSTEM, Collections.<DomainRequirement>emptyList()),
+                    CredentialsMatchers.withId(poolCredentialId)
+            );
+
+            if(cred == null) {
+                ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(
+                        "Pool-Wide credentials '" + poolCredentialId + "' for node-sharing not found in Jenkins."
+                ));
+                return null;
+            }
+
+            return cred;
+
+        }
+
         String username = Util.fixEmptyAndTrim(System.getProperty(USERNAME_PROPERTY_NAME));
         if (username == null) {
             ADMIN_MONITOR.report(MONITOR_CONTEXT, new AbortException(

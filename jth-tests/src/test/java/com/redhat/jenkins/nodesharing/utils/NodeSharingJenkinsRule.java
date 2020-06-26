@@ -78,6 +78,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     public static final String USER = "jerry";
 
     private UsernamePasswordCredentials restCred;
+    private UsernamePasswordCredentials poolCred;
     private MockAuthorizationStrategy mas = new MockAuthorizationStrategy();
     private GitClient configRepo;
 
@@ -102,11 +103,18 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
                 mas.grant(Jenkins.ADMINISTER, RestEndpoint.RESERVE).everywhere().to("admin");
                 jenkins.setAuthorizationStrategy(mas);
 
+                SystemCredentialsProvider credentialsProvider = SystemCredentialsProvider.getInstance();
+
                 restCred = new UsernamePasswordCredentialsImpl(
                         CredentialsScope.GLOBAL, getRestCredentialId(), "Testing node sharing credential", USER, USER
                 );
-                SystemCredentialsProvider credentialsProvider = SystemCredentialsProvider.getInstance();
                 credentialsProvider.getCredentials().add(restCred);
+                credentialsProvider.save();
+
+                poolCred = new UsernamePasswordCredentialsImpl(
+                        CredentialsScope.GLOBAL, getPoolCredentialId(), "Testing whole-pool credential", USER, USER
+                );
+                credentialsProvider.getCredentials().add(poolCred);
                 credentialsProvider.save();
 
                 try {
@@ -148,7 +156,7 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     public GitClient singleJvmGrid(Jenkins jenkins) throws Exception {
         GitClient git = configRepo;
 
-        TestUtils.declareOrchestrator(git, jenkins.getRootUrl());
+        TestUtils.declareOrchestrator(git, jenkins.getRootUrl(), null);
 
         TestUtils.declareExecutors(git, Collections.singletonMap("jenkins1", jenkins.getRootUrl()));
         TestUtils.makeNodesLaunchable(git);
@@ -184,6 +192,13 @@ public class NodeSharingJenkinsRule extends JenkinsRule {
     }
     public String getRestCredentialId() {
         return "rest-cred-id";
+    }
+
+    public UsernamePasswordCredentials getPoolCredential() {
+        return poolCred;
+    }
+    public String getPoolCredentialId() {
+        return "pool-cred-id";
     }
 
     public List<ReservationTask> getQueuedReservations() {

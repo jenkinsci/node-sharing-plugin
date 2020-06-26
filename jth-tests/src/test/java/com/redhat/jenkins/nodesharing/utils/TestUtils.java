@@ -28,6 +28,7 @@ import com.redhat.jenkins.nodesharingfrontend.SharedNode;
 import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
 import hudson.FilePath;
+import hudson.Util;
 import hudson.remoting.Which;
 import hudson.slaves.CommandLauncher;
 import hudson.util.StreamTaskListener;
@@ -69,8 +70,17 @@ public class TestUtils {
         return git;
     }
 
-    public static void declareOrchestrator(GitClient git, String jenkinsUrl) throws IOException, InterruptedException {
-        git.getWorkTree().child("config").write("orchestrator.url=" + jenkinsUrl + System.lineSeparator() + "enforce_https=false", "UTF-8");
+    public static void declareOrchestrator(GitClient git, String jenkinsUrl, String credentialId) throws IOException, InterruptedException {
+        StringBuilder sb = new StringBuilder("orchestrator.url=");
+        sb.append(jenkinsUrl);
+        sb.append(System.lineSeparator());
+        sb.append("enforce_https=false");
+        if(Util.fixEmptyAndTrim(credentialId) != null) {
+            sb.append(System.lineSeparator());
+            sb.append("credential_id=");
+            sb.append(Util.fixEmptyAndTrim(credentialId));
+        }
+        git.getWorkTree().child("config").write(sb.toString(), "UTF-8");
         git.add("config");
         git.commit("Writing config repo orchestrator");
     }

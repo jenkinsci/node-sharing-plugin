@@ -34,6 +34,7 @@ public class ExecutorJenkinsTest {
 
     private static final String VALID_URL = "https://as.df:8080/orchestrator/";
     private static final String VALID_NAME = "as.df";
+    private static final String CREDENTIALS_ID = "some-creds";
 
     @Test(expected = IllegalArgumentException.class)
     public void notAnUrl() throws Exception {
@@ -60,6 +61,10 @@ public class ExecutorJenkinsTest {
         assertEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME));
         assertNotEquals(valid, new ExecutorJenkins(VALID_URL + "a", VALID_NAME));
         assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a"));
+        assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a", CREDENTIALS_ID));
+        valid = new ExecutorJenkins(VALID_URL, VALID_NAME, CREDENTIALS_ID);
+        assertNotEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME + "a"));
+        assertEquals(valid, new ExecutorJenkins(VALID_URL, VALID_NAME, CREDENTIALS_ID));
     }
 
 //    @Test
