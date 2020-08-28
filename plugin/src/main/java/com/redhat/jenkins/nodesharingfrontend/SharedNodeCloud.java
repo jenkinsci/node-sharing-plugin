@@ -201,7 +201,7 @@ public class SharedNodeCloud extends Cloud {
      * @return Snapshot or null when there are problems reading it.
      */
     @CheckForNull
-    public ConfigRepo.Snapshot getLatestConfig() {
+    synchronized public ConfigRepo.Snapshot getLatestConfig() {
         if (latestConfig == null) {
             try {
                 updateConfigSnapshot();
@@ -364,7 +364,7 @@ public class SharedNodeCloud extends Cloud {
     /**
      * The cloud is considered operational once it can get data from Config Repo and talk to orchestrator.
      */
-    public boolean isOperational() {
+    synchronized public boolean isOperational() {
         return latestConfig != null;
     }
 
