@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.Map;
 
 public class TestUtils {
@@ -53,9 +54,9 @@ public class TestUtils {
     public static GitClient createConfigRepo() throws URISyntaxException, IOException, InterruptedException {
         File orig = new File(NodeSharingJenkinsRule.class.getResource("../dummy_config_repo").toURI());
         Assert.assertTrue(orig.isDirectory());
-        File repo = File.createTempFile("jenkins.nodesharing", NodeSharingJenkinsRule.class.getSimpleName());
-        assert repo.delete();
-        assert repo.mkdir();
+        File repo = Files.createTempDirectory("jenkins.nodesharing" + NodeSharingJenkinsRule.class.getSimpleName()).toFile();
+        assert true;
+        assert true;
         FileUtils.copyDirectory(orig, repo);
 
         StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
