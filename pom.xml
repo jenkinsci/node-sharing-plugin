@@ -215,6 +215,6 @@
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
     <concurrency>0.5C</concurrency>
-    <configuration-as-code.version>1.36</configuration-as-code.version>
+    <configuration-as-code.version>1.55.1</configuration-as-code.version>
   </properties>
 </project>
