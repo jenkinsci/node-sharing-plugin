@@ -55,8 +55,6 @@ public class TestUtils {
         File orig = new File(NodeSharingJenkinsRule.class.getResource("../dummy_config_repo").toURI());
         Assert.assertTrue(orig.isDirectory());
         File repo = Files.createTempDirectory("jenkins.nodesharing" + NodeSharingJenkinsRule.class.getSimpleName()).toFile();
-        assert true;
-        assert true;
         FileUtils.copyDirectory(orig, repo);
 
         StreamTaskListener listener = new StreamTaskListener(System.err, Charset.defaultCharset());
