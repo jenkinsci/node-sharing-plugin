@@ -320,7 +320,7 @@ public class ExternalJenkinsRule implements TestRule {
             procArgs.addAll(startWithJvmOptions(new ArrayList<>(), fixture));
             procArgs.add("-jar");
             procArgs.add(jenkinsWar.getAbsolutePath());
-            procArgs.addAll(startWithJenkinsArguments(Lists.newArrayList("--httpPort=" + port, "--ajp13Port=-1"), fixture));
+            procArgs.addAll(startWithJenkinsArguments(Lists.newArrayList("--httpPort=" + port), fixture));
 
             EnvVars envVars = new EnvVars(
                     "jenkins.install.state", "TEST",
