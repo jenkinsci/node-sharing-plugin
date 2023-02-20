@@ -130,7 +130,7 @@ public class NoopChannel extends Channel {
     }
 
     @Override
-    public boolean preloadJar(Callable<?, ?> classLoaderRef, Class... classesInJar) {
+    public boolean preloadJar(Callable<?, ?> classLoaderRef, Class<?>... classesInJar) {
         throw new UnsupportedOperationException(); // $COVERAGE-IGNORE$
     }
 
