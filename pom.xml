@@ -199,26 +199,7 @@
       <url>https://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
-  <build>
-    <plugins>
-      <!-- Did not find a way to make enforcer work with com.github.olivergondza:maven-jdk-tools-wrapper in transitive dependencies -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.4.1</version>
-        <executions>
-          <execution>
-            <id>enforce-bytecode-version</id>
-            <phase>none</phase>
-          </execution>
-          <execution>
-            <id>display-info</id>
-            <phase>none</phase>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
+
   <scm>
     <connection>scm:git:git://github.com/jenkinsci/node-sharing-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/node-sharing-plugin.git</developerConnection>

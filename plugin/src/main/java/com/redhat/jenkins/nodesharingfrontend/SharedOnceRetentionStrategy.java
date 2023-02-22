@@ -13,8 +13,8 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.CloudRetentionStrategy;
 import hudson.slaves.OfflineCause;
-import hudson.util.TimeUnit2;
 
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,7 +43,7 @@ public final class SharedOnceRetentionStrategy extends CloudRetentionStrategy im
         // terminate. If it's not already trying to terminate then lets terminate manually.
         if (c.isIdle() && !disabled) {
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleMinutes)) {
+            if (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleMinutes)) {
                 LOGGER.log(Level.INFO, "Disconnecting {0}", c.getName());
                 done(c);
             }
