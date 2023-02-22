@@ -73,11 +73,6 @@
         <version>1.7</version>
       </dependency>
       <dependency>
-        <groupId>org.jenkins-ci.main</groupId>
-        <artifactId>jenkins-test-harness</artifactId>
-        <version>2.56</version>
-      </dependency>
-      <dependency>
         <groupId>org.jenkins-ci.modules</groupId>
         <artifactId>instance-identity</artifactId>
         <version>2.1</version>
@@ -210,7 +205,6 @@
   <properties>
     <jenkins.version>2.332.4</jenkins.version>
     <java.level>11</java.level>
-    <jenkins-test-harness.version>1922.v91779ee45b_5e</jenkins-test-harness.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
