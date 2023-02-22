@@ -1,0 +1,4 @@
+<?jelly escape-by-default='true'?>
+<div>
+  Share machines as Jenkins agents across multiple Jenkins masters. This plugin maintains the nodes in the share pool of preconfigured machines.
+</div>

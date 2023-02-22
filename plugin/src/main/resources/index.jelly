@@ -3,5 +3,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
-  This plugin consumes nodes shared by pool of preconfigured machines.
+  Share machines as Jenkins agents across multiple Jenkins masters. This plugin consumes nodes from the share pool of preconfigured machines.
 </div>
