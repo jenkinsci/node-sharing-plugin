@@ -63,6 +63,18 @@
 
       <!-- Jenkins modules -->
       <dependency>
+          <groupId>io.jenkins.tools.bom</groupId>
+          <artifactId>bom-2.332.x</artifactId>
+          <version>1181.v04b_21d4b_0d6c</version>
+          <scope>import</scope>
+          <type>pom</type>
+      </dependency>
+      <dependency>
+        <groupId>org.json</groupId>
+        <artifactId>json</artifactId>
+        <version>20210307</version>
+      </dependency>
+      <dependency>
         <groupId>org.jenkins-ci</groupId>
         <artifactId>annotation-indexer</artifactId>
         <version>1.11</version>
@@ -87,41 +99,6 @@
         <artifactId>cloud-stats</artifactId>
         <version>0.20</version>
       </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>credentials</artifactId>
-        <version>2.1.16</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>resource-disposer</artifactId>
-        <version>0.12</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>script-security</artifactId>
-        <version>1.25</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ssh-credentials</artifactId>
-        <version>1.13</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ssh-slaves</artifactId>
-        <version>1.10</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ws-cleanup</artifactId>
-        <version>0.36</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>structs</artifactId>
-        <version>1.7</version>
-      </dependency>
 
       <!-- JCasC modules -->
       <dependency>
@@ -134,12 +111,16 @@
         <artifactId>test-harness</artifactId>
         <version>${configuration-as-code.version}</version>
       </dependency>
-
+      <dependency>
+          <groupId>io.jenkins.configuration-as-code</groupId>
+          <artifactId>configuration-as-code-support</artifactId>
+          <version>1.19</version>
+      </dependency>
       <!-- Java modules -->
       <dependency>
         <groupId>com.google.code.gson</groupId>
         <artifactId>gson</artifactId>
-        <version>2.8.0</version>
+        <version>2.8.7</version>
       </dependency>
       <dependency>
         <groupId>commons-codec</groupId>
@@ -149,26 +130,10 @@
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.2</version>
       </dependency>
+
     </dependencies>
   </dependencyManagement>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>git-client</artifactId>
-      <version>1.17.1</version>
-    </dependency>
-
-    <!-- Test deps -->
-    <dependency> <!-- Speedup JTH  -->
-      <groupId>org.jenkins-ci.modules</groupId>
-      <artifactId>sshd</artifactId>
-      <version>2.0</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
 
   <distributionManagement>
     <repository>
@@ -209,6 +174,6 @@
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
     <concurrency>0.5C</concurrency>
-    <configuration-as-code.version>1569.vb_72405b_80249</configuration-as-code.version>
+    <configuration-as-code.version>1.55.1</configuration-as-code.version>
   </properties>
 </project>
