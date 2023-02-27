@@ -27,6 +27,11 @@
 
         <!-- Java modules -->
         <dependency>
+          <groupId>org.jenkins-ci.plugins</groupId>
+          <artifactId>command-launcher</artifactId>
+          <version>1.5</version>
+        </dependency>
+        <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
         </dependency>
