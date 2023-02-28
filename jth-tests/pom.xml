@@ -15,22 +15,20 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-executor</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-orchestrator</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency><!-- Transitive but required by JaCoCo to add to code coverage report -->
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-lib</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Java modules -->
-        <dependency>
-          <groupId>org.jenkins-ci.plugins</groupId>
-          <artifactId>command-launcher</artifactId>
-          <version>1.5</version>
-        </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
@@ -38,6 +36,7 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
+            <version>2.8.7</version>
         </dependency>
         <dependency>
             <groupId>com.offbytwo.jenkins</groupId>
@@ -60,7 +59,6 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-core</artifactId>
-            <version>2.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -79,7 +77,11 @@
             <artifactId>configuration-as-code</artifactId>
             <version>${configuration-as-code.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.jenkins.configuration-as-code</groupId>
+            <artifactId>configuration-as-code-support</artifactId>
+            <version>1.19</version>
+        </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>job-dsl</artifactId>

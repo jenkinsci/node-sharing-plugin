@@ -19,6 +19,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
             <artifactId>node-sharing-lib</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins</groupId>
