@@ -200,7 +200,7 @@ public class ReservationTest {
 
             List<ReservationTask> scheduledReservations = j.getQueuedReservations();
             assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
-            Queue.Item[] items = Jenkins.get().getQueue().getItems();
+            Queue.Item[] items = Jenkins.getInstanceOrNull().getQueue().getItems();
             assertThat(items, arrayWithSize(4));
             // Executor items
             assertEquals("remove", items[3].task.getName());
@@ -219,7 +219,7 @@ public class ReservationTest {
 
         List<ReservationTask> scheduledReservations = j.getQueuedReservations();
         assertThat(scheduledReservations, Matchers.<ReservationTask>iterableWithSize(2));
-        Queue.Item[] items = Jenkins.get().getQueue().getItems();
+        Queue.Item[] items = Jenkins.getInstanceOrNull().getQueue().getItems();
         assertThat(items, arrayWithSize(4));
 
         assertEquals("keep", items[3].task.getName());
