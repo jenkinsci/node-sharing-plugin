@@ -54,7 +54,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.mockito.internal.util.reflection.Whitebox;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
@@ -112,7 +111,14 @@ public class PoolTest {
 
     private void eraseLoadConfig() throws IOException {
         // There is meaningful value set from startup - erase it
-        Whitebox.setInternalState(Pool.getInstance(), "config", null);
+    	try {
+    		org.apache.commons.lang3.reflect.FieldUtils.writeField(Pool.getInstance(), "config", null, true);
+    	} catch (IllegalArgumentException ex) {
+    		//setInternalState(Pool.getInstance(), "config", null);
+    	}
+    	catch (IllegalAccessException ex) {
+    		//setInternalState(Pool.getInstance(), "config", null);
+    	}
         j.jenkins.setNodes(Collections.<Node>emptyList());
     }
 
