@@ -64,6 +64,7 @@ public class TestUtils {
         EnvVars env = new EnvVars("GIT_AUTHOR_NAME", name, "GIT_AUTHOR_EMAIL", mail, "GIT_COMMITTER_NAME", name, "GIT_COMMITTER_EMAIL", mail);
         GitClient git = Git.with(listener, env).in(repo).using("git").getClient();
         git.init();
+        git.checkout().branch("master").execute(); // Enforce branch name so this is not impacted by git config of `init.defaultBranch`
         git.add("*");
         git.commit("Init");
         return git;
