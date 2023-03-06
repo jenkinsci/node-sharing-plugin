@@ -5,7 +5,7 @@
     <dependencies>
       <dependency>
           <groupId>io.jenkins.tools.bom</groupId>
-          <artifactId>bom-2.387.x</artifactId>
+          <artifactId>bom-2.375.x</artifactId>
           <version>1841.v7b_22c5218e1a</version>
           <scope>import</scope>
           <type>pom</type>
@@ -152,6 +152,11 @@
       <artifactId>json</artifactId>
       <version>20220320</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.5</version>
+    </dependency>
 
   </dependencies>
 
@@ -188,8 +193,9 @@
   </scm>
 
   <properties>
-	<jenkins.version>2.390</jenkins.version>
+	  <jenkins.version>2.375.3</jenkins.version>
     <java.level>11</java.level>
+    <concurrency>0.5C</concurrency>
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
   </properties>
