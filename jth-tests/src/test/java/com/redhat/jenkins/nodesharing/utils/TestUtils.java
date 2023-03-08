@@ -122,10 +122,11 @@ public class TestUtils {
     // Make the nodes launchable by turning the xml to node, replacing for local launcher and turning it back to xml again
     public static void makeNodesLaunchable(GitClient git) throws IOException, InterruptedException {
         final File slaveJar = Which.jarFile(hudson.remoting.Launcher.class).getAbsoluteFile();
+        EnvVars env = new EnvVars();
         for (FilePath xmlNode : git.getWorkTree().child("nodes").list("*.xml")) {
             SharedNode node = new SharedNodeFactory.XStreamFactory().create(NodeDefinition.Xml.create(xmlNode));
             node.setLauncher(new CommandLauncher(
-                    System.getProperty("java.home") + "/bin/java -jar " + slaveJar
+                    System.getProperty("java.home") + "/bin/java -jar " + slaveJar, env
             ));
             try (OutputStream out = xmlNode.write()) {
                 Jenkins.XSTREAM2.toXMLUTF8(node, out);
