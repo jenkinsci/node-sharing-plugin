@@ -53,6 +53,7 @@
       <email>ogondza@gmail.com</email>
     </developer>
   </developers>
+
   <dependencies>
 
     <!-- Jenkins modules -->
