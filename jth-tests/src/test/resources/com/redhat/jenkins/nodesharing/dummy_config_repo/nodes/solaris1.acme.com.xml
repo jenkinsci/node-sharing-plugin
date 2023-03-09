@@ -2,7 +2,7 @@
   <name>solaris1.acme.com</name>
   <remoteFS>./var/jenkins-workspace</remoteFS>
   <numExecutors>1</numExecutors>
-  <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves@1.21">
+  <launcher class="hudson.plugins.sshslaves.SSHLauncher" plugin="ssh-slaves">
     <host></host>
     <port>22</port>
     <credentialsId></credentialsId>

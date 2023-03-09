@@ -60,10 +60,12 @@
     <dependency>
       <groupId>org.jenkins-ci</groupId>
       <artifactId>annotation-indexer</artifactId>
+      <version>1.17</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.main</groupId>
       <artifactId>jenkins-test-harness</artifactId>
+      <version>1945.v0efff5a_03b_78</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.modules</groupId>
@@ -77,7 +79,7 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>cloud-stats</artifactId>
-      <version>0.27</version>
+      <version>267.v577e3742c282</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
@@ -132,7 +134,7 @@
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-      <version>2.9.1</version>
+      <version>2.10.1</version>
     </dependency>
     <dependency>
       <groupId>commons-codec</groupId>
