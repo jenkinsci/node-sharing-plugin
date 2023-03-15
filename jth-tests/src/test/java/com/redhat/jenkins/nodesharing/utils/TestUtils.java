@@ -124,7 +124,6 @@ public class TestUtils {
 
             String xml = pattern.matcher(file.readToString()).replaceAll(launcherTag);
             file.write(xml, "UTF-8");
-            System.out.println(xml);
         }
         git.add("nodes");
         git.commit("Making nodes in config repo launchable");
