@@ -23,16 +23,11 @@
  */
 package com.redhat.jenkins.nodesharing.utils;
 
-import com.redhat.jenkins.nodesharing.NodeDefinition;
-import com.redhat.jenkins.nodesharingfrontend.SharedNode;
-import com.redhat.jenkins.nodesharingfrontend.SharedNodeFactory;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.remoting.Which;
-import hudson.slaves.CommandLauncher;
 import hudson.util.StreamTaskListener;
-import jenkins.model.Jenkins;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.plugins.gitclient.Git;
 import org.jenkinsci.plugins.gitclient.GitClient;
@@ -41,11 +36,11 @@ import org.junit.Assert;
 import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class TestUtils {
 
@@ -119,18 +114,17 @@ public class TestUtils {
         git.commit("Add Jenkins");
     }
 
-    // Make the nodes launchable by turning the xml to node, replacing for local launcher and turning it back to xml again
+    // Make the nodes launchable by replacing for local launcher using default java and jar
     public static void makeNodesLaunchable(GitClient git) throws IOException, InterruptedException {
         final File slaveJar = Which.jarFile(hudson.remoting.Launcher.class).getAbsoluteFile();
-        EnvVars env = new EnvVars();
-        for (FilePath xmlNode : git.getWorkTree().child("nodes").list("*.xml")) {
-            SharedNode node = new SharedNodeFactory.XStreamFactory().create(NodeDefinition.Xml.create(xmlNode));
-            node.setLauncher(new CommandLauncher(
-                    System.getProperty("java.home") + "/bin/java -jar " + slaveJar, env
-            ));
-            try (OutputStream out = xmlNode.write()) {
-                Jenkins.XSTREAM2.toXMLUTF8(node, out);
-            }
+        Pattern pattern = Pattern.compile("<launcher.*</launcher>", Pattern.DOTALL);
+        for (FilePath file : git.getWorkTree().child("nodes").list("*.xml")) {
+            String command = System.getProperty("java.home") + "/bin/java -jar " + slaveJar;
+            String launcherTag = "<launcher class='hudson.slaves.CommandLauncher'><agentCommand>" + command + "</agentCommand></launcher>";
+
+            String xml = pattern.matcher(file.readToString()).replaceAll(launcherTag);
+            file.write(xml, "UTF-8");
+            System.out.println(xml);
         }
         git.add("nodes");
         git.commit("Making nodes in config repo launchable");
