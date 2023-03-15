@@ -370,7 +370,7 @@ public class ExternalJenkinsRule implements TestRule {
 
         private void installPlugins(ExternalFixture fixture, FilePath jenkinsHome) throws IOException, InterruptedException {
             Set<String> injectPlugins = new HashSet<>();
-            injectPlugins.addAll(Arrays.asList("configuration-as-code", "configuration-as-code-support"));
+            injectPlugins.addAll(Arrays.asList("configuration-as-code"));
             injectPlugins = initialPlugins(injectPlugins, fixture);
             injectPlugins.addAll(Arrays.asList(fixture.injectPlugins()));
 
