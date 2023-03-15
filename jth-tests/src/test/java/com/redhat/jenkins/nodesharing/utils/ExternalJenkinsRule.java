@@ -141,6 +141,7 @@ public class ExternalJenkinsRule implements TestRule {
      */
     public void interactiveBreak() {
         try {
+            System.out.println("Pausing executions with following fixtures:");
             for (Future<Fixture> future : fixtures.values()) {
                 Fixture f = future.get();
                 System.out.println(f.getAnnotation().name() + " is running at " + f.getUri() + " logging to " + f.getLog().getRemote());
