@@ -152,7 +152,7 @@ public class GridTest {
         // Run nr. 1 - will be in building state during Orchestrator restart
         FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
         BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient, "running",
-                job.build(runningBlocker.buildParams()));
+                job.build(runningBlocker.buildParams(), true));
         await(10000,
                 () -> runningBlocker.isRunning(),
                 throwable -> { dumpFixtureLogs(); return "Build not running in time";
@@ -160,7 +160,7 @@ public class GridTest {
 
         // Run nr. 2 - will be in queued state during Orchestrator restart
         FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
-        QueueReference qr = job.build(queuedBlocker.buildParams());
+        QueueReference qr = job.build(queuedBlocker.buildParams(), true);
         executorClient.getQueueItem(qr);
 
         job = executorClient.getJob("running");
@@ -174,7 +174,7 @@ public class GridTest {
         JenkinsServer orchestratorClient = o.getClient("admin", "admin");
 
         // Wait until restarted
-        orchestratorClient.restart(false);
+        orchestratorClient.restart(true);
         // Reservation verifier needs RestEndpoint#TIMEOUT * 2 to recover the state so this is going to take a while
         await(60000 * 3, orchestratorClient::isRunning, throwable -> {
             dumpFixtureLog(o);
@@ -232,7 +232,7 @@ public class GridTest {
         // Run nr. 1 - will be in building state during Orchestrator restart
         FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
         BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient0, "running",
-                job.build(runningBlocker.buildParams()));
+                job.build(runningBlocker.buildParams(),true));
         await(10000,
                 () -> runningBlocker.isRunning(),
                 throwable -> { dumpFixtureLogs(); return "Build not running in time";
@@ -240,7 +240,7 @@ public class GridTest {
 
         // Run nr. 2 - will be in queued state during Orchestrator restart
         FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
-        QueueReference qr = job.build(queuedBlocker.buildParams());
+        QueueReference qr = job.build(queuedBlocker.buildParams(), true);
         executorClient0.getQueueItem(qr);
 
         job = executorClient0.getJob("running");
@@ -264,19 +264,19 @@ public class GridTest {
         assertThat(config.readToString(), containsString("orchestrator.url=" + o1.getUri()));
 
         // Make sure updated config is propagated through the grid
-        executorClient0.runScript("Jenkins.instance.getExtensionList(com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.ConfigRepoUpdater.class).get(0).doRun();");
+        executorClient0.runScript("Jenkins.instance.getExtensionList(com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.ConfigRepoUpdater.class).get(0).doRun();", true);
         assertThat(executorClient0.runScript(
-                "com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.getAll().get(0).getLatestConfig().getOrchestratorUrl();"),
+                "com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.getAll().get(0).getLatestConfig().getOrchestratorUrl();", true),
                 equalTo("Result: " + o1.getUri() + "\n")
         );
-        orchestratorClient1.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();");
+        orchestratorClient1.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();", true);
         assertThat(orchestratorClient1.runScript(
-                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();"),
+                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();", true),
                 equalTo("Result: " + o1.getUri() + "\n")
         );
-        orchestratorClient2.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();");
+        orchestratorClient2.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();", true);
         assertThat(orchestratorClient2.runScript(
-                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();"),
+                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();", true),
                 equalTo("Result: " + o1.getUri() + "\n")
         );
 
@@ -312,6 +312,8 @@ public class GridTest {
         Thread.sleep(1000);
 
         String e0Log = e0.getLog().readToString();
+//        System.out.println("e0Log: "+ e0Log);
+//        assertTrue(e0Log.contains("Terminating computer solaris1.acme.com-NodeSharing-"));
         // Executor should terminate computer twice
         assertThat(e0Log, matchesPattern(
                 "(.+\n)+"
