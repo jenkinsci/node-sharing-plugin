@@ -38,6 +38,9 @@ import com.redhat.jenkins.nodesharing.utils.GridRule.Executor;
 import com.redhat.jenkins.nodesharing.utils.GridRule.Orchestrator;
 import com.redhat.jenkins.nodesharing.utils.SlowTest;
 import hudson.FilePath;
+
+import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,6 +54,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -312,36 +316,34 @@ public class GridTest {
         Thread.sleep(1000);
 
         String e0Log = e0.getLog().readToString();
-//        System.out.println("e0Log: "+ e0Log);
-//        assertTrue(e0Log.contains("Terminating computer solaris1.acme.com-NodeSharing-"));
+
         // Executor should terminate computer twice
-        assertThat(e0Log, matchesPattern(
-                "(.+\n)+"
-                + "INFO: Terminating computer solaris1.acme.com-NodeSharing-.+(.+\n)*"
-                + "INFO: Terminating computer solaris1.acme.com-NodeSharing-.+(.+\n)*")
-        );
+        String msg = "Terminating computer solaris1.acme.com-NodeSharing-";
+        assertThat(e0Log, Matchers.stringContainsInOrder(msg, msg));
 
         String o1Log = o1.getLog().readToString();
         // Orchestrator 1 should register one release attempt before it knows that it was reserved,
         // second reservation should be processed like common case
-        assertThat(o1Log, matchesPattern(
-                "(.*\n)*INFO: An attempt to return a node 'solaris1.acme.com' that is not reserved by " + e0.getUri()+"(.*\n)*"
-                        +"INFO: Reservation of solaris1.acme.com by e0 .+ completed(.*\n)*")
-        );
-
+        String regex = "An attempt to return a node 'solaris1.acme.com' that is not reserved by " 
+        		+ e0.getUri();
+        assertThat(o1Log.split(regex)[1], matchesPattern("((\\n(.*))+)Reservation of solaris1.acme.com by e0 (.*) completed\\n"));
+        
         String o2Log = o2.getLog().readToString();
+        String o2LogRegex = o2Log.split("Jenkins is fully up and running")[1];
+        Pattern p = Pattern.compile("(?i)Reservation of solaris1.acme.com by e0 (.*) started", Pattern.DOTALL);
+        java.util.regex.Matcher m = p.matcher(o2LogRegex);
+        boolean b = m.find();
+
         // Orchestrator 2 should register one reservation without release
-        assertThat(o2Log, matchesPattern(
-                "(.*\n)*INFO: Reservation of solaris1.acme.com by e0 .+ started(.*\n)*")
-        );
+        assertTrue(b);
         // Orchestrator 2 shouldn't register two reservations
-        assertThat(o2Log, matchesPattern(
-                "(.*\n)*(?!INFO: Reservation of solaris1.acme.com by e0 .+ started(.*\n)*INFO: Reservation of solaris1.acme.com by e0 .+ started)(.*\n)*")
-        );
+        b = m.find();
+        org.junit.Assert.assertFalse(b);
         // Orchestrator 2 shouldn't register any release attempt
-        assertThat(o2Log, matchesPattern(
-                "(.*\n)*(?!INFO: Reservation of solaris1.acme.com by e0 .+ completed)(.*\n)*")
-        );
+        p = Pattern.compile("(?i)Reservation of solaris1.acme.com by e0 (.*) completed", Pattern.DOTALL);
+        m = p.matcher(o2LogRegex);
+        b = m.find();
+        org.junit.Assert.assertFalse(b);
     }
 
     private BuildWithDetails buildDetails(JobWithDetails running, int i) throws IOException {
