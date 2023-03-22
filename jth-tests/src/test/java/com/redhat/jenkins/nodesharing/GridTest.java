@@ -91,8 +91,9 @@ public class GridTest {
                     System.out.println('.');
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
-                } catch (AssertionError ex) {
+                } catch (AssertionError|org.apache.http.conn.HttpHostConnectException ex) {
                     if (i == 8) {
+                        System.err.println(fixture.getLog().readToString());
                         TimeoutException tex = new TimeoutException("Build not completed in time");
                         tex.initCause(ex);
                         throw tex;
@@ -122,8 +123,9 @@ public class GridTest {
                     System.out.println('.');
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
-                } catch (AssertionError ex) {
+                } catch (AssertionError|org.apache.http.conn.HttpHostConnectException ex) {
                     if (i == 8) {
+                        System.err.println(fixture.getLog().readToString());
                         TimeoutException tex = new TimeoutException("Build not completed in time");
                         tex.initCause(ex);
                         throw tex;
@@ -324,10 +326,10 @@ public class GridTest {
         String o1Log = o1.getLog().readToString();
         // Orchestrator 1 should register one release attempt before it knows that it was reserved,
         // second reservation should be processed like common case
-        String regex = "An attempt to return a node 'solaris1.acme.com' that is not reserved by " 
+        String regex = "An attempt to return a node 'solaris1.acme.com' that is not reserved by "
         		+ e0.getUri();
         assertThat(o1Log.split(regex)[1], matchesPattern("((\\n(.*))+)Reservation of solaris1.acme.com by e0 (.*) completed\\n"));
-        
+
         String o2Log = o2.getLog().readToString();
         String o2LogRegex = o2Log.split("Jenkins is fully up and running")[1];
         Pattern p = Pattern.compile("(?i)Reservation of solaris1.acme.com by e0 (.*) started", Pattern.DOTALL);

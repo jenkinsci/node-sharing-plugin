@@ -517,6 +517,7 @@ public class ExternalJenkinsRule implements TestRule {
                 }
                 if (client.isRunning()) {
                     ready = true;
+                    System.err.println("Fixture " + this.annotation.name() + " ready");
                     return;
                 }
                 Thread.sleep(1000);
