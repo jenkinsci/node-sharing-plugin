@@ -53,21 +53,15 @@ import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarInputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
@@ -76,6 +70,9 @@ import java.util.regex.Pattern;
  * The rule can be subclassed to add custom methods or override callback methods to customize fixture deployment.
  */
 public class ExternalJenkinsRule implements TestRule {
+
+    static final Logger LOGGER = Logger.getLogger(ExternalJenkinsRule.class.getName());
+
     protected final TemporaryFolder tmp;
     private Map<String, Future<Fixture>> fixtures = Collections.emptyMap();
 
@@ -141,10 +138,10 @@ public class ExternalJenkinsRule implements TestRule {
      */
     public void interactiveBreak() {
         try {
-            System.out.println("Pausing executions with following fixtures:");
+            LOGGER.info("Pausing executions with following fixtures:");
             for (Future<Fixture> future : fixtures.values()) {
                 Fixture f = future.get();
-                System.out.println(f.getAnnotation().name() + " is running at " + f.getUri() + " logging to " + f.getLog().getRemote());
+                LOGGER.info(f.getAnnotation().name() + " is running at " + f.getUri() + " logging to " + f.getLog().getRemote());
             }
             new BufferedReader(new InputStreamReader(System.in)).readLine();
         } catch (IOException | InterruptedException | ExecutionException e) {
@@ -502,7 +499,7 @@ public class ExternalJenkinsRule implements TestRule {
                     client.close();
                 } catch (Exception e) {
                     // Resume the loop so the remaining connections are cleaned too
-                    e.printStackTrace();
+                    LOGGER.log(Level.WARNING, "Thrown while closing JenkinsServer " + client, e);
                 }
             }
         }
@@ -513,16 +510,21 @@ public class ExternalJenkinsRule implements TestRule {
             JenkinsServer client = getClient();
             for (int i = 0; i < seconds; i++) {
                 if (!process.isAlive()) {
-                    throw new AssertionError("Jenkins " + annotation.name() + " has failed with " + process.exitValue());
+                    throw new AssertionError(String.format("Jenkins %s has failed with %d", annotation.name(), process.exitValue()));
                 }
                 if (client.isRunning()) {
-                    ready = true;
-                    System.err.println("Fixture " + this.annotation.name() + " ready");
-                    return;
+                    try {
+                        client.getJobs();
+                        ready = true;
+                        LOGGER.info("Fixture " + this.annotation.name() + " ready");
+                        return;
+                    } catch (IOException e) {
+                        LOGGER.log(Level.WARNING, "Thrown while waiting for fixture to be ready", e);
+                    }
                 }
                 Thread.sleep(1000);
             }
-            throw new TimeoutException("Fixture " + annotation.name() + " not ready in " + seconds + " seconds");
+            throw new TimeoutException(String.format("Fixture %s not ready in %d seconds (%s)", annotation.name(), seconds, new Date()));
         }
     }
 

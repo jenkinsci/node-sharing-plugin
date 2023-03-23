@@ -93,8 +93,8 @@ public class GridTest {
                     return;
                 } catch (AssertionError|org.apache.http.conn.HttpHostConnectException ex) {
                     if (i == 8) {
-                        System.err.println(fixture.getLog().readToString());
-                        TimeoutException tex = new TimeoutException("Build not completed in time");
+                        dumpFixtureLogs();
+                        TimeoutException tex = new TimeoutException("Build not completed in time by " + new Date());
                         tex.initCause(ex);
                         throw tex;
                     }
@@ -125,8 +125,8 @@ public class GridTest {
                     return;
                 } catch (AssertionError|org.apache.http.conn.HttpHostConnectException ex) {
                     if (i == 8) {
-                        System.err.println(fixture.getLog().readToString());
-                        TimeoutException tex = new TimeoutException("Build not completed in time");
+                        dumpFixtureLogs();
+                        TimeoutException tex = new TimeoutException("Build not completed in time by " + new Date());
                         tex.initCause(ex);
                         throw tex;
                     }
