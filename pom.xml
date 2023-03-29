@@ -1,9 +1,22 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+          <groupId>io.jenkins.tools.bom</groupId>
+          <artifactId>bom-2.375.x</artifactId>
+          <version>1841.v7b_22c5218e1a</version>
+          <scope>import</scope>
+          <type>pom</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>3.33</version>
+    <version>4.54</version>
   </parent>
 
   <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
@@ -41,138 +54,113 @@
     </developer>
   </developers>
 
-  <dependencyManagement>
-    <dependencies>
-
-      <!-- Project modules -->
-      <dependency>
-        <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-        <artifactId>node-sharing-executor</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-        <artifactId>node-sharing-lib</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins.nodesharing</groupId>
-        <artifactId>node-sharing-orchestrator</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <!-- Jenkins modules -->
-      <dependency>
-        <groupId>org.jenkins-ci</groupId>
-        <artifactId>annotation-indexer</artifactId>
-        <version>1.11</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci</groupId>
-        <artifactId>symbol-annotation</artifactId>
-        <version>1.7</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.main</groupId>
-        <artifactId>jenkins-test-harness</artifactId>
-        <version>2.56</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.modules</groupId>
-        <artifactId>instance-identity</artifactId>
-        <version>2.1</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.modules</groupId>
-        <artifactId>ssh-cli-auth</artifactId>
-        <version>1.4</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>cloud-stats</artifactId>
-        <version>0.20</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>credentials</artifactId>
-        <version>2.1.16</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>resource-disposer</artifactId>
-        <version>0.12</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>script-security</artifactId>
-        <version>1229.v4880b_b_e905a_6</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ssh-credentials</artifactId>
-        <version>1.13</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ssh-slaves</artifactId>
-        <version>1.10</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>ws-cleanup</artifactId>
-        <version>0.36</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>structs</artifactId>
-        <version>1.7</version>
-      </dependency>
-
-      <!-- JCasC modules -->
-      <dependency>
-        <groupId>io.jenkins</groupId>
-        <artifactId>configuration-as-code</artifactId>
-        <version>${configuration-as-code.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.jenkins.configuration-as-code</groupId>
-        <artifactId>test-harness</artifactId>
-        <version>${configuration-as-code.version}</version>
-      </dependency>
-
-      <!-- Java modules -->
-      <dependency>
-        <groupId>com.google.code.gson</groupId>
-        <artifactId>gson</artifactId>
-        <version>2.8.0</version>
-      </dependency>
-      <dependency>
-        <groupId>commons-codec</groupId>
-        <artifactId>commons-codec</artifactId>
-        <version>1.11</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>4.5.2</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <dependencies>
+
+    <!-- Jenkins modules -->
+    <dependency>
+      <groupId>org.jenkins-ci</groupId>
+      <artifactId>annotation-indexer</artifactId>
+      <version>1.17</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.main</groupId>
+      <artifactId>jenkins-test-harness</artifactId>
+      <version>1945.v0efff5a_03b_78</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.modules</groupId>
+      <artifactId>instance-identity</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.modules</groupId>
+      <artifactId>ssh-cli-auth</artifactId>
+      <version>1.8</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>cloud-stats</artifactId>
+      <version>267.v577e3742c282</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>credentials</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>resource-disposer</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>script-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>ssh-credentials</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>ssh-slaves</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>ws-cleanup</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>structs</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>git-client</artifactId>
-      <version>1.17.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>command-launcher</artifactId>
     </dependency>
 
-    <!-- Test deps -->
-    <dependency> <!-- Speedup JTH  -->
-      <groupId>org.jenkins-ci.modules</groupId>
-      <artifactId>sshd</artifactId>
-      <version>2.0</version>
+    <!-- JCasC modules -->
+    <dependency>
+      <groupId>io.jenkins</groupId>
+      <artifactId>configuration-as-code</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>io.jenkins.configuration-as-code</groupId>
+      <artifactId>test-harness</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Java modules -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.10.1</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.13</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpcore</artifactId>
+      <version>4.4.15</version>
+    </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20220320</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>2.0.5</version>
+    </dependency>
+
   </dependencies>
 
   <distributionManagement>
@@ -204,17 +192,14 @@
     <connection>scm:git:git://github.com/jenkinsci/node-sharing-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/node-sharing-plugin.git</developerConnection>
     <url>https://github.com/jenkinsci/node-sharing-plugin</url>
-    <tag>parent-1.2.6</tag>
+    <tag>node-sharing-parent-2.0.8</tag>
   </scm>
 
   <properties>
-    <jenkins.version>2.60.3</jenkins.version>
-    <java.level>8</java.level>
-    <jenkins-test-harness.version>2.40</jenkins-test-harness.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	  <jenkins.version>2.375.3</jenkins.version>
+    <java.level>11</java.level>
+    <concurrency>0.5C</concurrency>
     <surefire.useFile>false</surefire.useFile>
     <findbugs.failOnError>false</findbugs.failOnError>
-    <concurrency>0.5C</concurrency>
-    <configuration-as-code.version>1.36</configuration-as-code.version>
   </properties>
 </project>

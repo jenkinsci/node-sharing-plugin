@@ -28,7 +28,11 @@ import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.ExtensionPoint;
 import hudson.model.Node;
+import hudson.slaves.CommandLauncher;
+import hudson.slaves.ComputerLauncher;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.SystemCommandLanguage;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -55,6 +59,14 @@ public abstract class SharedNodeFactory implements ExtensionPoint {
     private static SharedNode decorate(@Nonnull SharedNode node) throws IllegalArgumentException {
         node.setRetentionStrategy(new SharedOnceRetentionStrategy(1));
         node.setMode(Node.Mode.EXCLUSIVE);
+
+        // Approve command launcher's script. It is script from orchestrator, that we trust.
+        ComputerLauncher launcher = node.getLauncher();
+        if (launcher instanceof CommandLauncher) {
+            CommandLauncher cl = (CommandLauncher) launcher;
+            ScriptApproval.get().preapprove(cl.getCommand(), SystemCommandLanguage.get());
+        }
+
         if (node.getNumExecutors() != 1) {
             throw new IllegalArgumentException("Shared Nodes must have exactly 1 executor");
         }

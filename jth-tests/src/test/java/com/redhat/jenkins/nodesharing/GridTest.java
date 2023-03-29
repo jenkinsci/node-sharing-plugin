@@ -38,6 +38,9 @@ import com.redhat.jenkins.nodesharing.utils.GridRule.Executor;
 import com.redhat.jenkins.nodesharing.utils.GridRule.Orchestrator;
 import com.redhat.jenkins.nodesharing.utils.SlowTest;
 import hudson.FilePath;
+
+import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,13 +54,14 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 @Category(SlowTest.class)
@@ -87,9 +91,10 @@ public class GridTest {
                     System.out.println('.');
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
-                } catch (AssertionError ex) {
+                } catch (AssertionError|org.apache.http.conn.HttpHostConnectException ex) {
                     if (i == 8) {
-                        TimeoutException tex = new TimeoutException("Build not completed in time");
+                        dumpFixtureLogs();
+                        TimeoutException tex = new TimeoutException("Build not completed in time by " + new Date());
                         tex.initCause(ex);
                         throw tex;
                     }
@@ -118,9 +123,10 @@ public class GridTest {
                     System.out.println('.');
                     verifyBuildHasRun(fixture, "sol", "win");
                     return;
-                } catch (AssertionError ex) {
+                } catch (AssertionError|org.apache.http.conn.HttpHostConnectException ex) {
                     if (i == 8) {
-                        TimeoutException tex = new TimeoutException("Build not completed in time");
+                        dumpFixtureLogs();
+                        TimeoutException tex = new TimeoutException("Build not completed in time by " + new Date());
                         tex.initCause(ex);
                         throw tex;
                     }
@@ -152,7 +158,7 @@ public class GridTest {
         // Run nr. 1 - will be in building state during Orchestrator restart
         FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
         BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient, "running",
-                job.build(runningBlocker.buildParams()));
+                job.build(runningBlocker.buildParams(), true));
         await(10000,
                 () -> runningBlocker.isRunning(),
                 throwable -> { dumpFixtureLogs(); return "Build not running in time";
@@ -160,7 +166,7 @@ public class GridTest {
 
         // Run nr. 2 - will be in queued state during Orchestrator restart
         FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
-        QueueReference qr = job.build(queuedBlocker.buildParams());
+        QueueReference qr = job.build(queuedBlocker.buildParams(), true);
         executorClient.getQueueItem(qr);
 
         job = executorClient.getJob("running");
@@ -174,7 +180,7 @@ public class GridTest {
         JenkinsServer orchestratorClient = o.getClient("admin", "admin");
 
         // Wait until restarted
-        orchestratorClient.restart(false);
+        orchestratorClient.restart(true);
         // Reservation verifier needs RestEndpoint#TIMEOUT * 2 to recover the state so this is going to take a while
         await(60000 * 3, orchestratorClient::isRunning, throwable -> {
             dumpFixtureLog(o);
@@ -232,7 +238,7 @@ public class GridTest {
         // Run nr. 1 - will be in building state during Orchestrator restart
         FileBuildBlocker runningBlocker = new FileBuildBlocker(tmp);
         BuildWithDetails running = triggerJobAndWaitUntilStarted(executorClient0, "running",
-                job.build(runningBlocker.buildParams()));
+                job.build(runningBlocker.buildParams(),true));
         await(10000,
                 () -> runningBlocker.isRunning(),
                 throwable -> { dumpFixtureLogs(); return "Build not running in time";
@@ -240,7 +246,7 @@ public class GridTest {
 
         // Run nr. 2 - will be in queued state during Orchestrator restart
         FileBuildBlocker queuedBlocker = new FileBuildBlocker(tmp);
-        QueueReference qr = job.build(queuedBlocker.buildParams());
+        QueueReference qr = job.build(queuedBlocker.buildParams(), true);
         executorClient0.getQueueItem(qr);
 
         job = executorClient0.getJob("running");
@@ -264,19 +270,19 @@ public class GridTest {
         assertThat(config.readToString(), containsString("orchestrator.url=" + o1.getUri()));
 
         // Make sure updated config is propagated through the grid
-        executorClient0.runScript("Jenkins.instance.getExtensionList(com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.ConfigRepoUpdater.class).get(0).doRun();");
+        executorClient0.runScript("Jenkins.instance.getExtensionList(com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.ConfigRepoUpdater.class).get(0).doRun();", true);
         assertThat(executorClient0.runScript(
-                "com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.getAll().get(0).getLatestConfig().getOrchestratorUrl();"),
+                "com.redhat.jenkins.nodesharingfrontend.SharedNodeCloud.getAll().get(0).getLatestConfig().getOrchestratorUrl();", true),
                 equalTo("Result: " + o1.getUri() + "\n")
         );
-        orchestratorClient1.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();");
+        orchestratorClient1.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();", true);
         assertThat(orchestratorClient1.runScript(
-                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();"),
+                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();", true),
                 equalTo("Result: " + o1.getUri() + "\n")
         );
-        orchestratorClient2.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();");
+        orchestratorClient2.runScript("com.redhat.jenkins.nodesharingbackend.Pool.Updater.getInstance().doRun();", true);
         assertThat(orchestratorClient2.runScript(
-                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();"),
+                "com.redhat.jenkins.nodesharingbackend.Pool.getInstance().getConfig().getOrchestratorUrl();", true),
                 equalTo("Result: " + o1.getUri() + "\n")
         );
 
@@ -312,34 +318,34 @@ public class GridTest {
         Thread.sleep(1000);
 
         String e0Log = e0.getLog().readToString();
+
         // Executor should terminate computer twice
-        assertThat(e0Log, matchesPattern(
-                "(.+\n)+"
-                + "INFO: Terminating computer solaris1.acme.com-NodeSharing-.+(.+\n)*"
-                + "INFO: Terminating computer solaris1.acme.com-NodeSharing-.+(.+\n)*")
-        );
+        String msg = "Terminating computer solaris1.acme.com-NodeSharing-";
+        assertThat(e0Log, Matchers.stringContainsInOrder(msg, msg));
 
         String o1Log = o1.getLog().readToString();
         // Orchestrator 1 should register one release attempt before it knows that it was reserved,
         // second reservation should be processed like common case
-        assertThat(o1Log, matchesPattern(
-                "(.*\n)*INFO: An attempt to return a node 'solaris1.acme.com' that is not reserved by " + e0.getUri()+"(.*\n)*"
-                        +"INFO: Reservation of solaris1.acme.com by e0 .+ completed(.*\n)*")
-        );
+        String regex = "An attempt to return a node 'solaris1.acme.com' that is not reserved by "
+        		+ e0.getUri();
+        assertThat(o1Log.split(regex)[1], matchesPattern("((\\n(.*))+)Reservation of solaris1.acme.com by e0 (.*) completed\\n"));
 
         String o2Log = o2.getLog().readToString();
+        String o2LogRegex = o2Log.split("Jenkins is fully up and running")[1];
+        Pattern p = Pattern.compile("(?i)Reservation of solaris1.acme.com by e0 (.*) started", Pattern.DOTALL);
+        java.util.regex.Matcher m = p.matcher(o2LogRegex);
+        boolean b = m.find();
+
         // Orchestrator 2 should register one reservation without release
-        assertThat(o2Log, matchesPattern(
-                "(.*\n)*INFO: Reservation of solaris1.acme.com by e0 .+ started(.*\n)*")
-        );
+        assertTrue(b);
         // Orchestrator 2 shouldn't register two reservations
-        assertThat(o2Log, matchesPattern(
-                "(.*\n)*(?!INFO: Reservation of solaris1.acme.com by e0 .+ started(.*\n)*INFO: Reservation of solaris1.acme.com by e0 .+ started)(.*\n)*")
-        );
+        b = m.find();
+        org.junit.Assert.assertFalse(b);
         // Orchestrator 2 shouldn't register any release attempt
-        assertThat(o2Log, matchesPattern(
-                "(.*\n)*(?!INFO: Reservation of solaris1.acme.com by e0 .+ completed)(.*\n)*")
-        );
+        p = Pattern.compile("(?i)Reservation of solaris1.acme.com by e0 (.*) completed", Pattern.DOTALL);
+        m = p.matcher(o2LogRegex);
+        b = m.find();
+        org.junit.Assert.assertFalse(b);
     }
 
     private BuildWithDetails buildDetails(JobWithDetails running, int i) throws IOException {

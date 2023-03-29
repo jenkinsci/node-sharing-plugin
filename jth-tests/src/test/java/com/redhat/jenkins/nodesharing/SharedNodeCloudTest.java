@@ -49,6 +49,8 @@ import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.OfflineCause;
 import hudson.util.FormValidation;
 import org.jenkinsci.plugins.gitclient.GitClient;
+import org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval;
+import org.jenkinsci.plugins.scriptsecurity.scripts.languages.SystemCommandLanguage;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.LoggerRule;
@@ -300,9 +302,12 @@ public class SharedNodeCloudTest {
     public void nodeStatusTestConnecting() throws Exception {
         final GitClient gitClient = j.singleJvmGrid(j.jenkins);
         final SharedNodeCloud cloud = j.addSharedNodeCloud(gitClient.getWorkTree().getRemote());
-
+        
+        String command = ((SimpleCommandLauncher) j.createComputerLauncher(null)).cmd;
+        
+        ScriptApproval.get().preapprove(command, SystemCommandLanguage.get());
         NodeSharingJenkinsRule.BlockingCommandLauncher blockingLauncher = new NodeSharingJenkinsRule.BlockingCommandLauncher(
-                ((SimpleCommandLauncher) j.createComputerLauncher(null)).cmd
+                command
         );
 
         SharedNode connectingSlave = cloud.createNode(cloud.getLatestConfig().getNodes().get("solaris2.acme.com"));
@@ -310,6 +315,7 @@ public class SharedNodeCloudTest {
         connectingSlave.setNodeName(cloud.getNodeName("aConnectingNode"));
         j.jenkins.addNode(connectingSlave);
         assertTrue(connectingSlave.toComputer().isConnecting());
+
         blockingLauncher.start.block();
         checkNodeStatus(cloud, "aConnectingNode", NodeStatusResponse.Status.CONNECTING);
 
