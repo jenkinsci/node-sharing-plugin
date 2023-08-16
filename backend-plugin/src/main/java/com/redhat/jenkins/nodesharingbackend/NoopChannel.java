@@ -23,6 +23,7 @@
  */
 package com.redhat.jenkins.nodesharingbackend;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.remoting.Callable;
 import hudson.remoting.Channel;
 import hudson.remoting.ChannelBuilder;
@@ -103,7 +104,8 @@ public class NoopChannel extends Channel {
     @Override public Object getProperty(Object key) { return null; } // $COVERAGE-IGNORE$
     @Override public <T> T getProperty(ChannelProperty<T> key) { return null; } // $COVERAGE-IGNORE$
 
-    @Override public Object waitForProperty(Object key) { return null; } // $COVERAGE-IGNORE$
+    @Override @SuppressFBWarnings(value = "NP_NONNULL_RETURN_VIOLATION", justification = "TODO Triage")
+    public Object waitForProperty(Object key) { return null; } // $COVERAGE-IGNORE$
     @Override public <T> T waitForProperty(ChannelProperty<T> key) { return null; } // $COVERAGE-IGNORE$
 
     @Override public Object setProperty(Object key, Object value) { return null; } // $COVERAGE-IGNORE$
